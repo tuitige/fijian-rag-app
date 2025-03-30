@@ -1,6 +1,32 @@
 # 🇫🇯 Fijian Language Learning App (AI-powered via AWS Bedrock)
 
-This is an AI-powered language learning platform to help users learn the **Fijian language** interactively. It uses AWS Bedrock with Claude 3.5 Sonnet for high-quality translations and allows native speaker validation before storing data for use in future RAG-based lessons.
+## 🌺 About the Project
+
+This is an AI-powered language learning platform designed to help users learn the **Fijian language** (also known as *Bauan* or *Standard Fijian*) in an interactive, accurate, and culturally respectful way.
+
+Fijian is the official language of Fiji and is spoken by over **350,000 native speakers**, with additional speakers across the Pacific diaspora. Despite its importance in Fiji's national identity, Fijian is **underrepresented in large language models**, educational platforms like Duolingo, and global language learning tools.
+
+### 🤖 Why AI + Human-in-the-Loop?
+
+Because Fijian is a **low-resource language**, it often suffers from:
+
+- Inaccurate translations from mainstream LLMs
+- Limited digital resources for grammar, syntax, and idioms
+- Cultural nuances being lost or distorted
+
+This system uses:
+
+- **Amazon Bedrock with Claude 3.5 Sonnet** for high-quality translation and conversational AI
+- **Human validation (by Makita, a native Fijian speaker)** to ensure accuracy and cultural relevance
+- **Retrieval-Augmented Generation (RAG)** architecture to deliver lessons and explanations based on validated phrases
+
+The combination of machine learning and native speaker expertise allows us to build a **custom, high-fidelity language learning experience**, especially suited for low-resource languages like Fijian.
+
+This app is especially valuable for:
+
+- Learners who want conversational or travel-ready Fijian
+- Heritage speakers reconnecting with their roots
+- Researchers or developers exploring RAG-based language learning systems
 
 ---
 
