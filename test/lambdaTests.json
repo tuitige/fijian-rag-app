@@ -1,0 +1,11 @@
+{
+    "path": "/rag",
+    "httpMethod": "POST",
+    "body": "{\"question\": \"How do you say hello in Fijian?\"}"
+  }
+
+  {
+    "path": "/translate",
+    "httpMethod": "POST",
+    "body": "{\"fijianText\": \"Bula vinaka! Au marautaka meu sota tale kei kemuni\"}"
+  }
