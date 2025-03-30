@@ -55,7 +55,7 @@ This app is especially valuable for:
 
 ## 🏗️ Architecture
 
-![Architecture Diagram](./fijian_language_app_architecture.png)
+![Architecture Diagram](/Fijian-RAG-App-diagram-v1.png)
 
 ### Key Components
 
