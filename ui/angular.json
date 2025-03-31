@@ -29,7 +29,11 @@
             "styles": [
               "src/styles.css"
             ],
-            "scripts": []
+            "stylePreprocessorOptions": {
+              "includePaths": ["src/styles"]
+            },
+            "postcssConfig": "postcss.config.js",            
+            "scripts": [],
           },
           "configurations": {
             "production": {
