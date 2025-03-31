@@ -1,8 +1,9 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClientModule } from '@angular/common/http';
 import { HeaderComponent } from '../../components/header/header.component';
+import { ApiService } from '../../services/api.service';
 
 interface TranslationResponse {
   translation: string;
@@ -23,7 +24,7 @@ export class TrainingComponent {
   isVerifying: boolean = false;
   errorMessage: string = '';
 
-  constructor(private http: HttpClient) {}
+  constructor(private apiService: ApiService) {}
 
   async translateText() {
     if (!this.fijianText.trim()) {
@@ -35,12 +36,9 @@ export class TrainingComponent {
     this.errorMessage = '';
 
     try {
-      const response = await this.http.post<TranslationResponse>('/api/translate', {
-        fijianText: this.fijianText
-      }).toPromise();
-
+      const response = await this.apiService.translate(this.fijianText).toPromise();
       if (response) {
-        this.translatedText = response.translation;
+        this.translatedText = (response as any).translation;
       }
     } catch (error) {
       this.errorMessage = 'Error translating text. Please try again.';
@@ -60,11 +58,7 @@ export class TrainingComponent {
     this.errorMessage = '';
 
     try {
-      await this.http.post('/api/verify', {
-        originalFijian: this.fijianText,
-        verifiedEnglish: this.translatedText
-      }).toPromise();
-
+      await this.apiService.verify(this.fijianText, this.translatedText).toPromise();
       // Clear the form after successful submission
       this.fijianText = '';
       this.translatedText = '';

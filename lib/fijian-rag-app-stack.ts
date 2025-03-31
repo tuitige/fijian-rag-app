@@ -188,6 +188,13 @@ export class FijianRagStack extends Stack {
     api.root.addResource('search').addMethod('POST', ragIntegration);
     api.root.addResource('verify').addMethod('POST', ragIntegration);
 
+    // Add this after creating the API Gateway
+    new cdk.CfnOutput(this, 'ApiUrl', {
+      value: api.url,
+      description: 'API Gateway URL'
+    });
+
+
     // 1. Cognito User Pool
     const userPool = new cognito.UserPool(this, 'FijianUserPool', {
       userPoolName: 'fijian-app-users',
