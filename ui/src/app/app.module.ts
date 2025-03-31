@@ -1,19 +1,21 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { AppComponent } from './app.component';
 import { RouterModule } from '@angular/router';
+import { AppComponent } from './app.component';
 
 @NgModule({
-  declarations: [
-    AppComponent
-  ],
   imports: [
     BrowserModule,
+    AppComponent,
     RouterModule.forRoot([
       { path: '', redirectTo: '/home', pathMatch: 'full' },
-      { path: 'training', loadChildren: () => import('./training/training.module').then(m => m.TrainingModule) },
-      { path: 'learning', loadChildren: () => import('./learning/learning.module').then(m => m.LearningModule) },
-      { path: 'about', loadChildren: () => import('./about/about.module').then(m => m.AboutModule) }
+      { path: 'home', component: AppComponent },
+      { path: 'training', loadComponent: () => 
+        import('./pages/training/training.component').then(m => m.TrainingComponent) },
+      { path: 'learning', loadComponent: () => 
+        import('./pages/learning/learning.component').then(m => m.LearningComponent) },
+      { path: 'about', loadComponent: () => 
+        import('./pages/about/about.component').then(m => m.AboutComponent) }
     ])
   ],
   providers: [],
