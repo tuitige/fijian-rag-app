@@ -7,6 +7,11 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as opensearchserverless from 'aws-cdk-lib/aws-opensearchserverless';
 import { Duration } from 'aws-cdk-lib';
+import * as amplify from '@aws-cdk/aws-amplify-alpha';
+import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as codebuild from 'aws-cdk-lib/aws-codebuild';
+import * as cdk from 'aws-cdk-lib';
+import * as path from 'path';
 
 export class FijianRagStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -183,6 +188,148 @@ export class FijianRagStack extends Stack {
     api.root.addResource('search').addMethod('POST', ragIntegration);
     api.root.addResource('verify').addMethod('POST', ragIntegration);
 
+    // 1. Cognito User Pool
+    const userPool = new cognito.UserPool(this, 'FijianUserPool', {
+      userPoolName: 'fijian-app-users',
+      selfSignUpEnabled: true,
+      signInAliases: {
+        email: true,
+      },
+      autoVerify: {
+        email: true,
+      },
+      standardAttributes: {
+        email: {
+          required: true,
+          mutable: true,
+        },
+      },
+      passwordPolicy: {
+        minLength: 8,
+        requireLowercase: true,
+        requireUppercase: true,
+        requireDigits: true,
+        requireSymbols: true,
+      },
+      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
+      removalPolicy: RemovalPolicy.DESTROY, // For development - change for production
+    });
+
+    // 2. User Pool Client
+    const userPoolClient = new cognito.UserPoolClient(this, 'FijianUserPoolClient', {
+      userPool,
+      generateSecret: false,
+      authFlows: {
+        adminUserPassword: true,
+        userPassword: true,
+        userSrp: true,
+      },
+      oAuth: {
+        flows: {
+          implicitCodeGrant: true,
+          authorizationCodeGrant: true,
+        },
+        scopes: [
+          cognito.OAuthScope.EMAIL,
+          cognito.OAuthScope.OPENID,
+          cognito.OAuthScope.PROFILE,
+        ],
+        callbackUrls: ['http://localhost:4200/'], // Add your Angular app URLs
+        logoutUrls: ['http://localhost:4200/'],   // Add your Angular app URLs
+      },
+    });
+
+    // 3. Amplify App
+    const amplifyApp = new amplify.App(this, 'FijianRagApp', {
+      appName: 'FijianRagApp',
+      sourceCodeProvider: new amplify.GitHubSourceCodeProvider({
+        owner: 'tuitige', // Replace with your GitHub username
+        repository: 'fijian-rag-app',  // Replace with your repository name
+        oauthToken: cdk.SecretValue.secretsManager('github-token', {
+          jsonField: 'github-token' // If you stored it as a JSON field
+        })
+      }),
+      environmentVariables: {
+        //'AMPLIFY_MONOREPO_APP_ROOT': 'ui',  // Points to your Angular app directory
+        'AMPLIFY_DIFF_DEPLOY': 'false',
+      },
+      buildSpec: codebuild.BuildSpec.fromObjectToYaml({
+        version: '1.0',
+        applications: [  // Add this applications section for monorepo
+          {
+            appRoot: 'ui',
+            frontend: {
+              phases: {
+                preBuild: {
+                  commands: [
+                    'nvm install 20',      // Install Node.js 20
+                    'nvm use 20',          // Use Node.js 20
+                    'node -v',             // Verify Node.js version
+                    'npm ci'
+                  ]
+                },
+                build: {
+                  commands: [
+                    'npm run build'
+                  ]
+                }
+              },
+              artifacts: {
+                baseDirectory: 'dist/fijian-ui/browser',  // Remove 'ui/' since we're already in ui directory
+                files: [
+                  '**/*'
+                ]
+              },
+              cache: {
+                paths: [
+                  'node_modules/**/*'
+                ]
+              }
+            }
+          }
+        ]
+      })
+    });
+
+    // 4. Add Branch
+    const main = amplifyApp.addBranch('main', {
+      autoBuild: true,
+      stage: 'PRODUCTION',
+    });
+
+    // 5. Environment Variables for Amplify Branch
+    main.addEnvironment('USER_POOL_ID', userPool.userPoolId);
+    main.addEnvironment('USER_POOL_CLIENT_ID', userPoolClient.userPoolClientId);
+    main.addEnvironment('REGION', this.region);
+    main.addEnvironment('API_ENDPOINT', api.url); // Your existing API Gateway endpoint
+
+    // 6. Update Lambda Role with Cognito permissions
+    lambdaRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'cognito-idp:AdminInitiateAuth',
+        'cognito-idp:AdminCreateUser',
+        'cognito-idp:AdminSetUserPassword',
+      ],
+      resources: [userPool.userPoolArn]
+    }));
+
+    // 7. Outputs
+    new CfnOutput(this, 'UserPoolId', {
+      value: userPool.userPoolId,
+      description: 'Cognito User Pool ID'
+    });
+
+    new CfnOutput(this, 'UserPoolClientId', {
+      value: userPoolClient.userPoolClientId,
+      description: 'Cognito User Pool Client ID'
+    });
+
+    new CfnOutput(this, 'AmplifyAppId', {
+      value: amplifyApp.appId,
+      description: 'Amplify App ID'
+    });
+    
     // 8. Outputs
     new CfnOutput(this, 'CollectionEndpoint', {
       value: collection.attrCollectionEndpoint,

@@ -7,12 +7,16 @@
     "build:lambda": "tsc lambda/handler.ts --outDir lambda"
   },
   "dependencies": {
+    "@aws-cdk/aws-amplify-alpha": "^2.186.0-alpha.0",
     "@aws-sdk/client-bedrock-runtime": "^3.775.0",
     "@aws-sdk/credential-provider-node": "^3.777.0",
+    "@heroicons/react": "^2.2.0",
     "@opensearch-project/opensearch": "^2.13.0",
+    "@tailwindcss/forms": "^0.5.10",
     "aws-cdk-lib": "^2.130.0",
     "constructs": "^10.3.0",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "next": "^15.2.4"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.148",
