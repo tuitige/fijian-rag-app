@@ -9,7 +9,7 @@ frontend:
       commands:
         - npm run build
   artifacts:
-    baseDirectory: ui/dist/fijian-ui
+    baseDirectory: ui/dist/fijian-ui/browser
     files:
       - '**/*'
   cache:
