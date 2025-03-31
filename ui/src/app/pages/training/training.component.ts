@@ -1,17 +1,10 @@
-// src/app/pages/training/training.component.ts
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { HeaderComponent } from '../../components/header/header.component';
 
 @Component({
   selector: 'app-training',
   standalone: true,
-  imports: [CommonModule, FormsModule],
-  template: `
-    <div class="container mx-auto p-4">
-      <h2>Training Page</h2>
-      <!-- Add your training page content here -->
-    </div>
-  `
+  imports: [HeaderComponent],
+  templateUrl: './training.component.html'
 })
 export class TrainingComponent {}
