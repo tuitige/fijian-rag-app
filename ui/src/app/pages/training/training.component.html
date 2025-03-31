@@ -1,22 +1,53 @@
 <app-header></app-header>
 <div class="container mx-auto px-4 py-8">
-  <div class="bg-white rounded-lg shadow-md p-6">
-    <h1 class="text-3xl font-bold text-primary mb-4">Training</h1>
+  <!-- Error Message Display -->
+  <div *ngIf="errorMessage" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+    <span class="block sm:inline">{{ errorMessage }}</span>
+  </div>
+
+  <!-- Translation Section -->
+  <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+    <h2 class="text-2xl font-semibold text-primary mb-4">Enter Fijian Text to Translate</h2>
     <div class="space-y-4">
-      <section class="bg-gray-50 p-4 rounded-lg">
-        <h2 class="text-xl font-semibold text-primary mb-2">Basic Phrases</h2>
-        <p class="text-gray-700">Learn essential Fijian phrases for everyday communication.</p>
-      </section>
-      
-      <section class="bg-gray-50 p-4 rounded-lg">
-        <h2 class="text-xl font-semibold text-primary mb-2">Vocabulary</h2>
-        <p class="text-gray-700">Build your Fijian vocabulary with our comprehensive lessons.</p>
-      </section>
-      
-      <section class="bg-gray-50 p-4 rounded-lg">
-        <h2 class="text-xl font-semibold text-primary mb-2">Grammar</h2>
-        <p class="text-gray-700">Master Fijian grammar through structured lessons and exercises.</p>
-      </section>
+      <div>
+        <textarea
+          [(ngModel)]="fijianText"
+          rows="4"
+          class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
+          placeholder="Enter Fijian text here..."
+        ></textarea>
+      </div>
+      <button
+        (click)="translateText()"
+        [disabled]="isTranslating"
+        class="bg-primary text-white px-6 py-2 rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <span *ngIf="!isTranslating">Translate using Claude</span>
+        <span *ngIf="isTranslating">Translating...</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Verification Section -->
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <h2 class="text-2xl font-semibold text-primary mb-4">Verify Translation</h2>
+    <div class="space-y-4">
+      <div>
+        <textarea
+          [(ngModel)]="translatedText"
+          rows="4"
+          class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
+          placeholder="Translation will appear here..."
+        ></textarea>
+      </div>
+      <button
+        (click)="submitVerifiedTranslation()"
+        [disabled]="isVerifying || !translatedText"
+        class="bg-secondary text-white px-6 py-2 rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <span *ngIf="!isVerifying">Submit Verified Translation</span>
+        <span *ngIf="isVerifying">Submitting...</span>
+      </button>
     </div>
   </div>
 </div>
