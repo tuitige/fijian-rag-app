@@ -1,19 +1,21 @@
 version: 1
-frontend:
-  phases:
-    preBuild:
-      commands:
-        - nvm install 20.11.1
-        - nvm use 20.11.1
-        - npm ci
-        - npm install -g @angular/cli
-    build:
-      commands:
-        - ng build --configuration production
-  artifacts:
-    baseDirectory: dist/fijian-ui/browser
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - node_modules/**/*
+applications:
+  - appRoot: ui
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - nvm install 20.11.1
+            - nvm use 20.11.1
+            - npm ci
+            - npm install -g @angular/cli
+        build:
+          commands:
+            - ng build --configuration production
+      artifacts:
+        baseDirectory: dist/fijian-ui/browser
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
