@@ -4,6 +4,9 @@ frontend:
     preBuild:
       commands:
         - cd ui
+        - nvm install 20.11.1
+        - nvm use 20.11.1
+        - node -v
         - npm ci
     build:
       commands:
