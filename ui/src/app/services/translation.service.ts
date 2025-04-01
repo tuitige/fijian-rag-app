@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-interface TranslationResponse {
+export interface TranslationResponse {
   originalText: string;
   translation: string;
 }

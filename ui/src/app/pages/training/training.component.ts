@@ -1,11 +1,40 @@
-// src/app/pages/training/training.component.ts
+// src/app/training/training.component.ts
 import { Component } from '@angular/core';
-import { TranslationService, TranslationResponse } from '../services/translation.service';
+import { TranslationService, TranslationResponse } from '../../services/translation.service';
 
 @Component({
   selector: 'app-training',
-  templateUrl: './training.component.html',
-  styleUrls: ['./training.component.scss']
+  template: `
+    <div class="container mt-4">
+      <div class="mb-3">
+        <label for="fijianText" class="form-label">Fijian Text</label>
+        <textarea 
+          class="form-control" 
+          id="fijianText" 
+          rows="4"
+          [(ngModel)]="fijianText"
+          placeholder="Enter Fijian text here..."></textarea>
+      </div>
+
+      <button 
+        class="btn btn-primary"
+        (click)="translateUsingClaude()"
+        [disabled]="isTranslating">
+        {{ isTranslating ? 'Translating...' : 'Translate using Claude' }}
+      </button>
+
+      <div *ngIf="translation" class="mt-4">
+        <h4>Translation:</h4>
+        <div class="alert alert-info">
+          {{ translation }}
+        </div>
+      </div>
+
+      <div *ngIf="error" class="mt-4 alert alert-danger">
+        {{ error }}
+      </div>
+    </div>
+  `
 })
 export class TrainingComponent {
   fijianText = '';

@@ -15,12 +15,7 @@ import { TrainingComponent } from './training/training.component';
     BrowserModule,
     FormsModule
   ],
-  providers: [
-    provideHttpClient(
-      withFetch(), // Optional: Use Fetch API instead of XHR
-      withInterceptors([]) // Optional: Add interceptors if needed
-    )
-  ],
+  providers: [provideHttpClient()],
   bootstrap: [AppComponent]
 })
 export class AppModule { }
