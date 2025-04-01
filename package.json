@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "scripts": {
     "build": "cd ui && npm run build",
-    //"build": "tsc",    
     "watch": "tsc -w",
     "build:lambda": "tsc lambda/handler.ts --outDir lambda"
   },
