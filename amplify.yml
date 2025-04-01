@@ -4,6 +4,9 @@ frontend:
     preBuild:
       commands:
         - cd ui
+        - nvm install 20.11.1
+        - nvm use 20.11.1
+        - node -v
         - export NODE_OPTIONS=--max_old_space_size=4096
         - npm ci
     build:
