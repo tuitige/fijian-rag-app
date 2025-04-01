@@ -1,23 +1,25 @@
 version: 1
-frontend:
-  phases:
-    preBuild:
-      commands:
-        - cd ui
-        - nvm install 20.11.1
-        - nvm use 20.11.1
-        - node -v
-        - export NODE_OPTIONS=--max_old_space_size=4096
-        - npm ci
-    build:
-      commands:
-        - npm run build
-  artifacts:
-    baseDirectory: ui/dist/fijian-ui/browser
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - node_modules/**/*
-  buildSpec:
+applications:
+  - frontend:
+      phases:
+        preBuild:
+          commands:
+            - cd ui
+            - nvm install 20.11.1
+            - nvm use 20.11.1
+            - node -v
+            - export NODE_OPTIONS=--max_old_space_size=4096
+            - npm ci
+        build:
+          commands:
+            - npm run build
+      artifacts:
+        baseDirectory: ui/dist/fijian-ui/browser
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+    appRoot: ui
     framework: angular
+    frameworkVersion: 17.x
