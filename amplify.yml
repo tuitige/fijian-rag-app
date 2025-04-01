@@ -8,7 +8,7 @@ frontend:
         - nvm use 20.11.1
         - npm ci
         - npm install -g @angular/cli
-        - ng add @angular/ssr
+        - ng add @angular/ssr --skip-confirmation
     build:
       commands:
         - ng build
