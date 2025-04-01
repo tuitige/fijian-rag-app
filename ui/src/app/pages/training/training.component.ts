@@ -1,9 +1,16 @@
 // src/app/training/training.component.ts
 import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { TranslationService, TranslationResponse } from '../../services/translation.service';
 
 @Component({
   selector: 'app-training',
+  standalone: true, // Make it a standalone component
+  imports: [
+    CommonModule,
+    FormsModule
+  ],
   template: `
     <div class="container mt-4">
       <div class="mb-3">
