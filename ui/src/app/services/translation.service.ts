@@ -6,6 +6,9 @@ import { Observable } from 'rxjs';
 export interface TranslationResponse {
   originalText: string;
   translation: string;
+  confidence: string;
+  notes: string;
+  rawResponse?: string;
 }
 
 @Injectable({

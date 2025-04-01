@@ -1,18 +1,8 @@
 // src/app/training/training.component.ts
-// src/app/training/training.component.ts
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslationService, TranslationResponse } from '../../services/translation.service';
-
-// In your training.component.ts
-interface TranslationResponse {
-  originalText: string;
-  translation: string;
-  confidence: string;
-  notes: string;
-  rawResponse?: string;
-}
 
 @Component({
   selector: 'app-training',
@@ -51,14 +41,18 @@ interface TranslationResponse {
                 </button>
               </div>
 
-              <div *ngIf="translation" class="mt-4">
+              <div *ngIf="currentTranslation" class="mt-4">
                 <h4 class="mb-3">Translation:</h4>
-                <div class="alert" [ngClass]="{'alert-success': confidence === 'high', 
-                                              'alert-warning': confidence === 'medium',
-                                              'alert-info': confidence === 'low'}">
-                  <p class="mb-2"><strong>Translation:</strong> {{ translation }}</p>
-                  <p class="mb-2"><strong>Confidence:</strong> {{ confidence }}</p>
-                  <p class="mb-0" *ngIf="notes"><strong>Notes:</strong> {{ notes }}</p>
+                <div class="alert" [ngClass]="{
+                  'alert-success': currentTranslation.confidence === 'high',
+                  'alert-warning': currentTranslation.confidence === 'medium',
+                  'alert-info': currentTranslation.confidence === 'low'
+                }">
+                  <p class="mb-2"><strong>Translation:</strong> {{ currentTranslation.translation }}</p>
+                  <p class="mb-2"><strong>Confidence:</strong> {{ currentTranslation.confidence }}</p>
+                  <p class="mb-0" *ngIf="currentTranslation.notes">
+                    <strong>Notes:</strong> {{ currentTranslation.notes }}
+                  </p>
                 </div>
               </div>
 
@@ -136,7 +130,7 @@ interface TranslationResponse {
 
 export class TrainingComponent {
   fijianText = '';
-  translation = '';
+  currentTranslation: TranslationResponse | null = null;
   error = '';
   isTranslating = false;
 
@@ -150,12 +144,12 @@ export class TrainingComponent {
 
     this.isTranslating = true;
     this.error = '';
-    this.translation = '';
+    this.currentTranslation = null;
 
     this.translationService.translateText(this.fijianText)
       .subscribe({
         next: (response: TranslationResponse) => {
-          this.translation = response.translation;
+          this.currentTranslation = response;
           this.isTranslating = false;
         },
         error: (err: Error) => {
