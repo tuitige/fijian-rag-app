@@ -3,8 +3,10 @@ frontend:
   phases:
     preBuild:
       commands:
+      commands:
         - cd ui
-        - n 20.11.1
+        - nvm install 20.11.1
+        - nvm use 20.11.1
         - npm ci
     build:
       commands:
