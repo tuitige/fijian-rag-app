@@ -4,24 +4,11 @@ frontend:
     preBuild:
       commands:
         - cd ui
-        - nvm install 20.11.1
-        - nvm use 20.11.1
-        - node -v
+        - export NODE_OPTIONS=--max_old_space_size=4096
         - npm ci
     build:
       commands:
-        - echo "Current working directory:"
-        - pwd
-        - echo "Running build command:"
         - npm run build
-        - echo "Build completed, listing directories:"
-        - ls -la
-        - echo "Contents of dist directory:"
-        - ls -la dist || echo "dist directory not found"
-        - echo "Contents of dist/fijian-ui directory:"
-        - ls -la dist/fijian-ui || echo "dist/fijian-ui directory not found"
-        - echo "Contents of dist/fijian-ui/browser directory:"
-        - ls -la dist/fijian-ui/browser || echo "dist/fijian-ui/browser directory not found"
   artifacts:
     baseDirectory: ui/dist/fijian-ui/browser
     files:
@@ -29,3 +16,5 @@ frontend:
   cache:
     paths:
       - node_modules/**/*
+  buildSpec:
+    framework: angular
