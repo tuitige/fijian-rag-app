@@ -12,8 +12,9 @@ frontend:
     build:
       commands:
         - ng build
+        - ng run fijian-ui:server:production
   artifacts:
-    baseDirectory: ui/dist/fijian-ui/server
+    baseDirectory: ui/dist/fijian-ui/browser
     files:
       - '**/*'
   cache:
