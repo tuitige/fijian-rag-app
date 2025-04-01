@@ -1,22 +1,22 @@
 version: 1
-frontend:
-  phases:
-    preBuild:
-      commands:
-        - npm install
-        - touch .next/required-server-files.json
-        - cd ui
-        - n 20.11.1
-        - npm ci
-    build:
-      commands:
-        - npm run build
-  artifacts:
-    baseDirectory: ui/dist/fijian-ui/browser
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - .next/**/*
-      - node_modules/**/*
-      - ui/node_modules/**/*
+applications:
+  - frontend:
+      phases:
+        preBuild:
+          commands:
+            - cd ui
+            - n 20.11.1
+            - npm ci
+        build:
+          commands:
+            - npm run build
+      artifacts:
+        baseDirectory: dist/fijian-ui/browser
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+    appRoot: ui
+    framework: angular
+    frameworkVersion: 17
