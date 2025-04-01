@@ -89,13 +89,74 @@ const handleVerify = async (client: Client, body: any, headers: any): Promise<AP
 };
 
 const handleTranslate = async (body: any, headers: any): Promise<APIGatewayProxyResult> => {
-  // Your translate handler implementation
-  return {
-    statusCode: 200,
-    headers,
-    body: JSON.stringify({ message: 'Translation endpoint' })
-  };
+  try {
+    // Extract fijianText from request body
+    const { fijianText } = body;
+
+    if (!fijianText) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: "fijianText is required in request body" })
+      };
+    }
+
+    // Initialize Bedrock client
+    const bedrockClient = new BedrockRuntimeClient({ region: "us-west-2" });
+
+    // Prepare the prompt for Claude
+    const prompt = {
+      anthropic_version: "bedrock-2023-05-31",
+      max_tokens: 1024,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Please translate the following Fijian text to English. If you're not completely sure about any part of the translation, please indicate that in your response: "${fijianText}"`
+            }
+          ]
+        }
+      ]
+    };
+
+    // Call Claude 3 Sonnet
+    const command = new InvokeModelCommand({
+      modelId: "anthropic.claude-3-sonnet-20240229-v1:0",
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify(prompt)
+    });
+
+    const response = await bedrockClient.send(command);
+
+    // Parse the response
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    const translation = responseBody.content[0].text;
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        originalText: fijianText,
+        translation: translation
+      })
+    };
+
+  } catch (error) {
+    console.error('Error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        error: "Error translating text",
+        details: error.message
+      })
+    };
+  }
 };
+
 
 export const main = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   const corsHeaders = {

@@ -1,72 +1,70 @@
+// src/app/training/training.component.ts
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { HttpClientModule } from '@angular/common/http';
-import { HeaderComponent } from '../../components/header/header.component';
-import { ApiService } from '../../services/api.service';
-
-interface TranslationResponse {
-  translation: string;
-  original: string;
-  message: string;
-}
+import { TranslationService } from '../services/translation.service';
 
 @Component({
   selector: 'app-training',
-  standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule, HeaderComponent],
-  templateUrl: './training.component.html'
+  template: `
+    <div class="container mt-4">
+      <div class="mb-3">
+        <label for="fijianText" class="form-label">Fijian Text</label>
+        <textarea 
+          class="form-control" 
+          id="fijianText" 
+          rows="4"
+          [(ngModel)]="fijianText"
+          placeholder="Enter Fijian text here..."></textarea>
+      </div>
+
+      <button 
+        class="btn btn-primary"
+        (click)="translateUsingClaude()"
+        [disabled]="isTranslating">
+        {{ isTranslating ? 'Translating...' : 'Translate using Claude' }}
+      </button>
+
+      <div *ngIf="translation" class="mt-4">
+        <h4>Translation:</h4>
+        <div class="alert alert-info">
+          {{ translation }}
+        </div>
+      </div>
+
+      <div *ngIf="error" class="mt-4 alert alert-danger">
+        {{ error }}
+      </div>
+    </div>
+  `
 })
 export class TrainingComponent {
-  fijianText: string = '';
-  translatedText: string = '';
-  isTranslating: boolean = false;
-  isVerifying: boolean = false;
-  errorMessage: string = '';
+  fijianText = '';
+  translation = '';
+  error = '';
+  isTranslating = false;
 
-  constructor(private apiService: ApiService) {}
+  constructor(private translationService: TranslationService) {}
 
-  async translateText() {
+  translateUsingClaude() {
     if (!this.fijianText.trim()) {
-      this.errorMessage = 'Please enter some Fijian text to translate';
+      this.error = 'Please enter some text to translate';
       return;
     }
 
     this.isTranslating = true;
-    this.errorMessage = '';
+    this.error = '';
+    this.translation = '';
 
-    try {
-      const response = await this.apiService.translate(this.fijianText).toPromise();
-      if (response) {
-        this.translatedText = (response as any).translation;
-      }
-    } catch (error) {
-      this.errorMessage = 'Error translating text. Please try again.';
-      console.error('Translation error:', error);
-    } finally {
-      this.isTranslating = false;
-    }
-  }
-
-  async submitVerifiedTranslation() {
-    if (!this.fijianText.trim() || !this.translatedText.trim()) {
-      this.errorMessage = 'Both Fijian text and verified translation are required';
-      return;
-    }
-
-    this.isVerifying = true;
-    this.errorMessage = '';
-
-    try {
-      await this.apiService.verify(this.fijianText, this.translatedText).toPromise();
-      // Clear the form after successful submission
-      this.fijianText = '';
-      this.translatedText = '';
-    } catch (error) {
-      this.errorMessage = 'Error submitting verified translation. Please try again.';
-      console.error('Verification error:', error);
-    } finally {
-      this.isVerifying = false;
-    }
+    this.translationService.translateText(this.fijianText)
+      .subscribe({
+        next: (response) => {
+          this.translation = response.translation;
+          this.isTranslating = false;
+        },
+        error: (error) => {
+          console.error('Translation error:', error);
+          this.error = 'Error translating text. Please try again.';
+          this.isTranslating = false;
+        }
+      });
   }
 }

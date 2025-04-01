@@ -51,6 +51,7 @@ exports.main = void 0;
 var opensearch_1 = require("@opensearch-project/opensearch");
 var credential_provider_node_1 = require("@aws-sdk/credential-provider-node");
 var aws_1 = require("@opensearch-project/opensearch/aws");
+var client_bedrock_runtime_1 = require("@aws-sdk/client-bedrock-runtime");
 var OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT || '';
 var COLLECTION_NAME = process.env.COLLECTION_NAME || '';
 var INDEX_NAME = 'fijian-embeddings'; // Added constant definition
@@ -149,17 +150,71 @@ var handleVerify = function (client, body, headers) { return __awaiter(void 0, v
     });
 }); };
 var handleTranslate = function (body, headers) { return __awaiter(void 0, void 0, void 0, function () {
+    var fijianText, bedrockClient, prompt_1, command, response, responseBody, translation, error_3;
     return __generator(this, function (_a) {
-        // Your translate handler implementation
-        return [2 /*return*/, {
-                statusCode: 200,
-                headers: headers,
-                body: JSON.stringify({ message: 'Translation endpoint' })
-            }];
+        switch (_a.label) {
+            case 0:
+                _a.trys.push([0, 2, , 3]);
+                fijianText = body.fijianText;
+                if (!fijianText) {
+                    return [2 /*return*/, {
+                            statusCode: 400,
+                            headers: headers,
+                            body: JSON.stringify({ error: "fijianText is required in request body" })
+                        }];
+                }
+                bedrockClient = new client_bedrock_runtime_1.BedrockRuntimeClient({ region: "us-west-2" });
+                prompt_1 = {
+                    anthropic_version: "bedrock-2023-05-31",
+                    max_tokens: 1024,
+                    messages: [
+                        {
+                            role: "user",
+                            content: [
+                                {
+                                    type: "text",
+                                    text: "Please translate the following Fijian text to English. If you're not completely sure about any part of the translation, please indicate that in your response: \"".concat(fijianText, "\"")
+                                }
+                            ]
+                        }
+                    ]
+                };
+                command = new client_bedrock_runtime_1.InvokeModelCommand({
+                    modelId: "anthropic.claude-3-sonnet-20240229-v1:0",
+                    contentType: "application/json",
+                    accept: "application/json",
+                    body: JSON.stringify(prompt_1)
+                });
+                return [4 /*yield*/, bedrockClient.send(command)];
+            case 1:
+                response = _a.sent();
+                responseBody = JSON.parse(new TextDecoder().decode(response.body));
+                translation = responseBody.content[0].text;
+                return [2 /*return*/, {
+                        statusCode: 200,
+                        headers: headers,
+                        body: JSON.stringify({
+                            originalText: fijianText,
+                            translation: translation
+                        })
+                    }];
+            case 2:
+                error_3 = _a.sent();
+                console.error('Error:', error_3);
+                return [2 /*return*/, {
+                        statusCode: 500,
+                        headers: headers,
+                        body: JSON.stringify({
+                            error: "Error translating text",
+                            details: error_3.message
+                        })
+                    }];
+            case 3: return [2 /*return*/];
+        }
     });
 }); };
 var main = function (event) { return __awaiter(void 0, void 0, void 0, function () {
-    var corsHeaders, client, path, body, _a, error_3;
+    var corsHeaders, client, path, body, _a, error_4;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -199,8 +254,8 @@ var main = function (event) { return __awaiter(void 0, void 0, void 0, function 
                 }];
             case 9: return [3 /*break*/, 11];
             case 10:
-                error_3 = _b.sent();
-                console.error('Error:', error_3);
+                error_4 = _b.sent();
+                console.error('Error:', error_4);
                 return [2 /*return*/, {
                         statusCode: 500,
                         headers: corsHeaders,
