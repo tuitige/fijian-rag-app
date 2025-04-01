@@ -42,7 +42,7 @@ import { TranslationService, TranslationResponse } from '../../services/translat
               </div>
 
               <div *ngIf="currentTranslation" class="mt-4">
-                <h4 class="mb-3">Translation:</h4>
+                <h4 class="mb-3">Machine Translation:</h4>
                 <div class="alert" [ngClass]="{
                   'alert-success': currentTranslation.confidence === 'high',
                   'alert-warning': currentTranslation.confidence === 'medium',
@@ -53,6 +53,37 @@ import { TranslationService, TranslationResponse } from '../../services/translat
                   <p class="mb-0" *ngIf="currentTranslation.notes">
                     <strong>Notes:</strong> {{ currentTranslation.notes }}
                   </p>
+                </div>
+
+                <!-- New Verification Section -->
+                <div class="mt-4">
+                  <h4 class="mb-3">Verify Translation</h4>
+                  <div class="mb-4">
+                    <label for="verifiedTranslation" class="form-label">Edit Translation if needed</label>
+                    <textarea 
+                      class="form-control"
+                      id="verifiedTranslation"
+                      rows="4"
+                      [(ngModel)]="verifiedTranslation"
+                      placeholder="Edit the translation here..."
+                    ></textarea>
+                  </div>
+
+                  <div class="d-grid gap-2">
+                    <button 
+                      class="btn btn-success btn-lg"
+                      (click)="verifyTranslation()"
+                      [disabled]="isVerifying">
+                      <span *ngIf="isVerifying" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      {{ isVerifying ? 'Verifying...' : 'Verify Translation' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="verificationSuccess" class="mt-4">
+                <div class="alert alert-success">
+                  <p class="mb-0">{{ verificationSuccess }}</p>
                 </div>
               </div>
 
@@ -100,6 +131,23 @@ import { TranslationService, TranslationResponse } from '../../services/translat
       border-color: #bdc3c7;
     }
 
+    .btn-success {
+      background-color: #2ecc71;
+      border-color: #2ecc71;
+      transition: all 0.3s ease;
+    }
+
+    .btn-success:hover:not(:disabled) {
+      background-color: #27ae60;
+      border-color: #27ae60;
+      transform: translateY(-1px);
+    }
+
+    .btn-success:disabled {
+      background-color: #bdc3c7;
+      border-color: #bdc3c7;
+    }
+
     textarea.form-control {
       border: 2px solid #e9ecef;
       transition: border-color 0.3s ease;
@@ -120,19 +168,33 @@ import { TranslationService, TranslationResponse } from '../../services/translat
       color: #0c5460;
     }
 
+    .alert-success {
+      background-color: #d4edda;
+      border-color: #c3e6cb;
+      color: #155724;
+    }
+
     .alert-danger {
       background-color: #f8d7da;
       border-color: #f5c6cb;
       color: #721c24;
     }
+
+    .alert-warning {
+      background-color: #fff3cd;
+      border-color: #ffeeba;
+      color: #856404;
+    }
   `]
 })
-
 export class TrainingComponent {
   fijianText = '';
   currentTranslation: TranslationResponse | null = null;
+  verifiedTranslation = '';
   error = '';
+  verificationSuccess = '';
   isTranslating = false;
+  isVerifying = false;
 
   constructor(private translationService: TranslationService) {}
 
@@ -144,18 +206,45 @@ export class TrainingComponent {
 
     this.isTranslating = true;
     this.error = '';
+    this.verificationSuccess = '';
     this.currentTranslation = null;
+    this.verifiedTranslation = '';
 
     this.translationService.translateText(this.fijianText)
       .subscribe({
         next: (response: TranslationResponse) => {
           this.currentTranslation = response;
+          this.verifiedTranslation = response.translation; // Pre-populate the verification textarea
           this.isTranslating = false;
         },
         error: (err: Error) => {
           console.error('Translation error:', err);
           this.error = 'Error translating text. Please try again.';
           this.isTranslating = false;
+        }
+      });
+  }
+
+  verifyTranslation(): void {
+    if (!this.fijianText || !this.verifiedTranslation) {
+      this.error = 'Both original text and verified translation are required';
+      return;
+    }
+
+    this.isVerifying = true;
+    this.error = '';
+    this.verificationSuccess = '';
+
+    this.translationService.verifyTranslation(this.fijianText, this.verifiedTranslation)
+      .subscribe({
+        next: (response) => {
+          this.verificationSuccess = response.message;
+          this.isVerifying = false;
+        },
+        error: (err: Error) => {
+          console.error('Verification error:', err);
+          this.error = 'Error verifying translation. Please try again.';
+          this.isVerifying = false;
         }
       });
   }

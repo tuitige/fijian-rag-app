@@ -11,15 +11,27 @@ export interface TranslationResponse {
   rawResponse?: string;
 }
 
+export interface VerifyResponse {
+  message: string;
+  id: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class TranslationService {
-  private apiUrl = 'https://9vvnczutih.execute-api.us-west-2.amazonaws.com/prod/translate';
+  private translateUrl = 'https://9vvnczutih.execute-api.us-west-2.amazonaws.com/prod/translate';
+  private verifyUrl = 'https://9vvnczutih.execute-api.us-west-2.amazonaws.com/prod/verify';
+
 
   constructor(private http: HttpClient) { }
 
   translateText(fijianText: string): Observable<TranslationResponse> {
     return this.http.post<TranslationResponse>(this.apiUrl, { fijianText });
   }
+
+  verifyTranslation(originalFijian: string, verifiedEnglish: string): Observable<VerifyResponse> {
+    return this.http.post<VerifyResponse>(this.verifyUrl, { originalFijian, verifiedEnglish });
+  }
+
 }
