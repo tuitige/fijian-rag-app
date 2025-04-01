@@ -3,20 +3,17 @@ frontend:
   phases:
     preBuild:
       commands:
-        - cd ui
         - nvm install 20.11.1
         - nvm use 20.11.1
         - npm ci
         - npm install -g @angular/cli
-        - ng add @angular/ssr --skip-confirmation
     build:
       commands:
-        - ng build
-        - ng run fijian-ui:server:production
+        - ng build --configuration production
   artifacts:
-    baseDirectory: ui/dist/fijian-ui/browser
+    baseDirectory: dist/fijian-ui/browser
     files:
       - '**/*'
   cache:
     paths:
-      - ui/node_modules/**/*
+      - node_modules/**/*
