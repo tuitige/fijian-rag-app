@@ -1,22 +1,18 @@
 version: 1
-applications:
-  - frontend:
-      phases:
-        preBuild:
-          commands:
-            - cd ui
-            - n 20.11.1
-            - npm ci
-        build:
-          commands:
-            - npm run build
-      artifacts:
-        baseDirectory: dist/fijian-ui/browser
-        files:
-          - '**/*'
-      cache:
-        paths:
-          - node_modules/**/*
-    appRoot: ui
-    framework: angular
-    frameworkVersion: 17
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd ui
+        - n 20.11.1
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: ui/dist/fijian-ui/server
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - ui/node_modules/**/*
