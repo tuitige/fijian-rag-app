@@ -90,7 +90,6 @@ const handleVerify = async (client: Client, body: any, headers: any): Promise<AP
 
 const handleTranslate = async (body: any, headers: any): Promise<APIGatewayProxyResult> => {
   try {
-    // Extract fijianText from request body
     const { fijianText } = body;
 
     if (!fijianText) {
@@ -101,10 +100,8 @@ const handleTranslate = async (body: any, headers: any): Promise<APIGatewayProxy
       };
     }
 
-    // Initialize Bedrock client
     const bedrockClient = new BedrockRuntimeClient({ region: "us-west-2" });
 
-    // Prepare the prompt for Claude
     const prompt = {
       anthropic_version: "bedrock-2023-05-31",
       max_tokens: 1024,
@@ -114,14 +111,18 @@ const handleTranslate = async (body: any, headers: any): Promise<APIGatewayProxy
           content: [
             {
               type: "text",
-              text: `Please translate the following Fijian text to English. If you're not completely sure about any part of the translation, please indicate that in your response: "${fijianText}"`
+              text: `Please translate the following Fijian text to English. Provide your response in JSON format with these keys:
+              - translation: Your direct English translation
+              - confidence: "high", "medium", or "low"
+              - notes: Any disclaimers, uncertainties, or additional context about the translation
+              
+              Fijian text: "${fijianText}"`
             }
           ]
         }
       ]
     };
 
-    // Call Claude 3 Sonnet
     const command = new InvokeModelCommand({
       modelId: "anthropic.claude-3-sonnet-20240229-v1:0",
       contentType: "application/json",
@@ -130,17 +131,36 @@ const handleTranslate = async (body: any, headers: any): Promise<APIGatewayProxy
     });
 
     const response = await bedrockClient.send(command);
-
-    // Parse the response
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    const translation = responseBody.content[0].text;
+    const claudeResponse = responseBody.content[0].text;
+
+    // Parse Claude's JSON response
+    let parsedResponse;
+    try {
+      // Modified regex to work without 's' flag
+      const jsonMatch = claudeResponse.match(/```json[\r\n]?([\s\S]*?)[\r\n]?```/) || 
+                       claudeResponse.match(/{[\s\S]*}/);
+      
+      const jsonStr = jsonMatch ? jsonMatch[1] || jsonMatch[0] : claudeResponse;
+      parsedResponse = JSON.parse(jsonStr.trim());
+    } catch (parseError) {
+      console.error('Error parsing Claude response:', parseError);
+      parsedResponse = {
+        translation: claudeResponse,
+        confidence: "unknown",
+        notes: "Error parsing structured response"
+      };
+    }
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         originalText: fijianText,
-        translation: translation
+        translation: parsedResponse.translation,
+        confidence: parsedResponse.confidence,
+        notes: parsedResponse.notes,
+        rawResponse: claudeResponse // Optional: include for debugging
       })
     };
 
@@ -156,7 +176,6 @@ const handleTranslate = async (body: any, headers: any): Promise<APIGatewayProxy
     };
   }
 };
-
 
 export const main = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   const corsHeaders = {

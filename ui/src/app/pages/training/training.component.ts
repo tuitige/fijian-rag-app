@@ -5,6 +5,15 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslationService, TranslationResponse } from '../../services/translation.service';
 
+// In your training.component.ts
+interface TranslationResponse {
+  originalText: string;
+  translation: string;
+  confidence: string;
+  notes: string;
+  rawResponse?: string;
+}
+
 @Component({
   selector: 'app-training',
   standalone: true,
@@ -44,8 +53,12 @@ import { TranslationService, TranslationResponse } from '../../services/translat
 
               <div *ngIf="translation" class="mt-4">
                 <h4 class="mb-3">Translation:</h4>
-                <div class="alert alert-info">
-                  <p class="mb-0">{{ translation }}</p>
+                <div class="alert" [ngClass]="{'alert-success': confidence === 'high', 
+                                              'alert-warning': confidence === 'medium',
+                                              'alert-info': confidence === 'low'}">
+                  <p class="mb-2"><strong>Translation:</strong> {{ translation }}</p>
+                  <p class="mb-2"><strong>Confidence:</strong> {{ confidence }}</p>
+                  <p class="mb-0" *ngIf="notes"><strong>Notes:</strong> {{ notes }}</p>
                 </div>
               </div>
 

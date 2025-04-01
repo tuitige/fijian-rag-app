@@ -150,7 +150,7 @@ var handleVerify = function (client, body, headers) { return __awaiter(void 0, v
     });
 }); };
 var handleTranslate = function (body, headers) { return __awaiter(void 0, void 0, void 0, function () {
-    var fijianText, bedrockClient, prompt_1, command, response, responseBody, translation, error_3;
+    var fijianText, bedrockClient, prompt_1, command, response, responseBody, claudeResponse, parsedResponse, jsonMatch, jsonStr, error_3;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -173,7 +173,7 @@ var handleTranslate = function (body, headers) { return __awaiter(void 0, void 0
                             content: [
                                 {
                                     type: "text",
-                                    text: "Please translate the following Fijian text to English. If you're not completely sure about any part of the translation, please indicate that in your response: \"".concat(fijianText, "\"")
+                                    text: "Please translate the following Fijian text to English. Provide your response in JSON format with these keys:\n              - translation: Your direct English translation\n              - confidence: \"high\", \"medium\", or \"low\"\n              - notes: Any disclaimers, uncertainties, or additional context about the translation\n              \n              Fijian text: \"".concat(fijianText, "\"")
                                 }
                             ]
                         }
@@ -189,13 +189,31 @@ var handleTranslate = function (body, headers) { return __awaiter(void 0, void 0
             case 1:
                 response = _a.sent();
                 responseBody = JSON.parse(new TextDecoder().decode(response.body));
-                translation = responseBody.content[0].text;
+                claudeResponse = responseBody.content[0].text;
+                parsedResponse = void 0;
+                try {
+                    jsonMatch = claudeResponse.match(/```json[\r\n]?([\s\S]*?)[\r\n]?```/) ||
+                        claudeResponse.match(/{[\s\S]*}/);
+                    jsonStr = jsonMatch ? jsonMatch[1] || jsonMatch[0] : claudeResponse;
+                    parsedResponse = JSON.parse(jsonStr.trim());
+                }
+                catch (parseError) {
+                    console.error('Error parsing Claude response:', parseError);
+                    parsedResponse = {
+                        translation: claudeResponse,
+                        confidence: "unknown",
+                        notes: "Error parsing structured response"
+                    };
+                }
                 return [2 /*return*/, {
                         statusCode: 200,
                         headers: headers,
                         body: JSON.stringify({
                             originalText: fijianText,
-                            translation: translation
+                            translation: parsedResponse.translation,
+                            confidence: parsedResponse.confidence,
+                            notes: parsedResponse.notes,
+                            rawResponse: claudeResponse // Optional: include for debugging
                         })
                     }];
             case 2:
