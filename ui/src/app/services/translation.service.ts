@@ -20,18 +20,19 @@ export interface VerifyResponse {
   providedIn: 'root'
 })
 export class TranslationService {
-  private translateUrl = 'https://9vvnczutih.execute-api.us-west-2.amazonaws.com/prod/translate';
-  private verifyUrl = 'https://9vvnczutih.execute-api.us-west-2.amazonaws.com/prod/verify';
+  private readonly translateUrl = 'https://9vvnczutih.execute-api.us-west-2.amazonaws.com/prod/translate';
+  private readonly verifyUrl = 'https://9vvnczutih.execute-api.us-west-2.amazonaws.com/prod/verify';
 
-
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient) {}
 
   translateText(fijianText: string): Observable<TranslationResponse> {
-    return this.http.post<TranslationResponse>(this.apiUrl, { fijianText });
+    return this.http.post<TranslationResponse>(this.translateUrl, { fijianText });
   }
 
   verifyTranslation(originalFijian: string, verifiedEnglish: string): Observable<VerifyResponse> {
-    return this.http.post<VerifyResponse>(this.verifyUrl, { originalFijian, verifiedEnglish });
+    return this.http.post<VerifyResponse>(this.verifyUrl, {
+      originalFijian,
+      verifiedEnglish
+    });
   }
-
 }
