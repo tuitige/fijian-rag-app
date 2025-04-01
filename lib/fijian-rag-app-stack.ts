@@ -13,12 +13,14 @@ import * as codebuild from 'aws-cdk-lib/aws-codebuild';
 import * as cdk from 'aws-cdk-lib';
 import * as path from 'path';
 
+const COLLECTION_NAME = 'fijian-language';
+
 export class FijianRagStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
     // 1. S3 Bucket
-    const contentBucket = new s3.Bucket(this, 'XXXXXXXXXXXXXXXXXXX', {
+    const contentBucket = new s3.Bucket(this, 'fijian-language-learning', {
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true
     });
@@ -31,104 +33,123 @@ export class FijianRagStack extends Stack {
       ]
     });
 
-    // 3. OpenSearch Collection (create before policies that need its ARN)
-    const collection = new opensearchserverless.CfnCollection(this, 'FijianCollection', {
-      name: 'fijian-language',
-      type: 'VECTORSEARCH',
-      description: 'Collection for Fijian language processing'
-    });
-
-    // 4. Dashboard Role (now we can use collection.attrArn)
+    // 3. Dashboard Role (moved up)
     const dashboardRole = new iam.Role(this, 'DashboardRole', {
       assumedBy: new iam.AccountPrincipal(this.account),
       roleName: 'OpenSearchDashboardRole'
     });
-    
-    // Add required permissions directly instead of using a non-existent managed policy
-    dashboardRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: [
-        'aoss:APIAccessAll',
-        'aoss:DashboardsAccessAll',
-        'aoss:ListCollections',
-        'aoss:BatchGetCollection',
-        'aoss:CreateCollection',
-        'aoss:DeleteCollection',
-        'aoss:UpdateCollection'
-      ],
-      resources: ['*']
-    }));
-    
-    // Add specific collection permissions
-    dashboardRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: [
-        'aoss:ReadDocument',
-        'aoss:WriteDocument',
-        'aoss:CreateIndex',
-        'aoss:DeleteIndex',
-        'aoss:UpdateIndex',
-        'aoss:DescribeIndex'
-      ],
-      resources: [collection.attrArn]
-    }));
 
-    // 5. OpenSearch Policies
+    // 3. OpenSearch Collection Policies (create before collection)
     const encryptionPolicy = new opensearchserverless.CfnSecurityPolicy(this, 'EncryptionPolicy', {
       name: 'fijian-rag-encryption',
       type: 'encryption',
       policy: JSON.stringify({
-        Rules: [{ ResourceType: 'collection', Resource: ['collection/fijian-language'] }],
+        Rules: [{ ResourceType: 'collection', Resource: [`collection/${COLLECTION_NAME}`] }],
         AWSOwnedKey: true
       })
     });
 
-    const networkPolicy = new opensearchserverless.CfnSecurityPolicy(this, 'NetworkPolicy', {
-      name: 'fijian-rag-network',
-      type: 'network',
-      policy: JSON.stringify([
+// 1. Network Policy - Allow both public access and dashboard access
+const networkPolicy = new opensearchserverless.CfnSecurityPolicy(this, 'NetworkPolicy', {
+  name: 'fijian-rag-network',
+  type: 'network',
+  description: 'Network policy for public access to collection and dashboard',
+  policy: JSON.stringify([
+    {
+      Description: "Public access for both collection and dashboard",
+      Rules: [
         {
-          Description: "Public access for collection",
-          Rules: [
-            {
-              ResourceType: "collection",
-              Resource: ["collection/fijian-language"]
-            },
-            {
-              ResourceType: "dashboard",
-              Resource: ["collection/fijian-language"]
-            }
-          ],
-          AllowFromPublic: true
-        }
-      ])
-    });
-        
-
-    const dataAccessPolicy = new opensearchserverless.CfnAccessPolicy(this, 'DataAccessPolicy', {
-      name: 'fijian-rag-data',
-      type: 'data',
-      policy: JSON.stringify([{
-        Rules: [{
-          ResourceType: 'index',
-          Resource: ['index/fijian-language/*'],
-          Permission: [
-            'aoss:ReadDocument',
-            'aoss:WriteDocument',
-            'aoss:CreateIndex',
-            'aoss:DeleteIndex',
-            'aoss:UpdateIndex',
-            'aoss:DescribeIndex'
+          ResourceType: "dashboard",
+          Resource: [
+            `collection/${COLLECTION_NAME}`
           ]
-        }],
-        Principal: [lambdaRole.roleArn]
-      }])
+        },
+        {
+          ResourceType: "collection",
+          Resource: [
+            `collection/${COLLECTION_NAME}`
+          ]
+        }
+      ],
+      AllowFromPublic: true
+    }
+  ])
+});
+
+// 2. Data Access Policy - Include both Lambda role and dashboard role
+const dataAccessPolicy = new opensearchserverless.CfnAccessPolicy(this, 'DataAccessPolicy', {
+  name: 'fijian-rag-data',
+  type: 'data',
+  description: 'Data access policy for collection and dashboard access',
+  policy: JSON.stringify([
+    {
+      Description: "Full access policy for both roles",
+      Rules: [
+        {
+          ResourceType: "collection",
+          Resource: [`collection/${COLLECTION_NAME}`],
+          Permission: [
+            "aoss:CreateCollectionItems",
+            "aoss:DeleteCollectionItems",
+            "aoss:UpdateCollectionItems",
+            "aoss:DescribeCollectionItems"
+          ]
+        },
+        {
+          ResourceType: "index",
+          Resource: [`index/${COLLECTION_NAME}/*`],
+          Permission: [
+            "aoss:ReadDocument",
+            "aoss:WriteDocument",
+            "aoss:CreateIndex",
+            "aoss:DeleteIndex",
+            "aoss:UpdateIndex",
+            "aoss:DescribeIndex"
+          ]
+        }
+      ],
+      Principal: [
+        dashboardRole.roleArn,
+        lambdaRole.roleArn,
+        `arn:aws:iam::934889091214:user/tigeyoung`
+      ]
+    }
+  ])
+});
+
+
+    // 4. OpenSearch Collection
+    const collection = new opensearchserverless.CfnCollection(this, 'FijianCollection', {
+      name: COLLECTION_NAME,
+      type: 'VECTORSEARCH',
+      description: 'Collection for Fijian language processing'
     });
 
-    // Add dependencies
+    // Add dependencies to ensure policies are created before collection
     collection.addDependency(encryptionPolicy);
     collection.addDependency(networkPolicy);
     collection.addDependency(dataAccessPolicy);
+
+    // 5. Dashboard Role
+/*    
+    const dashboardRole = new iam.Role(this, 'DashboardRole', {
+      assumedBy: new iam.AccountPrincipal(this.account),
+      roleName: 'OpenSearchDashboardRole'
+    });
+*/
+
+// 4. Update Dashboard role permissions
+dashboardRole.addToPolicy(new iam.PolicyStatement({
+  effect: iam.Effect.ALLOW,
+  actions: [
+    'aoss:DashboardsAccessAll',
+    'aoss:APIAccessAll'
+  ],
+  resources: [
+    collection.attrArn,
+    `arn:aws:aoss:${this.region}:${this.account}:dashboards/default`
+  ]
+}));
 
     // 6. Lambda Function
     const handler = new lambda.Function(this, 'FijianRagHandler', {
@@ -139,8 +160,7 @@ export class FijianRagStack extends Stack {
       timeout: Duration.minutes(1),
       environment: {
         OPENSEARCH_ENDPOINT: collection.attrCollectionEndpoint,
-        //AWS_REGION: this.region,
-        COLLECTION_NAME: 'fijian-language'
+        COLLECTION_NAME: COLLECTION_NAME
       },
     });
 
@@ -153,29 +173,25 @@ export class FijianRagStack extends Stack {
       resources: [
         'arn:aws:bedrock:us-west-2::foundation-model/amazon.titan-embed-text-v1',
         'arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-v2',
-        'arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0'  // If using Claude
+        'arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0'
       ]
     }));
 
-    // Add AOSS permissions to lambdaRole
+    // Add this to your Lambda role permissions in the CDK stack
     lambdaRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
-        'aoss:APIAccessAll',
-        'aoss:BatchGetCollection',
-        'aoss:ReadDocument',
-        'aoss:WriteDocument',
-        'aoss:CreateIndex',
-        'aoss:DeleteIndex',
-        'aoss:UpdateIndex',
-        'aoss:DescribeIndex'
+        'aoss:APIAccessAll'
       ],
-      resources: [collection.attrArn]
+      resources: [
+        collection.attrArn,
+        `arn:aws:aoss:${this.region}:${this.account}:dashboards/default`
+      ]
     }));
 
     // 7. API Gateway
     const api = new apigateway.RestApi(this, 'FijianRagApi', {
-      restApiName: 'FijianRagService',
+      restApiName: 'FijianLanguageService',
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: ['POST', 'OPTIONS'],
@@ -183,169 +199,24 @@ export class FijianRagStack extends Stack {
       }
     });
 
-    const ragIntegration = new apigateway.LambdaIntegration(handler);
-    api.root.addResource('rag').addMethod('POST', ragIntegration);
-    api.root.addResource('search').addMethod('POST', ragIntegration);
-    api.root.addResource('verify').addMethod('POST', ragIntegration);
+    // Create API resources and methods
+    const translateIntegration = new apigateway.LambdaIntegration(handler);
+    const verifyIntegration = new apigateway.LambdaIntegration(handler);
+    const learnIntegration = new apigateway.LambdaIntegration(handler);
 
-    // Add this after creating the API Gateway
-    new cdk.CfnOutput(this, 'ApiUrl', {
-      value: api.url,
-      description: 'API Gateway URL'
-    });
+    api.root.addResource('translate').addMethod('POST', translateIntegration);
+    api.root.addResource('verify').addMethod('POST', verifyIntegration);
+    api.root.addResource('learn').addMethod('POST', learnIntegration);
 
-
-    // 1. Cognito User Pool
-    const userPool = new cognito.UserPool(this, 'FijianUserPool', {
-      userPoolName: 'fijian-app-users',
-      selfSignUpEnabled: true,
-      signInAliases: {
-        email: true,
-      },
-      autoVerify: {
-        email: true,
-      },
-      standardAttributes: {
-        email: {
-          required: true,
-          mutable: true,
-        },
-      },
-      passwordPolicy: {
-        minLength: 8,
-        requireLowercase: true,
-        requireUppercase: true,
-        requireDigits: true,
-        requireSymbols: true,
-      },
-      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-      removalPolicy: RemovalPolicy.DESTROY, // For development - change for production
-    });
-
-    // 2. User Pool Client
-    const userPoolClient = new cognito.UserPoolClient(this, 'FijianUserPoolClient', {
-      userPool,
-      generateSecret: false,
-      authFlows: {
-        adminUserPassword: true,
-        userPassword: true,
-        userSrp: true,
-      },
-      oAuth: {
-        flows: {
-          implicitCodeGrant: true,
-          authorizationCodeGrant: true,
-        },
-        scopes: [
-          cognito.OAuthScope.EMAIL,
-          cognito.OAuthScope.OPENID,
-          cognito.OAuthScope.PROFILE,
-        ],
-        callbackUrls: ['http://localhost:4200/'], // Add your Angular app URLs
-        logoutUrls: ['http://localhost:4200/'],   // Add your Angular app URLs
-      },
-    });
-
-    // 3. Amplify App
-    const amplifyApp = new amplify.App(this, 'FijianRagApp', {
-      appName: 'FijianRagApp',
-      sourceCodeProvider: new amplify.GitHubSourceCodeProvider({
-        owner: 'tuitige', // Replace with your GitHub username
-        repository: 'fijian-rag-app',  // Replace with your repository name
-        oauthToken: cdk.SecretValue.secretsManager('github-token', {
-          jsonField: 'github-token' // If you stored it as a JSON field
-        })
-      }),
-      environmentVariables: {
-        //'AMPLIFY_MONOREPO_APP_ROOT': 'ui',  // Points to your Angular app directory
-        'AMPLIFY_DIFF_DEPLOY': 'false',
-      },
-      buildSpec: codebuild.BuildSpec.fromObjectToYaml({
-        version: '1.0',
-        applications: [  // Add this applications section for monorepo
-          {
-            appRoot: 'ui',
-            frontend: {
-              phases: {
-                preBuild: {
-                  commands: [
-                    'nvm install 20',      // Install Node.js 20
-                    'nvm use 20',          // Use Node.js 20
-                    'node -v',             // Verify Node.js version
-                    'npm ci'
-                  ]
-                },
-                build: {
-                  commands: [
-                    'npm run build'
-                  ]
-                }
-              },
-              artifacts: {
-                baseDirectory: 'dist/fijian-ui/browser',  // Remove 'ui/' since we're already in ui directory
-                files: [
-                  '**/*'
-                ]
-              },
-              cache: {
-                paths: [
-                  'node_modules/**/*'
-                ]
-              }
-            }
-          }
-        ]
-      })
-    });
-
-    // 4. Add Branch
-    const main = amplifyApp.addBranch('main', {
-      autoBuild: true,
-      stage: 'PRODUCTION',
-    });
-
-    // 5. Environment Variables for Amplify Branch
-    main.addEnvironment('USER_POOL_ID', userPool.userPoolId);
-    main.addEnvironment('USER_POOL_CLIENT_ID', userPoolClient.userPoolClientId);
-    main.addEnvironment('REGION', this.region);
-    main.addEnvironment('API_ENDPOINT', api.url); // Your existing API Gateway endpoint
-
-    // 6. Update Lambda Role with Cognito permissions
-    lambdaRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: [
-        'cognito-idp:AdminInitiateAuth',
-        'cognito-idp:AdminCreateUser',
-        'cognito-idp:AdminSetUserPassword',
-      ],
-      resources: [userPool.userPoolArn]
-    }));
-
-    // 7. Outputs
-    new CfnOutput(this, 'UserPoolId', {
-      value: userPool.userPoolId,
-      description: 'Cognito User Pool ID'
-    });
-
-    new CfnOutput(this, 'UserPoolClientId', {
-      value: userPoolClient.userPoolClientId,
-      description: 'Cognito User Pool Client ID'
-    });
-
-    new CfnOutput(this, 'AmplifyAppId', {
-      value: amplifyApp.appId,
-      description: 'Amplify App ID'
-    });
-    
     // 8. Outputs
     new CfnOutput(this, 'CollectionEndpoint', {
       value: collection.attrCollectionEndpoint,
       description: 'OpenSearch Serverless Collection Endpoint'
     });
 
-    new CfnOutput(this, 'FijianApiUrl', {
+    new CfnOutput(this, 'ApiUrl', {
       value: api.url,
-      description: 'API Gateway base URL',
+      description: 'API Gateway URL'
     });
 
     new CfnOutput(this, 'DashboardRoleArn', {

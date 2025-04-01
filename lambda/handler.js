@@ -48,19 +48,19 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.main = void 0;
-// handler.ts
 var opensearch_1 = require("@opensearch-project/opensearch");
 var credential_provider_node_1 = require("@aws-sdk/credential-provider-node");
 var aws_1 = require("@opensearch-project/opensearch/aws");
-var client_bedrock_runtime_1 = require("@aws-sdk/client-bedrock-runtime");
-var bedrockClient = new client_bedrock_runtime_1.BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-west-2' });
+var OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT || '';
+var COLLECTION_NAME = process.env.COLLECTION_NAME || '';
+var INDEX_NAME = 'fijian-embeddings'; // Added constant definition
 var createOpenSearchClient = function () { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         return [2 /*return*/, new opensearch_1.Client(__assign(__assign({}, (0, aws_1.AwsSigv4Signer)({
                 region: process.env.AWS_REGION || 'us-west-2',
                 service: 'aoss',
-                getCredentials: function () { return (0, credential_provider_node_1.defaultProvider)()(); },
-            })), { node: process.env.OPENSEARCH_ENDPOINT }))];
+                getCredentials: (0, credential_provider_node_1.defaultProvider)()
+            })), { node: OPENSEARCH_ENDPOINT }))];
     });
 }); };
 // create the index if it doesn't exist
@@ -71,27 +71,19 @@ var createIndexIfNotExists = function (client) { return __awaiter(void 0, void 0
             case 0:
                 _a.trys.push([0, 4, , 5]);
                 return [4 /*yield*/, client.indices.exists({
-                        index: 'fijian-embeddings'
+                        index: INDEX_NAME
                     })];
             case 1:
                 exists = _a.sent();
                 if (!!exists.body) return [3 /*break*/, 3];
                 return [4 /*yield*/, client.indices.create({
-                        index: 'fijian-embeddings',
+                        index: INDEX_NAME,
                         body: {
                             mappings: {
                                 properties: {
-                                    embedding: {
-                                        type: 'knn_vector',
-                                        dimension: 1536,
-                                        method: {
-                                            name: 'hnsw',
-                                            space_type: 'l2',
-                                            engine: 'faiss'
-                                        }
-                                    },
                                     fijian: { type: 'text' },
-                                    english: { type: 'text' }
+                                    english: { type: 'text' },
+                                    timestamp: { type: 'date' }
                                 }
                             }
                         }
@@ -108,161 +100,113 @@ var createIndexIfNotExists = function (client) { return __awaiter(void 0, void 0
         }
     });
 }); };
-var getEmbedding = function (text) { return __awaiter(void 0, void 0, void 0, function () {
-    var response, parsed;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
-            case 0: return [4 /*yield*/, bedrockClient.send(new client_bedrock_runtime_1.InvokeModelCommand({
-                    modelId: 'amazon.titan-embed-text-v1',
-                    body: JSON.stringify({ inputText: text }),
-                    contentType: 'application/json',
-                    accept: 'application/json',
-                }))];
-            case 1:
-                response = _a.sent();
-                parsed = JSON.parse(Buffer.from(response.body).toString());
-                return [2 /*return*/, parsed.embedding];
-        }
-    });
-}); };
-var translateWithClaude = function (fijianText) { return __awaiter(void 0, void 0, void 0, function () {
-    var bedrockRuntime, params, command, response, responseBody;
+var handleVerify = function (client, body, headers) { return __awaiter(void 0, void 0, void 0, function () {
+    var originalFijian, verifiedEnglish, document_1, response, error_2;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                bedrockRuntime = new client_bedrock_runtime_1.BedrockRuntimeClient({ region: "us-west-2" });
-                params = {
-                    modelId: "anthropic.claude-3-sonnet-20240229-v1:0",
-                    contentType: "application/json",
-                    accept: "application/json",
-                    body: JSON.stringify({
-                        anthropic_version: "bedrock-2023-05-31",
-                        max_tokens: 1024,
-                        messages: [
-                            {
-                                role: "user",
-                                content: [
-                                    {
-                                        type: "text",
-                                        text: "Please translate this Fijian text to English as accurately as possible: \"".concat(fijianText, "\"")
-                                    }
-                                ]
-                            }
-                        ]
-                    })
-                };
-                command = new client_bedrock_runtime_1.InvokeModelCommand(params);
-                return [4 /*yield*/, bedrockRuntime.send(command)];
+                originalFijian = body.originalFijian, verifiedEnglish = body.verifiedEnglish;
+                if (!originalFijian || !verifiedEnglish) {
+                    return [2 /*return*/, {
+                            statusCode: 400,
+                            headers: headers,
+                            body: JSON.stringify({ message: 'originalFijian and verifiedEnglish are required' })
+                        }];
+                }
+                _a.label = 1;
             case 1:
+                _a.trys.push([1, 3, , 4]);
+                document_1 = {
+                    fijian: originalFijian,
+                    english: verifiedEnglish,
+                    timestamp: new Date().toISOString()
+                };
+                return [4 /*yield*/, client.index({
+                        index: INDEX_NAME,
+                        body: document_1
+                    })];
+            case 2:
                 response = _a.sent();
-                responseBody = JSON.parse(new TextDecoder().decode(response.body));
-                return [2 /*return*/, responseBody.content[0].text];
+                return [2 /*return*/, {
+                        statusCode: 200,
+                        headers: headers,
+                        body: JSON.stringify({
+                            message: 'Translation verified and stored successfully',
+                            id: response.body._id
+                        })
+                    }];
+            case 3:
+                error_2 = _a.sent();
+                console.error('Verification error:', error_2);
+                return [2 /*return*/, {
+                        statusCode: 500,
+                        headers: headers,
+                        body: JSON.stringify({ message: 'Error storing verified translation',
+                            error: error_2.message })
+                    }];
+            case 4: return [2 /*return*/];
         }
     });
 }); };
-// Store verified translation in AOSS
-var storeVerifiedTranslation = function (client, fijianText, englishText) { return __awaiter(void 0, void 0, void 0, function () {
-    var embedding, document;
+var handleTranslate = function (body, headers) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
-        switch (_a.label) {
-            case 0: return [4 /*yield*/, getEmbedding(fijianText)];
-            case 1:
-                embedding = _a.sent();
-                document = {
-                    fijian: fijianText,
-                    english: englishText,
-                    embedding: embedding,
-                    timestamp: new Date().toISOString(),
-                    verified: true
-                };
-                return [4 /*yield*/, client.index({
-                        index: 'fijian-embeddings',
-                        body: document
-                    })];
-            case 2:
-                _a.sent();
-                return [2 /*return*/, document];
-        }
+        // Your translate handler implementation
+        return [2 /*return*/, {
+                statusCode: 200,
+                headers: headers,
+                body: JSON.stringify({ message: 'Translation endpoint' })
+            }];
     });
 }); };
 var main = function (event) { return __awaiter(void 0, void 0, void 0, function () {
-    var path, httpMethod, body, request, translation, request, client, storedDocument, error_2;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
+    var corsHeaders, client, path, body, _a, error_3;
+    return __generator(this, function (_b) {
+        switch (_b.label) {
             case 0:
-                _a.trys.push([0, 7, , 8]);
-                path = event.path, httpMethod = event.httpMethod, body = event.body;
-                if (!(path === '/translate' && httpMethod === 'POST')) return [3 /*break*/, 2];
-                if (!body) {
-                    return [2 /*return*/, {
-                            statusCode: 400,
-                            body: JSON.stringify({ error: 'Request body is required' })
-                        }];
-                }
-                request = JSON.parse(body);
-                if (!request.fijianText) {
-                    return [2 /*return*/, {
-                            statusCode: 400,
-                            body: JSON.stringify({ error: 'fijianText is required' })
-                        }];
-                }
-                return [4 /*yield*/, translateWithClaude(request.fijianText)];
+                corsHeaders = {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type',
+                    'Access-Control-Allow-Methods': 'OPTIONS,POST'
+                };
+                _b.label = 1;
             case 1:
-                translation = _a.sent();
-                return [2 /*return*/, {
-                        statusCode: 200,
-                        body: JSON.stringify({
-                            original: request.fijianText,
-                            translation: translation,
-                            message: "Review this translation and use /verify endpoint to submit verified version"
-                        })
-                    }];
-            case 2:
-                if (!(path === '/verify' && httpMethod === 'POST')) return [3 /*break*/, 6];
-                if (!body) {
-                    return [2 /*return*/, {
-                            statusCode: 400,
-                            body: JSON.stringify({ error: 'Request body is required' })
-                        }];
-                }
-                request = JSON.parse(body);
-                if (!request.originalFijian || !request.verifiedEnglish) {
-                    return [2 /*return*/, {
-                            statusCode: 400,
-                            body: JSON.stringify({ error: 'Both originalFijian and verifiedEnglish are required' })
-                        }];
+                _b.trys.push([1, 10, , 11]);
+                if (event.httpMethod === 'OPTIONS') {
+                    return [2 /*return*/, { statusCode: 200, headers: corsHeaders, body: '' }];
                 }
                 return [4 /*yield*/, createOpenSearchClient()];
-            case 3:
-                client = _a.sent();
+            case 2:
+                client = _b.sent();
                 return [4 /*yield*/, createIndexIfNotExists(client)];
-            case 4:
-                _a.sent();
-                return [4 /*yield*/, storeVerifiedTranslation(client, request.originalFijian, request.verifiedEnglish)];
-            case 5:
-                storedDocument = _a.sent();
-                return [2 /*return*/, {
-                        statusCode: 200,
-                        body: JSON.stringify({
-                            message: "Verified translation stored successfully",
-                            document: storedDocument
-                        })
-                    }];
-            case 6: return [2 /*return*/, {
+            case 3:
+                _b.sent();
+                path = event.path;
+                body = JSON.parse(event.body || '{}');
+                _a = path;
+                switch (_a) {
+                    case '/translate': return [3 /*break*/, 4];
+                    case '/verify': return [3 /*break*/, 6];
+                }
+                return [3 /*break*/, 8];
+            case 4: return [4 /*yield*/, handleTranslate(body, corsHeaders)];
+            case 5: return [2 /*return*/, _b.sent()];
+            case 6: return [4 /*yield*/, handleVerify(client, body, corsHeaders)];
+            case 7: return [2 /*return*/, _b.sent()];
+            case 8: return [2 /*return*/, {
                     statusCode: 404,
-                    body: JSON.stringify({ error: 'Not Found' })
+                    headers: corsHeaders,
+                    body: JSON.stringify({ message: 'Not Found' })
                 }];
-            case 7:
-                error_2 = _a.sent();
-                console.error('Error:', error_2);
+            case 9: return [3 /*break*/, 11];
+            case 10:
+                error_3 = _b.sent();
+                console.error('Error:', error_3);
                 return [2 /*return*/, {
                         statusCode: 500,
-                        body: JSON.stringify({
-                            error: 'Internal Server Error',
-                            detail: error_2 instanceof Error ? error_2.message : 'Unknown error'
-                        })
+                        headers: corsHeaders,
+                        body: JSON.stringify({ message: 'Internal Server Error' })
                     }];
-            case 8: return [2 /*return*/];
+            case 11: return [2 /*return*/];
         }
     });
 }); };

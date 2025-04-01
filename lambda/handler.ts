@@ -1,31 +1,21 @@
-// handler.ts
 import { Client } from '@opensearch-project/opensearch';
 import { defaultProvider } from '@aws-sdk/credential-provider-node';
 import { AwsSigv4Signer } from '@opensearch-project/opensearch/aws';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { v4 as uuidv4 } from 'uuid';
 
-const bedrockClient = new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-west-2' });
-
-// Types for better type safety
-interface TranslateRequest {
-  fijianText: string;
-}
-
-interface VerifyRequest {
-  originalFijian: string;
-  verifiedEnglish: string;
-}
+const OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT || '';
+const COLLECTION_NAME = process.env.COLLECTION_NAME || '';
+const INDEX_NAME = 'fijian-embeddings'; // Added constant definition
 
 const createOpenSearchClient = async () => {
   return new Client({
     ...AwsSigv4Signer({
       region: process.env.AWS_REGION || 'us-west-2',
       service: 'aoss',
-      getCredentials: () => defaultProvider()(),
+      getCredentials: defaultProvider()
     }),
-    node: process.env.OPENSEARCH_ENDPOINT,
+    node: OPENSEARCH_ENDPOINT,
   });
 };
 
@@ -33,26 +23,18 @@ const createOpenSearchClient = async () => {
 const createIndexIfNotExists = async (client: Client) => {
   try {
     const exists = await client.indices.exists({
-      index: 'fijian-embeddings'
+      index: INDEX_NAME
     });
     
     if (!exists.body) {
       await client.indices.create({
-        index: 'fijian-embeddings',
+        index: INDEX_NAME,
         body: {
           mappings: {
             properties: {
-              embedding: {
-                type: 'knn_vector',
-                dimension: 1536,
-                method: {
-                  name: 'hnsw',
-                  space_type: 'l2',
-                  engine: 'faiss'
-                }
-              },
               fijian: { type: 'text' },
-              english: { type: 'text' }
+              english: { type: 'text' },
+              timestamp: { type: 'date' }
             }
           }
         }
@@ -64,150 +46,93 @@ const createIndexIfNotExists = async (client: Client) => {
   }
 };
 
-const getEmbedding = async (text: string): Promise<number[]> => {
-  const response = await bedrockClient.send(new InvokeModelCommand({
-    modelId: 'amazon.titan-embed-text-v1',
-    body: JSON.stringify({ inputText: text }),
-    contentType: 'application/json',
-    accept: 'application/json',
-  }));
+const handleVerify = async (client: Client, body: any, headers: any): Promise<APIGatewayProxyResult> => {
+  const { originalFijian, verifiedEnglish } = body;
 
-  const parsed = JSON.parse(Buffer.from(response.body).toString());
-  return parsed.embedding;
+  if (!originalFijian || !verifiedEnglish) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ message: 'originalFijian and verifiedEnglish are required' })
+    };
+  }
+
+  try {
+    const document = {
+      fijian: originalFijian,
+      english: verifiedEnglish,
+      timestamp: new Date().toISOString()
+    };
+
+    const response = await client.index({
+      index: INDEX_NAME,
+      body: document
+    });
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        message: 'Translation verified and stored successfully',
+        id: response.body._id
+      })
+    };
+  } catch (error) {
+    console.error('Verification error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ message: 'Error storing verified translation',
+        error: error.message })
+    };
+  }
 };
 
-const translateWithClaude = async (fijianText: string): Promise<string> => {
-  const bedrockRuntime = new BedrockRuntimeClient({ region: "us-west-2" });
-  
-  const params = {
-    modelId: "anthropic.claude-3-sonnet-20240229-v1:0",
-    contentType: "application/json",
-    accept: "application/json",
-    body: JSON.stringify({
-      anthropic_version: "bedrock-2023-05-31",
-      max_tokens: 1024,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Please translate this Fijian text to English as accurately as possible: "${fijianText}"`
-            }
-          ]
-        }
-      ]
-    })
+const handleTranslate = async (body: any, headers: any): Promise<APIGatewayProxyResult> => {
+  // Your translate handler implementation
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({ message: 'Translation endpoint' })
   };
-
-  const command = new InvokeModelCommand(params);
-  const response = await bedrockRuntime.send(command);
-  const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-  return responseBody.content[0].text;
-};
-
-// Store verified translation in AOSS
-const storeVerifiedTranslation = async (client: Client, fijianText: string, englishText: string) => {
-  const embedding = await getEmbedding(fijianText);
-  
-  const document = {
-    fijian: fijianText,
-    english: englishText,
-    embedding: embedding,
-    timestamp: new Date().toISOString(),
-    verified: true
-  };
-
-  await client.index({
-    index: 'fijian-embeddings',
-    body: document
-  });
-
-  return document;
 };
 
 export const main = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'OPTIONS,POST'
+  };
+
   try {
-    const { path, httpMethod, body } = event;
-
-    // Handle translate endpoint
-    if (path === '/translate' && httpMethod === 'POST') {
-      if (!body) {
-        return {
-          statusCode: 400,
-          body: JSON.stringify({ error: 'Request body is required' })
-        };
-      }
-
-      const request: TranslateRequest = JSON.parse(body);
-      
-      if (!request.fijianText) {
-        return {
-          statusCode: 400,
-          body: JSON.stringify({ error: 'fijianText is required' })
-        };
-      }
-
-      const translation = await translateWithClaude(request.fijianText);
-
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          original: request.fijianText,
-          translation: translation,
-          message: "Review this translation and use /verify endpoint to submit verified version"
-        })
-      };
+    if (event.httpMethod === 'OPTIONS') {
+      return { statusCode: 200, headers: corsHeaders, body: '' };
     }
 
-    // Handle verify endpoint
-    if (path === '/verify' && httpMethod === 'POST') {
-      if (!body) {
+    const client = await createOpenSearchClient();
+    await createIndexIfNotExists(client);
+
+    const path = event.path;
+    const body = JSON.parse(event.body || '{}');
+
+    switch (path) {
+      case '/translate':
+        return await handleTranslate(body, corsHeaders);
+      case '/verify':
+        return await handleVerify(client, body, corsHeaders);
+      default:
         return {
-          statusCode: 400,
-          body: JSON.stringify({ error: 'Request body is required' })
+          statusCode: 404,
+          headers: corsHeaders,
+          body: JSON.stringify({ message: 'Not Found' })
         };
-      }
-
-      const request: VerifyRequest = JSON.parse(body);
-      
-      if (!request.originalFijian || !request.verifiedEnglish) {
-        return {
-          statusCode: 400,
-          body: JSON.stringify({ error: 'Both originalFijian and verifiedEnglish are required' })
-        };
-      }
-
-      const client = await createOpenSearchClient();
-      await createIndexIfNotExists(client);
-      const storedDocument = await storeVerifiedTranslation(
-        client,
-        request.originalFijian,
-        request.verifiedEnglish
-      );
-
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          message: "Verified translation stored successfully",
-          document: storedDocument
-        })
-      };
     }
-
-    return {
-      statusCode: 404,
-      body: JSON.stringify({ error: 'Not Found' })
-    };
-
   } catch (error) {
     console.error('Error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ 
-        error: 'Internal Server Error',
-        detail: error instanceof Error ? error.message : 'Unknown error'
-      })
+      headers: corsHeaders,
+      body: JSON.stringify({ message: 'Internal Server Error' })
     };
   }
 };

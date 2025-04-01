@@ -10,7 +10,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3.774.0",
-    "@opensearch-project/opensearch": "^3.4.0"
+    "@opensearch-project/opensearch": "^2.5.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.0.0",
+    "@aws-sdk/credential-provider-node": "^3.0.0"
   }
 }
