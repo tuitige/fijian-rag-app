@@ -51,7 +51,14 @@
               "@aws-crypto/sha256-js",
               "fast-xml-parser",
               "@aws-sdk/middleware-retry",
-              "axios"
+              "axios",
+              "lodash/get",
+              "lodash/isEmpty",
+              "lodash/isEqual",
+              "url",
+              "camelcase-keys",
+              "lodash/flatten",
+              "lodash/noop"
             ]
           },
           "configurations": {
@@ -112,6 +119,7 @@
               "src/assets"
             ],
             "styles": [
+              "node_modules/@aws-amplify/ui-angular/theme.css",
               "src/styles.css"
             ],
             "scripts": []
