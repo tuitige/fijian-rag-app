@@ -5,6 +5,9 @@ applications:
       phases:
         preBuild:
           commands:
+            - nvm install 20
+            - nvm use 20
+            - node -v
             - npm ci
         build:
           commands:
@@ -21,6 +24,9 @@ applications:
       phases:
         preBuild:
           commands:
+            - nvm install 20
+            - nvm use 20
+            - node -v
             - npm ci
         build:
           commands:
