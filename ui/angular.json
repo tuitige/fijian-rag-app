@@ -13,13 +13,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
-            "allowedCommonJsDependencies": [
-              "qrcode",
-              "lodash/pickBy.js",
-              "lodash/kebabCase.js",
-              "lodash/merge.js"
-            ],
-            "outputPath": "dist/fijian-ui/browser",
+            "outputPath": "dist/fijian-ui",
             "index": "src/index.html",
             "main": "src/main.ts",
             "polyfills": [
@@ -31,11 +25,33 @@
               "src/assets"
             ],
             "styles": [
-              "src/styles.scss",
-              "node_modules/@aws-amplify/ui-angular/theme.css"
+              "src/styles.css"
             ],
-            "scripts": [
-              "node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"
+            "scripts": [],
+            "allowedCommonJsDependencies": [
+              "events",
+              "@aws-crypto/sha256-browser",
+              "@aws-crypto/crc32",
+              "isomorphic-unfetch",
+              "js-cookie",
+              "amazon-cognito-identity-js",
+              "@aws-sdk/client-cloudwatch-logs",
+              "@aws-sdk/client-lex-runtime-service",
+              "@aws-sdk/client-lex-runtime-v2",
+              "@aws-sdk/client-location",
+              "@aws-sdk/eventstream-codec",
+              "@aws-sdk/eventstream-marshaller",
+              "crypto-js",
+              "buffer",
+              "@aws-sdk/util-utf8-browser",
+              "ulid",
+              "zen-observable",
+              "uuid",
+              "cookie",
+              "@aws-crypto/sha256-js",
+              "fast-xml-parser",
+              "@aws-sdk/middleware-retry",
+              "axios"
             ]
           },
           "configurations": {
@@ -43,8 +59,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kb",
-                  "maximumError": "1mb"
+                  "maximumWarning": "2mb",
+                  "maximumError": "5mb"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -67,15 +83,12 @@
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
-          "options": {
-            "buildTarget": "fijian-ui:build"
-          },
           "configurations": {
             "production": {
-              "buildTarget": "fijian-ui:build:production"
+              "browserTarget": "fijian-ui:build:production"
             },
             "development": {
-              "buildTarget": "fijian-ui:build:development"
+              "browserTarget": "fijian-ui:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -83,7 +96,7 @@
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "buildTarget": "fijian-ui:build"
+            "browserTarget": "fijian-ui:build"
           }
         },
         "test": {
