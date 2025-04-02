@@ -16,12 +16,11 @@ applications:
       cache:
         paths:
           - ui/node_modules/**/*
-    appRoot: ui
+    appRoot: .
     backend:
       phases:
         preBuild:
           commands:
-            - cd amplify
             - npm ci
         build:
           commands:
