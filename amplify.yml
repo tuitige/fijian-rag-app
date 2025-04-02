@@ -8,7 +8,8 @@ applications:
             - nvm install 20
             - nvm use 20
             - node -v
-            - npm ci --legacy-peer-deps
+            - npm install --legacy-peer-deps
+            - npm install --legacy-peer-deps no-case param-case pascal-case path-case sentence-case snake-case upper-case-first upper-case lower-case jsonfile universalify minimatch brace-expansion
         build:
           commands:
             - npm run build
@@ -27,7 +28,7 @@ applications:
             - nvm install 20
             - nvm use 20
             - node -v
-            - npm ci
+            - npm install --legacy-peer-deps
         build:
           commands:
             - npm run build
