@@ -1,21 +1,31 @@
 version: 1
-applications:
-  - appRoot: ui
-    frontend:
-      phases:
-        preBuild:
-          commands:
-            - nvm install 20.11.1
-            - nvm use 20.11.1
-            - npm ci
-            - npm install -g @angular/cli
-        build:
-          commands:
-            - ng build --configuration production
-      artifacts:
-        baseDirectory: dist/fijian-ui/browser
-        files:
-          - '**/*'
-      cache:
-        paths:
-          - node_modules/**/*
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd ui
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: ui/dist/fijian-rag-app
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - ui/node_modules/**/*
+  customHeaders:
+    - pattern: '**/*'
+      headers:
+        - key: 'Cache-Control'
+          value: 'no-store'
+backend:
+  phases:
+    preBuild:
+      commands:
+        - cd amplify
+        - npm ci
+    build:
+      commands:
+        - npm run build

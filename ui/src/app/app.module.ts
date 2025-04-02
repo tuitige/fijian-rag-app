@@ -4,10 +4,10 @@ import { AmplifyAuthenticatorModule } from '@aws-amplify/ui-angular';
 import { AppComponent } from './app.component';
 
 @NgModule({
-  declarations: [AppComponent],
   imports: [
     BrowserModule,
-    AmplifyAuthenticatorModule
+    AmplifyAuthenticatorModule,
+    AppComponent  // Move it to imports since it's standalone
   ],
   providers: [],
   bootstrap: [AppComponent]
