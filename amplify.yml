@@ -1,7 +1,6 @@
 version: 1
 applications:
-  - sources:
-      - path: .
+  - appRoot: '.'
     frontend:
       phases:
         preBuild:
