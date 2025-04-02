@@ -29,24 +29,52 @@
   </div>
 
   <!-- Verification Section -->
-  <div class="bg-white rounded-lg shadow-md p-6">
-    <h2 class="text-2xl font-semibold text-primary mb-4">Verify Translation</h2>
-    <div class="space-y-4">
-      <div>
-        <textarea
-          [(ngModel)]="translatedText"
-          rows="4"
-          class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
-          placeholder="Translation will appear here..."
-        ></textarea>
+<!-- Find the verification section and replace/update it with this -->
+<div *ngIf="currentTranslation" class="mt-4">
+  <h4 class="mb-3">Machine Translation:</h4>
+  <div class="alert" [ngClass]="{
+    'alert-success': currentTranslation.confidence === 'high',
+    'alert-warning': currentTranslation.confidence === 'medium',
+    'alert-info': currentTranslation.confidence === 'low'
+  }">
+    <p class="mb-2"><strong>Translation:</strong> {{ currentTranslation.translation }}</p>
+    <p class="mb-2"><strong>Confidence:</strong> {{ currentTranslation.confidence }}</p>
+    <p class="mb-0" *ngIf="currentTranslation.notes">
+      <strong>Notes:</strong> {{ currentTranslation.notes }}
+    </p>
+  </div>
+
+  <!-- New Verification Section -->
+  <div class="mt-4">
+    <h4 class="mb-3">Verify Translation</h4>
+    
+    <!-- Original Fijian Text Display -->
+    <div class="mb-3">
+      <label class="form-label text-muted">Original Fijian Text:</label>
+      <div class="p-3 bg-light border rounded">
+        {{ fijianText }}
       </div>
-      <button
-        (click)="submitVerifiedTranslation()"
-        [disabled]="isVerifying || !translatedText"
-        class="bg-secondary text-white px-6 py-2 rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <span *ngIf="!isVerifying">Submit Verified Translation</span>
-        <span *ngIf="isVerifying">Submitting...</span>
+    </div>
+
+    <!-- Editable English Translation -->
+    <div class="mb-4">
+      <label for="verifiedTranslation" class="form-label">Edit Translation if needed</label>
+      <textarea 
+        class="form-control"
+        id="verifiedTranslation"
+        rows="4"
+        [(ngModel)]="verifiedTranslation"
+        placeholder="Edit the translation here..."
+      ></textarea>
+    </div>
+
+    <div class="d-grid gap-2">
+      <button 
+        class="btn btn-success btn-lg"
+        (click)="verifyTranslation()"
+        [disabled]="isVerifying || !verifiedTranslation">
+        <span *ngIf="isVerifying" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        {{ isVerifying ? 'Verifying...' : 'Verify Translation' }}
       </button>
     </div>
   </div>

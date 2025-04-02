@@ -1,4 +1,3 @@
-// src/app/training/training.component.ts
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -7,9 +6,13 @@ import { TranslationService, TranslationResponse } from '../../services/translat
 @Component({
   selector: 'app-training',
   templateUrl: './training.component.html',
-  styleUrls: ['./training.component.scss']  // Make sure this line is present
+  styleUrls: ['./training.component.scss'],
+  imports: [
+    CommonModule,
+    FormsModule
+  ],
+  standalone: true
 })
-
 export class TrainingComponent {
   fijianText = '';
   currentTranslation: TranslationResponse | null = null;
@@ -37,7 +40,7 @@ export class TrainingComponent {
       .subscribe({
         next: (response: TranslationResponse) => {
           this.currentTranslation = response;
-          this.verifiedTranslation = response.translation; // Pre-populate the verification textarea
+          this.verifiedTranslation = response.translation;
           this.isTranslating = false;
         },
         error: (err: Error) => {
