@@ -7,7 +7,7 @@ import { AppComponent } from './app.component';
   imports: [
     BrowserModule,
     AmplifyAuthenticatorModule,
-    AppComponent  // Move it to imports since it's standalone
+    AppComponent
   ],
   providers: [],
   bootstrap: [AppComponent]
