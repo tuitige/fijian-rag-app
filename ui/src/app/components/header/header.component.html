@@ -1,12 +1,24 @@
-<nav class="bg-primary text-white p-4">
-    <div class="container mx-auto flex justify-between items-center">
-      <div class="text-xl font-bold">Fijian Language App</div>
-      <div class="space-x-4">
-        <a routerLink="/home" class="hover:text-accent">Home</a>
-        <a routerLink="/training" class="hover:text-accent">Training</a>
-        <a routerLink="/learning" class="hover:text-accent">Learning</a>
-        <a routerLink="/about" class="hover:text-accent">About</a>
-      </div>
+<nav class="navbar navbar-expand-lg">
+  <div class="container">
+    <a class="navbar-brand" href="/">Fijian Translation</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/training" routerLinkActive="active">Training</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/learning" routerLinkActive="active">Learning</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/about" routerLinkActive="active">About</a>
+        </li>
+      </ul>
     </div>
-  </nav>
-  
+  </div>
+</nav>

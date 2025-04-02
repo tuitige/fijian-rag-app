@@ -1,2 +1,79 @@
-// src/app/components/header/header.component.scss
-// Add your header styles here, or leave empty if no styles needed
+.navbar {
+    background-color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 0.5rem 1rem;
+    height: auto;
+    min-height: 60px;
+  }
+  
+  .navbar-brand {
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 1.25rem;
+    
+    &:hover {
+      color: #34495e;
+    }
+  }
+  
+  .nav-link {
+    color: #2c3e50;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: color 0.3s ease;
+    
+    &:hover {
+      color: #3498db;
+    }
+  
+    &.active {
+      color: #3498db;
+      font-weight: 600;
+    }
+  }
+  
+  // Fix for dark text on navigation links
+  .navbar-nav {
+    .nav-link {
+      color: #2c3e50;
+      
+      &:hover {
+        color: #3498db;
+      }
+    }
+  }
+  
+  // Ensure proper spacing and alignment
+  .container {
+    padding-right: 15px;
+    padding-left: 15px;
+    margin-right: auto;
+    margin-left: auto;
+    max-width: 1140px;
+  }
+  
+  // Responsive adjustments
+  @media (max-width: 991.98px) {
+    .navbar-collapse {
+      background-color: #ffffff;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+  }
+  
+  // Optional: Add a subtle transition for the mobile menu
+  .navbar-toggler {
+    border: none;
+    padding: 0.5rem;
+    
+    &:focus {
+      outline: none;
+      box-shadow: none;
+    }
+  }
+  
+  .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(44, 62, 80, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  }
+  
