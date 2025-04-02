@@ -1,21 +1,15 @@
-// src/app/app.module.ts
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { provideHttpClient } from '@angular/common/http';
+import { AmplifyAuthenticatorModule } from '@aws-amplify/ui-angular';
 import { AppComponent } from './app.component';
-import { TrainingComponent } from './training/training.component';
 
 @NgModule({
-  declarations: [
-    AppComponent
-  ],
+  declarations: [AppComponent],
   imports: [
     BrowserModule,
-    TrainingComponent  // Import the standalone component
+    AmplifyAuthenticatorModule
   ],
-  providers: [
-    provideHttpClient()
-  ],
+  providers: [],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

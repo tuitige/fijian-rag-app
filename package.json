@@ -7,6 +7,7 @@
     "build:lambda": "tsc lambda/handler.ts --outDir lambda"
   },
   "dependencies": {
+    "@aws-amplify/backend-auth": "^1.5.1",
     "@aws-cdk/aws-amplify-alpha": "^2.186.0-alpha.0",
     "@aws-sdk/client-bedrock-runtime": "^3.775.0",
     "@aws-sdk/credential-provider-node": "^3.777.0",
@@ -21,10 +22,12 @@
     "next": "latest"
   },
   "devDependencies": {
+    "@aws-amplify/backend": "^1.14.3",
+    "@aws-amplify/backend-cli": "^1.5.0",
     "@aws-sdk/types": "^3.775.0",
     "@types/aws-lambda": "^8.10.148",
     "@types/node": "^22.13.13",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.8.2"
   }
 }

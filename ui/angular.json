@@ -13,6 +13,12 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
+            "allowedCommonJsDependencies": [
+              "qrcode",
+              "lodash/pickBy.js",
+              "lodash/kebabCase.js",
+              "lodash/merge.js"
+            ],
             "outputPath": "dist/fijian-ui/browser",
             "index": "src/index.html",
             "main": "src/main.ts",
@@ -25,8 +31,8 @@
               "src/assets"
             ],
             "styles": [
-              "bootstrap/dist/css/bootstrap.min.css",
-              "src/styles.scss"
+              "src/styles.scss",
+              "node_modules/@aws-amplify/ui-angular/theme.css"
             ],
             "scripts": [
               "node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"
