@@ -1,22 +1,22 @@
 version: 1
 applications:
-  - appRoot: '.'
+  - appRoot: ui
     frontend:
       phases:
         preBuild:
           commands:
-            - cd ui
             - npm ci
         build:
           commands:
             - npm run build
       artifacts:
-        baseDirectory: ui/dist/fijian-rag-app
+        baseDirectory: dist/fijian-rag-app
         files:
           - '**/*'
       cache:
         paths:
-          - ui/node_modules/**/*
+          - node_modules/**/*
+  - appRoot: amplify
     backend:
       phases:
         preBuild:
