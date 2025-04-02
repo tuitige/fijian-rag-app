@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslationService, TranslationResponse } from '../../services/translation.service';
+import { HeaderComponent } from '../../components/header/header.component';
 
 @Component({
   selector: 'app-training',
@@ -9,7 +10,8 @@ import { TranslationService, TranslationResponse } from '../../services/translat
   styleUrls: ['./training.component.scss'],
   imports: [
     CommonModule,
-    FormsModule
+    FormsModule,
+    HeaderComponent
   ],
   standalone: true
 })
@@ -18,6 +20,7 @@ export class TrainingComponent {
   currentTranslation: TranslationResponse | null = null;
   verifiedTranslation = '';
   error = '';
+  errorMessage = '';
   verificationSuccess = '';
   isTranslating = false;
   isVerifying = false;

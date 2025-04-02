@@ -18,13 +18,13 @@
         ></textarea>
       </div>
       <button
-        (click)="translateText()"
-        [disabled]="isTranslating"
-        class="bg-primary text-white px-6 py-2 rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <span *ngIf="!isTranslating">Translate using Claude</span>
-        <span *ngIf="isTranslating">Translating...</span>
-      </button>
+      (click)="translateUsingClaude()"  <!-- Changed from translateText() -->
+      [disabled]="isTranslating"
+      class="bg-primary text-white px-6 py-2 rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      <span *ngIf="!isTranslating">Translate using Claude</span>
+      <span *ngIf="isTranslating">Translating...</span>
+    </button>
     </div>
   </div>
 
