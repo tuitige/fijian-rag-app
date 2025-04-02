@@ -1,31 +1,28 @@
 version: 1
-frontend:
-  phases:
-    preBuild:
-      commands:
-        - cd ui
-        - npm ci
-    build:
-      commands:
-        - npm run build
-  artifacts:
-    baseDirectory: ui/dist/fijian-rag-app
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - ui/node_modules/**/*
-  customHeaders:
-    - pattern: '**/*'
-      headers:
-        - key: 'Cache-Control'
-          value: 'no-store'
-backend:
-  phases:
-    preBuild:
-      commands:
-        - cd amplify
-        - npm ci
-    build:
-      commands:
-        - npm run build
+applications:
+  - frontend:
+      phases:
+        preBuild:
+          commands:
+            - cd ui
+            - npm ci
+        build:
+          commands:
+            - npm run build
+      artifacts:
+        baseDirectory: ui/dist/fijian-rag-app
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - ui/node_modules/**/*
+    appRoot: ui
+    backend:
+      phases:
+        preBuild:
+          commands:
+            - cd amplify
+            - npm ci
+        build:
+          commands:
+            - npm run build
