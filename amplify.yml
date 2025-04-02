@@ -8,7 +8,7 @@ applications:
             - nvm install 20
             - nvm use 20
             - node -v
-            - npm ci
+            - npm ci --legacy-peer-deps
         build:
           commands:
             - npm run build
