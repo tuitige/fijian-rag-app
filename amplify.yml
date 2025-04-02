@@ -1,6 +1,8 @@
 version: 1
 applications:
-  - frontend:
+  - sources:
+      - path: .
+    frontend:
       phases:
         preBuild:
           commands:
@@ -16,7 +18,6 @@ applications:
       cache:
         paths:
           - ui/node_modules/**/*
-    appRoot: .
     backend:
       phases:
         preBuild:
