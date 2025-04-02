@@ -1,99 +1,39 @@
 <app-header></app-header>
-
 <div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-8">
-      <div class="card shadow">
+  <!-- Welcome Section -->
+  <section class="welcome-section mb-5 p-4 rounded shadow">
+    <h1 class="display-4 mb-3">Welcome to Fijian Language Learning</h1>
+    <p class="lead">Start your journey to learn the beautiful Fijian language.</p>
+  </section>
+
+  <!-- Features Section -->
+  <div class="row g-4">
+    <!-- Feature Card 1 -->
+    <div class="col-md-6 col-lg-4">
+      <div class="card h-100 feature-card shadow-sm">
         <div class="card-body">
-          <h2 class="card-title mb-4">Fijian Text Translation</h2>
-          
-          <div *ngIf="errorMessage" class="alert alert-danger mb-4" role="alert">
-            <span>{{ errorMessage }}</span>
-          </div>
+          <h2 class="card-title h4 mb-3">Interactive Learning</h2>
+          <p class="card-text">Engage with interactive lessons and exercises designed to enhance your understanding of the Fijian language.</p>
+        </div>
+      </div>
+    </div>
 
-          <div class="mb-4">
-            <label for="fijianText" class="form-label">Enter Fijian Text</label>
-            <textarea 
-              class="form-control"
-              id="fijianText"
-              rows="4"
-              [(ngModel)]="fijianText"
-              placeholder="Enter Fijian text here..."
-              [class.is-invalid]="error"
-            ></textarea>
-          </div>
+    <!-- Feature Card 2 -->
+    <div class="col-md-6 col-lg-4">
+      <div class="card h-100 feature-card shadow-sm">
+        <div class="card-body">
+          <h2 class="card-title h4 mb-3">Cultural Context</h2>
+          <p class="card-text">Learn the language while understanding its rich cultural heritage and traditional significance.</p>
+        </div>
+      </div>
+    </div>
 
-          <div class="d-grid gap-2">
-            <button 
-              class="btn btn-primary btn-lg"
-              (click)="translateUsingClaude()"
-              [disabled]="isTranslating">
-              <span *ngIf="isTranslating" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-              {{ isTranslating ? 'Translating...' : 'Translate using Claude' }}
-            </button>
-          </div>
-
-          <div *ngIf="currentTranslation" class="mt-4">
-            <h4 class="mb-3">Machine Translation:</h4>
-            <div class="alert" [ngClass]="{
-              'alert-success': currentTranslation.confidence === 'high',
-              'alert-warning': currentTranslation.confidence === 'medium',
-              'alert-info': currentTranslation.confidence === 'low'
-            }">
-              <p class="mb-2"><strong>Translation:</strong> {{ currentTranslation.translation }}</p>
-              <p class="mb-2"><strong>Confidence:</strong> {{ currentTranslation.confidence }}</p>
-              <p class="mb-0" *ngIf="currentTranslation.notes">
-                <strong>Notes:</strong> {{ currentTranslation.notes }}
-              </p>
-            </div>
-
-            <!-- Verification Section -->
-            <div class="mt-4">
-              <h4 class="mb-3">Verify Translation</h4>
-              
-              <!-- Original Fijian Text Display -->
-              <div class="mb-3">
-                <label class="form-label text-muted">Original Fijian Text:</label>
-                <div class="p-3 bg-light border rounded">
-                  {{ fijianText }}
-                </div>
-              </div>
-
-              <!-- Editable English Translation -->
-              <div class="mb-4">
-                <label for="verifiedTranslation" class="form-label">Edit Translation if needed</label>
-                <textarea 
-                  class="form-control"
-                  id="verifiedTranslation"
-                  rows="4"
-                  [(ngModel)]="verifiedTranslation"
-                  placeholder="Edit the translation here..."
-                ></textarea>
-              </div>
-
-              <div class="d-grid gap-2">
-                <button 
-                  class="btn btn-success btn-lg"
-                  (click)="verifyTranslation()"
-                  [disabled]="isVerifying || !verifiedTranslation">
-                  <span *ngIf="isVerifying" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  {{ isVerifying ? 'Verifying...' : 'Verify Translation' }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div *ngIf="verificationSuccess" class="mt-4">
-            <div class="alert alert-success">
-              <p class="mb-0">{{ verificationSuccess }}</p>
-            </div>
-          </div>
-
-          <div *ngIf="error" class="mt-4">
-            <div class="alert alert-danger">
-              <p class="mb-0">{{ error }}</p>
-            </div>
-          </div>
+    <!-- Feature Card 3 -->
+    <div class="col-md-6 col-lg-4">
+      <div class="card h-100 feature-card shadow-sm">
+        <div class="card-body">
+          <h2 class="card-title h4 mb-3">Progress Tracking</h2>
+          <p class="card-text">Monitor your learning journey with detailed progress tracking and performance metrics.</p>
         </div>
       </div>
     </div>

@@ -1,0 +1,64 @@
+:host {
+    display: block;
+    background-color: #f8f9fa;
+  }
+  
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .text-primary {
+    color: #3498db;
+  }
+  
+  section {
+    transition: transform 0.2s ease;
+  
+    &:hover {
+      transform: translateY(-2px);
+    }
+  }
+  
+  .feature-card {
+    height: 100%;
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+  
+    &:hover {
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+  
+    h2 {
+      color: #2c3e50;
+      margin-bottom: 1rem;
+    }
+  
+    p {
+      color: #6c757d;
+      line-height: 1.6;
+    }
+  }
+  
+  .welcome-section {
+    background: linear-gradient(to right, #3498db, #2980b9);
+    color: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    margin-bottom: 2rem;
+  
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      color: white;
+    }
+  
+    p {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1.1rem;
+    }
+  }
+  
