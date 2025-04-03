@@ -13,6 +13,7 @@ import { HeaderComponent } from '../../components/header/header.component';
     FormsModule,
     HeaderComponent
   ],
+  providers: [TranslationService],
   standalone: true
 })
 export class TrainingComponent {
