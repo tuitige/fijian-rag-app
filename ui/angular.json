@@ -5,7 +5,11 @@
   "projects": {
     "fijian-ui": {
       "projectType": "application",
-      "schematics": {},
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss"
+        }
+      },
       "root": "",
       "sourceRoot": "src",
       "prefix": "app",
@@ -25,10 +29,13 @@
               "src/assets"
             ],
             "styles": [
-              "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "node_modules/bootstrap/scss/bootstrap.scss",
               "src/styles.scss"
             ],
-            "scripts": ["node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"],
+            "scripts": [
+              "node_modules/@popperjs/core/dist/umd/popper.min.js",
+              "node_modules/bootstrap/dist/js/bootstrap.min.js"
+            ],
             "allowedCommonJsDependencies": [
               "events",
               "@aws-crypto/sha256-browser",
@@ -59,7 +66,15 @@
               "url",
               "camelcase-keys",
               "lodash/flatten",
-              "lodash/noop"
+              "lodash/noop",
+              "classnames",
+              "qrcode",
+              "xstate/lib/waitFor.js",
+              "lodash/pickBy.js",
+              "style-dictionary/lib/utils/deepExtend.js",
+              "style-dictionary/lib/utils/flattenProperties.js",
+              "lodash/kebabCase.js",
+              "style-dictionary/lib/utils/references/usesReference.js"
             ]
           },
           "configurations": {
@@ -120,10 +135,13 @@
               "src/assets"
             ],
             "styles": [
-              "node_modules/@aws-amplify/ui-angular/theme.css",
-              "src/styles.css"
+              "node_modules/bootstrap/scss/bootstrap.scss",
+              "src/styles.scss"
             ],
-            "scripts": []
+            "scripts": [
+              "node_modules/@popperjs/core/dist/umd/popper.min.js",
+              "node_modules/bootstrap/dist/js/bootstrap.min.js"
+            ]
           }
         }
       }

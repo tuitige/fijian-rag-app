@@ -18,9 +18,11 @@
     "@angular/platform-browser": "^17.3.0",
     "@angular/platform-browser-dynamic": "^17.3.0",
     "@angular/router": "^17.3.0",
-    "@aws-amplify/ui-angular": "^3.2.15",
     "@aws-amplify/ui": "^5.3.11",
+    "@aws-amplify/ui-angular": "^3.2.15",
+    "@popperjs/core": "^2.11.8",
     "aws-amplify": "^5.3.11",
+    "bootstrap": "^5.3.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.0"
