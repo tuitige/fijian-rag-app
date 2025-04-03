@@ -60,20 +60,25 @@ export class TrainingComponent {
       this.error = 'Both original text and verified translation are required';
       return;
     }
-
+  
     this.isVerifying = true;
     this.error = '';
     this.verificationSuccess = '';
-
+  
     this.translationService.verifyTranslation(this.fijianText, this.verifiedTranslation)
       .subscribe({
         next: (response) => {
-          this.verificationSuccess = response.message;
+          this.verificationSuccess = `Verification successful! ${response.message}`;
           this.isVerifying = false;
+          // Optionally store the verification ID
+          console.log('Verification ID:', response.id);
         },
         error: (err: Error) => {
           console.error('Verification error:', err);
           this.error = 'Error verifying translation. Please try again.';
+          this.isVerifying = false;
+        },
+        complete: () => {
           this.isVerifying = false;
         }
       });

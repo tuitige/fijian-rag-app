@@ -39,10 +39,12 @@
       </div>
 
       <!-- Translation Result Section -->
+      <!-- Translation Result Section -->
       <div *ngIf="currentTranslation" class="card shadow-sm">
         <div class="card-body">
           <h3 class="card-title h5 mb-3">Translation Result</h3>
           
+          <!-- Translation textarea -->
           <div class="mb-3">
             <label class="form-label">English Translation</label>
             <textarea 
@@ -52,11 +54,24 @@
               placeholder="Translation will appear here..."></textarea>
           </div>
 
+          <!-- Verification Response Messages -->
+          <div *ngIf="verificationSuccess" class="alert alert-success mb-3">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            {{ verificationSuccess }}
+          </div>
+
+          <div *ngIf="error" class="alert alert-danger mb-3">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            {{ error }}
+          </div>
+
+          <!-- Buttons and Confidence -->
           <div class="d-flex justify-content-between align-items-center">
             <button 
               class="btn btn-success"
               (click)="verifyTranslation()"
               [disabled]="isVerifying || !verifiedTranslation.trim()">
+              <span *ngIf="isVerifying" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
               {{ isVerifying ? 'Verifying...' : 'Verify Translation' }}
             </button>
 
