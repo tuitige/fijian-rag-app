@@ -27,12 +27,12 @@ export class TranslationService {
   constructor(private http: HttpClient) {}
 
   translateText(fijianText: string): Observable<TranslationResponse> {
-    return this.http.post<TranslationResponse>(this.translateUrl, { fijianText });
+    return this.http.post<TranslationResponse>(this.translateUrl, { text });
   }
 
   verifyTranslation(originalFijian: string, verifiedEnglish: string): Observable<VerifyResponse> {
     return this.http.post<VerifyResponse>(this.verifyUrl, {
-      originalFijian,
+      text,
       verifiedEnglish
     });
   }
