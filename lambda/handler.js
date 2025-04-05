@@ -101,13 +101,13 @@ function cosineSimilarity(vecA, vecB) {
 }
 function translateWithClaude(text, sourceLanguage) {
     return __awaiter(this, void 0, void 0, function () {
-        var prompt, command, response, result;
+        var prompt, command, response, result, parsedResponse, rawText;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     prompt = sourceLanguage === 'fj'
-                        ? "Translate this Fijian text to English: \"".concat(text, "\"")
-                        : "Translate this English text to Fijian: \"".concat(text, "\"");
+                        ? "Translate this Fijian text to English. Provide your response in JSON format with two fields:\n       1. \"translation\" - containing only the direct translation\n       2. \"notes\" - containing any explanatory notes, context, or alternative translations\n       Input text: \"".concat(text, "\"")
+                        : "Translate this English text to Fijian. Provide your response in JSON format with two fields:\n       1. \"translation\" - containing only the direct translation\n       2. \"notes\" - containing any explanatory notes, context, or alternative translations\n       Input text: \"".concat(text, "\"");
                     command = new client_bedrock_runtime_1.InvokeModelCommand({
                         modelId: 'anthropic.claude-3-sonnet-20240229-v1:0',
                         contentType: 'application/json',
@@ -127,7 +127,25 @@ function translateWithClaude(text, sourceLanguage) {
                 case 1:
                     response = _a.sent();
                     result = JSON.parse(new TextDecoder().decode(response.body));
-                    return [2 /*return*/, result.content[0].text];
+                    try {
+                        parsedResponse = JSON.parse(result.content[0].text);
+                        return [2 /*return*/, {
+                                translation: parsedResponse.translation.trim(),
+                                rawResponse: result.content[0].text,
+                                confidence: result.confidence || undefined
+                            }];
+                    }
+                    catch (e) {
+                        // Fallback if Claude doesn't return valid JSON
+                        console.warn('Failed to parse Claude response as JSON:', e);
+                        rawText = result.content[0].text;
+                        return [2 /*return*/, {
+                                translation: rawText.replace(/^.*?"|\n|"$/g, '').trim(),
+                                rawResponse: rawText,
+                                confidence: result.confidence || undefined
+                            }];
+                    }
+                    return [2 /*return*/];
             }
         });
     });
@@ -167,7 +185,7 @@ function findSimilarTranslations(text_1, sourceLanguage_1) {
 }
 function main(event) {
     return __awaiter(this, void 0, void 0, function () {
-        var path, body, parsedBody, _a, _b, text, _c, sourceLanguage, similarTranslations, translation, newTranslation, id, verifiedTranslation, verifier, _d, sourceLanguage, category, queryParams, result, error_1;
+        var path, body, parsedBody, _a, _b, text, _c, sourceLanguage, similarTranslations, translationResult, newTranslation, id, verifiedTranslation, verifier, _d, sourceLanguage, category, queryParams, result, error_1;
         var _e;
         return __generator(this, function (_f) {
             switch (_f.label) {
@@ -188,7 +206,6 @@ function main(event) {
                 case 2:
                     similarTranslations = _f.sent();
                     if (similarTranslations.length > 0) {
-                        // Use the best matching verified translation
                         return [2 /*return*/, {
                                 statusCode: 200,
                                 headers: {
@@ -205,11 +222,11 @@ function main(event) {
                     }
                     return [4 /*yield*/, translateWithClaude(text, sourceLanguage)];
                 case 3:
-                    translation = _f.sent();
+                    translationResult = _f.sent();
                     _e = {
                         id: (0, uuid_1.v4)(),
                         sourceText: text,
-                        translation: translation,
+                        translation: translationResult.translation,
                         sourceLanguage: sourceLanguage
                     };
                     return [4 /*yield*/, getEmbedding(text)];
@@ -232,7 +249,9 @@ function main(event) {
                             },
                             body: JSON.stringify({
                                 sourceText: text,
-                                translation: translation,
+                                translation: translationResult.translation,
+                                rawResponse: translationResult.rawResponse,
+                                confidence: translationResult.confidence,
                                 source: 'claude',
                                 sourceLanguage: sourceLanguage
                             })

@@ -93,3 +93,39 @@
     color: #6c757d;
   }
   
+  // training.component.scss
+.translation-result {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+
+  .translation {
+    margin-bottom: 15px;
+  }
+
+  .metadata {
+    font-size: 0.9em;
+    color: #666;
+    
+    .source {
+      font-weight: bold;
+    }
+
+    .confidence {
+      color: #28a745;
+    }
+
+    .raw-response {
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+      
+      pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+    }
+  }
+}

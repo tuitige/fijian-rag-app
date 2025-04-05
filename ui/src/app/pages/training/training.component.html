@@ -39,10 +39,16 @@
       </div>
 
       <!-- Translation Result Section -->
-      <!-- Translation Result Section -->
       <div *ngIf="currentTranslation" class="card shadow-sm">
         <div class="card-body">
           <h3 class="card-title h5 mb-3">Translation Result</h3>
+          
+          <!-- Source Badge -->
+          <div class="mb-3">
+            <span class="badge" [ngClass]="{'bg-primary': currentTranslation.source === 'claude', 'bg-success': currentTranslation.source === 'verified'}">
+              {{ currentTranslation.source === 'verified' ? 'Verified Translation' : 'AI Translation' }}
+            </span>
+          </div>
           
           <!-- Translation textarea -->
           <div class="mb-3">
@@ -76,12 +82,27 @@
             </button>
 
             <div *ngIf="currentTranslation.confidence" class="text-muted">
-              Confidence: {{ currentTranslation.confidence }}
+              Confidence: {{ currentTranslation.confidence | percent:'1.0-2' }}
             </div>
           </div>
 
-          <div *ngIf="currentTranslation.notes" class="mt-3">
-            <small class="text-muted">{{ currentTranslation.notes }}</small>
+          <!-- Raw Response Toggle -->
+          <div class="mt-3" *ngIf="currentTranslation.rawResponse">
+            <button 
+              class="btn btn-link p-0"
+              (click)="showRawResponse = !showRawResponse">
+              {{ showRawResponse ? 'Hide Details' : 'Show Details' }}
+            </button>
+            
+            <div *ngIf="showRawResponse" class="mt-2">
+              <div class="card bg-light">
+                <div class="card-body">
+                  <small class="text-muted">
+                    {{ currentTranslation.rawResponse }}
+                  </small>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

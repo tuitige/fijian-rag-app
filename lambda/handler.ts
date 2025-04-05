@@ -53,10 +53,20 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
   return dotProduct / (magnitudeA * magnitudeB);
 }
 
-async function translateWithClaude(text: string, sourceLanguage: 'en' | 'fj'): Promise<string> {
+async function translateWithClaude(text: string, sourceLanguage: 'en' | 'fj'): Promise<{
+  translation: string;
+  rawResponse: string;
+  confidence?: number;
+}> {
   const prompt = sourceLanguage === 'fj' 
-    ? `Translate this Fijian text to English: "${text}"`
-    : `Translate this English text to Fijian: "${text}"`;
+    ? `Translate this Fijian text to English. Provide your response in JSON format with two fields:
+       1. "translation" - containing only the direct translation
+       2. "notes" - containing any explanatory notes, context, or alternative translations
+       Input text: "${text}"`
+    : `Translate this English text to Fijian. Provide your response in JSON format with two fields:
+       1. "translation" - containing only the direct translation
+       2. "notes" - containing any explanatory notes, context, or alternative translations
+       Input text: "${text}"`;
 
   const command = new InvokeModelCommand({
     modelId: 'anthropic.claude-3-sonnet-20240229-v1:0',
@@ -76,7 +86,25 @@ async function translateWithClaude(text: string, sourceLanguage: 'en' | 'fj'): P
 
   const response = await bedrock.send(command);
   const result = JSON.parse(new TextDecoder().decode(response.body));
-  return result.content[0].text;
+  
+  try {
+    // Parse Claude's response as JSON
+    const parsedResponse = JSON.parse(result.content[0].text);
+    return {
+      translation: parsedResponse.translation.trim(),
+      rawResponse: result.content[0].text,
+      confidence: result.confidence || undefined
+    };
+  } catch (e) {
+    // Fallback if Claude doesn't return valid JSON
+    console.warn('Failed to parse Claude response as JSON:', e);
+    const rawText = result.content[0].text;
+    return {
+      translation: rawText.replace(/^.*?"|\n|"$/g, '').trim(),
+      rawResponse: rawText,
+      confidence: result.confidence || undefined
+    };
+  }
 }
 
 async function findSimilarTranslations(
@@ -121,7 +149,6 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
         const similarTranslations = await findSimilarTranslations(text, sourceLanguage);
         
         if (similarTranslations.length > 0) {
-          // Use the best matching verified translation
           return {
             statusCode: 200,
             headers: {
@@ -138,13 +165,13 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
         }
 
         // Fall back to Claude for translation
-        const translation = await translateWithClaude(text, sourceLanguage);
+        const translationResult = await translateWithClaude(text, sourceLanguage);
         
         // Store unverified translation
         const newTranslation: Translation = {
           id: uuidv4(),
           sourceText: text,
-          translation: translation,
+          translation: translationResult.translation,
           sourceLanguage,
           embedding: await getEmbedding(text),
           verified: 'false',
@@ -164,7 +191,9 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
           },
           body: JSON.stringify({
             sourceText: text,
-            translation,
+            translation: translationResult.translation,
+            rawResponse: translationResult.rawResponse,
+            confidence: translationResult.confidence,
             source: 'claude',
             sourceLanguage
           })
@@ -197,7 +226,6 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
       }
 
       case '/learn': {
-        // Get verified translations for learning
         const { sourceLanguage = 'fj', category } = parsedBody;
         
         const queryParams: any = {

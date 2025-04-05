@@ -25,6 +25,7 @@ export class TrainingComponent {
   verificationSuccess = '';
   isTranslating = false;
   isVerifying = false;
+  showRawResponse = false; // Toggle for showing/hiding raw response
 
   constructor(private translationService: TranslationService) {}
 
@@ -41,18 +42,26 @@ export class TrainingComponent {
     this.verifiedTranslation = '';
 
     this.translationService.translateText(this.fijianText)
-      .subscribe({
-        next: (response: TranslationResponse) => {
-          this.currentTranslation = response;
-          this.verifiedTranslation = response.translation;
-          this.isTranslating = false;
-        },
-        error: (err: Error) => {
-          console.error('Translation error:', err);
-          this.error = 'Error translating text. Please try again.';
-          this.isTranslating = false;
+    .subscribe({
+      next: (response: TranslationResponse) => {
+        this.currentTranslation = response;
+        this.verifiedTranslation = response.translation;
+        this.isTranslating = false;
+        
+        // Optional: Log additional information
+        if (response.confidence) {
+          console.log(`Translation confidence: ${response.confidence}`);
         }
-      });
+        if (response.source === 'verified') {
+          console.log('Using verified translation from database');
+        }
+      },
+      error: (err: Error) => {
+        console.error('Translation error:', err);
+        this.error = 'Error translating text. Please try again.';
+        this.isTranslating = false;
+      }
+    });
   }
 
   verifyTranslation(): void {

@@ -1,11 +1,24 @@
 {
-    "path": "/rag",
-    "httpMethod": "POST",
-    "body": "{\"question\": \"How do you say hello in Fijian?\"}"
-  }
+  "path": "/translate",
+  "httpMethod": "POST",
+  "body": "{\"text\": \"Bula vinaka! Au marautaka meu sota tale kei kemuni\", \"sourceLanguage\": \"fj\"}"
+}
 
-  {
-    "path": "/translate",
-    "httpMethod": "POST",
-    "body": "{\"fijianText\": \"Bula vinaka! Au marautaka meu sota tale kei kemuni\"}"
-  }
+{
+  "path": "/translate",
+  "httpMethod": "POST",
+  "body": "{\"text\": \"Hello! I am happy to meet you again\", \"sourceLanguage\": \"en\"}"
+}
+
+{
+  "path": "/verify",
+  "httpMethod": "POST",
+  "body": "{\"id\": \"123e4567-e89b-12d3-a456-426614174000\", \"verifiedTranslation\": \"Hello! I am very happy to meet you again\", \"verifier\": \"Makita\"}"
+}
+
+
+{
+  "path": "/learn",
+  "httpMethod": "POST",
+  "body": "{\"sourceLanguage\": \"fj\", \"category\": \"greetings\"}"
+}

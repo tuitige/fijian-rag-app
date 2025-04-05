@@ -4,11 +4,12 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 export interface TranslationResponse {
-  originalText: string;
+  sourceText: string;
   translation: string;
-  confidence: string;
-  notes: string;
   rawResponse?: string;
+  confidence?: number;
+  source: 'claude' | 'verified';
+  sourceLanguage: 'en' | 'fj';
 }
 
 export interface VerifyResponse {
