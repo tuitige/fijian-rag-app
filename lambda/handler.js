@@ -52,34 +52,48 @@ var opensearch_1 = require("@opensearch-project/opensearch");
 var credential_provider_node_1 = require("@aws-sdk/credential-provider-node");
 var aws_1 = require("@opensearch-project/opensearch/aws");
 var client_bedrock_runtime_1 = require("@aws-sdk/client-bedrock-runtime");
-var OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT || '';
-var COLLECTION_NAME = process.env.COLLECTION_NAME || '';
-var INDEX_NAME = 'fijian-embeddings'; // Added constant definition
-var createOpenSearchClient = function () { return __awaiter(void 0, void 0, void 0, function () {
-    return __generator(this, function (_a) {
-        return [2 /*return*/, new opensearch_1.Client(__assign(__assign({}, (0, aws_1.AwsSigv4Signer)({
-                region: process.env.AWS_REGION || 'us-west-2',
-                service: 'aoss',
-                getCredentials: (0, credential_provider_node_1.defaultProvider)()
-            })), { node: OPENSEARCH_ENDPOINT }))];
-    });
-}); };
-// create the index if it doesn't exist
+// Updated constants for provisioned cluster
+var OPENSEARCH_DOMAIN_ENDPOINT = process.env.OPENSEARCH_DOMAIN_ENDPOINT || '';
+var INDEX_NAME = process.env.INDEX_NAME || 'translations';
+// Modified client creation for provisioned cluster
+var createOpenSearchClient = function () {
+    if (!OPENSEARCH_DOMAIN_ENDPOINT) {
+        throw new Error('OPENSEARCH_DOMAIN_ENDPOINT environment variable is required');
+    }
+    return new opensearch_1.Client(__assign(__assign({}, (0, aws_1.AwsSigv4Signer)({
+        region: process.env.AWS_REGION || 'us-west-2',
+        service: 'es', // Changed from 'aoss' to 'es' for provisioned cluster
+        getCredentials: (0, credential_provider_node_1.defaultProvider)()
+    })), { node: "https://".concat(OPENSEARCH_DOMAIN_ENDPOINT), ssl: {
+            rejectUnauthorized: true
+        } }));
+};
+// Modified index creation with health check
 var createIndexIfNotExists = function (client) { return __awaiter(void 0, void 0, void 0, function () {
-    var exists, error_1;
+    var health, exists, error_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 4, , 5]);
+                _a.trys.push([0, 5, , 6]);
+                return [4 /*yield*/, client.cluster.health({})];
+            case 1:
+                health = _a.sent();
+                if (health.body.status === 'red') {
+                    throw new Error('Cluster health is red, operations not permitted');
+                }
                 return [4 /*yield*/, client.indices.exists({
                         index: INDEX_NAME
                     })];
-            case 1:
+            case 2:
                 exists = _a.sent();
-                if (!!exists.body) return [3 /*break*/, 3];
+                if (!!exists.body) return [3 /*break*/, 4];
                 return [4 /*yield*/, client.indices.create({
                         index: INDEX_NAME,
                         body: {
+                            settings: {
+                                number_of_shards: 1,
+                                number_of_replicas: 1
+                            },
                             mappings: {
                                 properties: {
                                     fijian: { type: 'text' },
@@ -89,20 +103,21 @@ var createIndexIfNotExists = function (client) { return __awaiter(void 0, void 0
                             }
                         }
                     })];
-            case 2:
+            case 3:
                 _a.sent();
-                _a.label = 3;
-            case 3: return [3 /*break*/, 5];
-            case 4:
+                _a.label = 4;
+            case 4: return [3 /*break*/, 6];
+            case 5:
                 error_1 = _a.sent();
                 console.error('Error creating index:', error_1);
                 throw error_1;
-            case 5: return [2 /*return*/];
+            case 6: return [2 /*return*/];
         }
     });
 }); };
+// Modified verify handler with enhanced error handling
 var handleVerify = function (client, body, headers) { return __awaiter(void 0, void 0, void 0, function () {
-    var originalFijian, verifiedEnglish, document_1, response, error_2;
+    var originalFijian, verifiedEnglish, health, document_1, response, error_2;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -116,7 +131,13 @@ var handleVerify = function (client, body, headers) { return __awaiter(void 0, v
                 }
                 _a.label = 1;
             case 1:
-                _a.trys.push([1, 3, , 4]);
+                _a.trys.push([1, 4, , 5]);
+                return [4 /*yield*/, client.cluster.health({})];
+            case 2:
+                health = _a.sent();
+                if (health.body.status === 'red') {
+                    throw new Error('Cluster is not healthy');
+                }
                 document_1 = {
                     fijian: originalFijian,
                     english: verifiedEnglish,
@@ -124,31 +145,57 @@ var handleVerify = function (client, body, headers) { return __awaiter(void 0, v
                 };
                 return [4 /*yield*/, client.index({
                         index: INDEX_NAME,
-                        body: document_1
+                        body: document_1,
+                        refresh: true // Ensure immediate searchability
                     })];
-            case 2:
+            case 3:
                 response = _a.sent();
                 return [2 /*return*/, {
                         statusCode: 200,
                         headers: headers,
                         body: JSON.stringify({
                             message: 'Translation verified and stored successfully',
-                            id: response.body._id
+                            id: response.body._id,
+                            clusterHealth: health.body.status
                         })
                     }];
-            case 3:
+            case 4:
                 error_2 = _a.sent();
                 console.error('Verification error:', error_2);
+                // Enhanced error handling
+                if (error_2.name === 'ConnectionError') {
+                    return [2 /*return*/, {
+                            statusCode: 503,
+                            headers: headers,
+                            body: JSON.stringify({
+                                message: 'OpenSearch cluster is not available',
+                                error: 'The cluster might be stopped or starting up'
+                            })
+                        }];
+                }
+                if (error_2.message.includes('Cluster is not healthy')) {
+                    return [2 /*return*/, {
+                            statusCode: 503,
+                            headers: headers,
+                            body: JSON.stringify({
+                                message: 'OpenSearch cluster is not healthy',
+                                error: 'Please try again later'
+                            })
+                        }];
+                }
                 return [2 /*return*/, {
                         statusCode: 500,
                         headers: headers,
-                        body: JSON.stringify({ message: 'Error storing verified translation',
-                            error: error_2.message })
+                        body: JSON.stringify({
+                            message: 'Error storing verified translation',
+                            error: error_2.message
+                        })
                     }];
-            case 4: return [2 /*return*/];
+            case 5: return [2 /*return*/];
         }
     });
 }); };
+// Your existing handleTranslate function remains unchanged
 var handleTranslate = function (body, headers) { return __awaiter(void 0, void 0, void 0, function () {
     var fijianText, bedrockClient, prompt_1, command, response, responseBody, claudeResponse, parsedResponse, jsonMatch, jsonStr, error_3;
     return __generator(this, function (_a) {
@@ -231,12 +278,14 @@ var handleTranslate = function (body, headers) { return __awaiter(void 0, void 0
         }
     });
 }); };
+// Modified main handler with client reuse
+var opensearchClient = null;
 var main = function (event) { return __awaiter(void 0, void 0, void 0, function () {
-    var corsHeaders, client, path, body, _a, error_4;
+    var headers, path, body, _a, error_4;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
-                corsHeaders = {
+                headers = {
                     'Access-Control-Allow-Origin': '*',
                     'Access-Control-Allow-Headers': 'Content-Type',
                     'Access-Control-Allow-Methods': 'OPTIONS,POST'
@@ -245,14 +294,15 @@ var main = function (event) { return __awaiter(void 0, void 0, void 0, function 
             case 1:
                 _b.trys.push([1, 10, , 11]);
                 if (event.httpMethod === 'OPTIONS') {
-                    return [2 /*return*/, { statusCode: 200, headers: corsHeaders, body: '' }];
+                    return [2 /*return*/, { statusCode: 200, headers: headers, body: '' }];
                 }
-                return [4 /*yield*/, createOpenSearchClient()];
+                if (!!opensearchClient) return [3 /*break*/, 3];
+                opensearchClient = createOpenSearchClient();
+                return [4 /*yield*/, createIndexIfNotExists(opensearchClient)];
             case 2:
-                client = _b.sent();
-                return [4 /*yield*/, createIndexIfNotExists(client)];
-            case 3:
                 _b.sent();
+                _b.label = 3;
+            case 3:
                 path = event.path;
                 body = JSON.parse(event.body || '{}');
                 _a = path;
@@ -261,13 +311,13 @@ var main = function (event) { return __awaiter(void 0, void 0, void 0, function 
                     case '/verify': return [3 /*break*/, 6];
                 }
                 return [3 /*break*/, 8];
-            case 4: return [4 /*yield*/, handleTranslate(body, corsHeaders)];
+            case 4: return [4 /*yield*/, handleTranslate(body, headers)];
             case 5: return [2 /*return*/, _b.sent()];
-            case 6: return [4 /*yield*/, handleVerify(client, body, corsHeaders)];
+            case 6: return [4 /*yield*/, handleVerify(opensearchClient, body, headers)];
             case 7: return [2 /*return*/, _b.sent()];
             case 8: return [2 /*return*/, {
                     statusCode: 404,
-                    headers: corsHeaders,
+                    headers: headers,
                     body: JSON.stringify({ message: 'Not Found' })
                 }];
             case 9: return [3 /*break*/, 11];
@@ -276,8 +326,11 @@ var main = function (event) { return __awaiter(void 0, void 0, void 0, function 
                 console.error('Error:', error_4);
                 return [2 /*return*/, {
                         statusCode: 500,
-                        headers: corsHeaders,
-                        body: JSON.stringify({ message: 'Internal Server Error' })
+                        headers: headers,
+                        body: JSON.stringify({
+                            message: 'Internal Server Error',
+                            error: error_4.message
+                        })
                     }];
             case 11: return [2 /*return*/];
         }

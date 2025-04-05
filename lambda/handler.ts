@@ -4,24 +4,38 @@ import { AwsSigv4Signer } from '@opensearch-project/opensearch/aws';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 
-const OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT || '';
-const COLLECTION_NAME = process.env.COLLECTION_NAME || '';
-const INDEX_NAME = 'fijian-embeddings'; // Added constant definition
+// Updated constants for provisioned cluster
+const OPENSEARCH_DOMAIN_ENDPOINT = process.env.OPENSEARCH_DOMAIN_ENDPOINT || '';
+const INDEX_NAME = process.env.INDEX_NAME || 'translations';
 
-const createOpenSearchClient = async () => {
+// Modified client creation for provisioned cluster
+const createOpenSearchClient = () => {
+  if (!OPENSEARCH_DOMAIN_ENDPOINT) {
+    throw new Error('OPENSEARCH_DOMAIN_ENDPOINT environment variable is required');
+  }
+
   return new Client({
     ...AwsSigv4Signer({
       region: process.env.AWS_REGION || 'us-west-2',
-      service: 'aoss',
+      service: 'es', // Changed from 'aoss' to 'es' for provisioned cluster
       getCredentials: defaultProvider()
     }),
-    node: OPENSEARCH_ENDPOINT,
+    node: `https://${OPENSEARCH_DOMAIN_ENDPOINT}`,
+    ssl: {
+      rejectUnauthorized: true
+    }
   });
 };
 
-// create the index if it doesn't exist
+// Modified index creation with health check
 const createIndexIfNotExists = async (client: Client) => {
   try {
+    // Check cluster health first
+    const health = await client.cluster.health({});
+    if (health.body.status === 'red') {
+      throw new Error('Cluster health is red, operations not permitted');
+    }
+
     const exists = await client.indices.exists({
       index: INDEX_NAME
     });
@@ -30,6 +44,10 @@ const createIndexIfNotExists = async (client: Client) => {
       await client.indices.create({
         index: INDEX_NAME,
         body: {
+          settings: {
+            number_of_shards: 1,
+            number_of_replicas: 1
+          },
           mappings: {
             properties: {
               fijian: { type: 'text' },
@@ -46,6 +64,7 @@ const createIndexIfNotExists = async (client: Client) => {
   }
 };
 
+// Modified verify handler with enhanced error handling
 const handleVerify = async (client: Client, body: any, headers: any): Promise<APIGatewayProxyResult> => {
   const { originalFijian, verifiedEnglish } = body;
 
@@ -58,6 +77,12 @@ const handleVerify = async (client: Client, body: any, headers: any): Promise<AP
   }
 
   try {
+    // Check cluster health before proceeding
+    const health = await client.cluster.health({});
+    if (health.body.status === 'red') {
+      throw new Error('Cluster is not healthy');
+    }
+
     const document = {
       fijian: originalFijian,
       english: verifiedEnglish,
@@ -66,7 +91,8 @@ const handleVerify = async (client: Client, body: any, headers: any): Promise<AP
 
     const response = await client.index({
       index: INDEX_NAME,
-      body: document
+      body: document,
+      refresh: true // Ensure immediate searchability
     });
 
     return {
@@ -74,20 +100,48 @@ const handleVerify = async (client: Client, body: any, headers: any): Promise<AP
       headers,
       body: JSON.stringify({
         message: 'Translation verified and stored successfully',
-        id: response.body._id
+        id: response.body._id,
+        clusterHealth: health.body.status
       })
     };
   } catch (error) {
     console.error('Verification error:', error);
+
+    // Enhanced error handling
+    if (error.name === 'ConnectionError') {
+      return {
+        statusCode: 503,
+        headers,
+        body: JSON.stringify({
+          message: 'OpenSearch cluster is not available',
+          error: 'The cluster might be stopped or starting up'
+        })
+      };
+    }
+
+    if (error.message.includes('Cluster is not healthy')) {
+      return {
+        statusCode: 503,
+        headers,
+        body: JSON.stringify({
+          message: 'OpenSearch cluster is not healthy',
+          error: 'Please try again later'
+        })
+      };
+    }
+
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ message: 'Error storing verified translation',
-        error: error.message })
+      body: JSON.stringify({
+        message: 'Error storing verified translation',
+        error: error.message
+      })
     };
   }
 };
 
+// Your existing handleTranslate function remains unchanged
 const handleTranslate = async (body: any, headers: any): Promise<APIGatewayProxyResult> => {
   try {
     const { fijianText } = body;
@@ -177,8 +231,11 @@ const handleTranslate = async (body: any, headers: any): Promise<APIGatewayProxy
   }
 };
 
+// Modified main handler with client reuse
+let opensearchClient: Client | null = null;
+
 export const main = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  const corsHeaders = {
+  const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'OPTIONS,POST'
@@ -186,24 +243,27 @@ export const main = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxy
 
   try {
     if (event.httpMethod === 'OPTIONS') {
-      return { statusCode: 200, headers: corsHeaders, body: '' };
+      return { statusCode: 200, headers, body: '' };
     }
 
-    const client = await createOpenSearchClient();
-    await createIndexIfNotExists(client);
+    // Initialize client if not exists
+    if (!opensearchClient) {
+      opensearchClient = createOpenSearchClient();
+      await createIndexIfNotExists(opensearchClient);
+    }
 
     const path = event.path;
     const body = JSON.parse(event.body || '{}');
 
     switch (path) {
       case '/translate':
-        return await handleTranslate(body, corsHeaders);
+        return await handleTranslate(body, headers);
       case '/verify':
-        return await handleVerify(client, body, corsHeaders);
+        return await handleVerify(opensearchClient, body, headers);
       default:
         return {
           statusCode: 404,
-          headers: corsHeaders,
+          headers,
           body: JSON.stringify({ message: 'Not Found' })
         };
     }
@@ -211,8 +271,11 @@ export const main = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxy
     console.error('Error:', error);
     return {
       statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ message: 'Internal Server Error' })
+      headers,
+      body: JSON.stringify({
+        message: 'Internal Server Error',
+        error: error.message
+      })
     };
   }
 };
