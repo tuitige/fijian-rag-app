@@ -46,294 +46,269 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.main = void 0;
-var opensearch_1 = require("@opensearch-project/opensearch");
-var credential_provider_node_1 = require("@aws-sdk/credential-provider-node");
-var aws_1 = require("@opensearch-project/opensearch/aws");
-var client_bedrock_runtime_1 = require("@aws-sdk/client-bedrock-runtime");
-// Updated constants for provisioned cluster
-var OPENSEARCH_DOMAIN_ENDPOINT = process.env.OPENSEARCH_DOMAIN_ENDPOINT || '';
-var INDEX_NAME = process.env.INDEX_NAME || 'translations';
-// Modified client creation for provisioned cluster
-var createOpenSearchClient = function () {
-    if (!OPENSEARCH_DOMAIN_ENDPOINT) {
-        throw new Error('OPENSEARCH_DOMAIN_ENDPOINT environment variable is required');
-    }
-    return new opensearch_1.Client(__assign(__assign({}, (0, aws_1.AwsSigv4Signer)({
-        region: process.env.AWS_REGION || 'us-west-2',
-        service: 'es', // Changed from 'aoss' to 'es' for provisioned cluster
-        getCredentials: (0, credential_provider_node_1.defaultProvider)()
-    })), { node: "https://".concat(OPENSEARCH_DOMAIN_ENDPOINT), ssl: {
-            rejectUnauthorized: true
-        } }));
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
 };
-// Modified index creation with health check
-var createIndexIfNotExists = function (client) { return __awaiter(void 0, void 0, void 0, function () {
-    var health, exists, error_1;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
-            case 0:
-                _a.trys.push([0, 5, , 6]);
-                return [4 /*yield*/, client.cluster.health({})];
-            case 1:
-                health = _a.sent();
-                if (health.body.status === 'red') {
-                    throw new Error('Cluster health is red, operations not permitted');
-                }
-                return [4 /*yield*/, client.indices.exists({
-                        index: INDEX_NAME
-                    })];
-            case 2:
-                exists = _a.sent();
-                if (!!exists.body) return [3 /*break*/, 4];
-                return [4 /*yield*/, client.indices.create({
-                        index: INDEX_NAME,
-                        body: {
-                            settings: {
-                                number_of_shards: 1,
-                                number_of_replicas: 1
-                            },
-                            mappings: {
-                                properties: {
-                                    fijian: { type: 'text' },
-                                    english: { type: 'text' },
-                                    timestamp: { type: 'date' }
-                                }
-                            }
-                        }
-                    })];
-            case 3:
-                _a.sent();
-                _a.label = 4;
-            case 4: return [3 /*break*/, 6];
-            case 5:
-                error_1 = _a.sent();
-                console.error('Error creating index:', error_1);
-                throw error_1;
-            case 6: return [2 /*return*/];
-        }
-    });
-}); };
-// Modified verify handler with enhanced error handling
-var handleVerify = function (client, body, headers) { return __awaiter(void 0, void 0, void 0, function () {
-    var originalFijian, verifiedEnglish, health, document_1, response, error_2;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
-            case 0:
-                originalFijian = body.originalFijian, verifiedEnglish = body.verifiedEnglish;
-                if (!originalFijian || !verifiedEnglish) {
-                    return [2 /*return*/, {
-                            statusCode: 400,
-                            headers: headers,
-                            body: JSON.stringify({ message: 'originalFijian and verifiedEnglish are required' })
-                        }];
-                }
-                _a.label = 1;
-            case 1:
-                _a.trys.push([1, 4, , 5]);
-                return [4 /*yield*/, client.cluster.health({})];
-            case 2:
-                health = _a.sent();
-                if (health.body.status === 'red') {
-                    throw new Error('Cluster is not healthy');
-                }
-                document_1 = {
-                    fijian: originalFijian,
-                    english: verifiedEnglish,
-                    timestamp: new Date().toISOString()
-                };
-                return [4 /*yield*/, client.index({
-                        index: INDEX_NAME,
-                        body: document_1,
-                        refresh: true // Ensure immediate searchability
-                    })];
-            case 3:
-                response = _a.sent();
-                return [2 /*return*/, {
-                        statusCode: 200,
-                        headers: headers,
-                        body: JSON.stringify({
-                            message: 'Translation verified and stored successfully',
-                            id: response.body._id,
-                            clusterHealth: health.body.status
-                        })
-                    }];
-            case 4:
-                error_2 = _a.sent();
-                console.error('Verification error:', error_2);
-                // Enhanced error handling
-                if (error_2.name === 'ConnectionError') {
-                    return [2 /*return*/, {
-                            statusCode: 503,
-                            headers: headers,
-                            body: JSON.stringify({
-                                message: 'OpenSearch cluster is not available',
-                                error: 'The cluster might be stopped or starting up'
-                            })
-                        }];
-                }
-                if (error_2.message.includes('Cluster is not healthy')) {
-                    return [2 /*return*/, {
-                            statusCode: 503,
-                            headers: headers,
-                            body: JSON.stringify({
-                                message: 'OpenSearch cluster is not healthy',
-                                error: 'Please try again later'
-                            })
-                        }];
-                }
-                return [2 /*return*/, {
-                        statusCode: 500,
-                        headers: headers,
-                        body: JSON.stringify({
-                            message: 'Error storing verified translation',
-                            error: error_2.message
-                        })
-                    }];
-            case 5: return [2 /*return*/];
-        }
-    });
-}); };
-// Your existing handleTranslate function remains unchanged
-var handleTranslate = function (body, headers) { return __awaiter(void 0, void 0, void 0, function () {
-    var fijianText, bedrockClient, prompt_1, command, response, responseBody, claudeResponse, parsedResponse, jsonMatch, jsonStr, error_3;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
-            case 0:
-                _a.trys.push([0, 2, , 3]);
-                fijianText = body.fijianText;
-                if (!fijianText) {
-                    return [2 /*return*/, {
-                            statusCode: 400,
-                            headers: headers,
-                            body: JSON.stringify({ error: "fijianText is required in request body" })
-                        }];
-                }
-                bedrockClient = new client_bedrock_runtime_1.BedrockRuntimeClient({ region: "us-west-2" });
-                prompt_1 = {
-                    anthropic_version: "bedrock-2023-05-31",
-                    max_tokens: 1024,
-                    messages: [
-                        {
-                            role: "user",
-                            content: [
-                                {
-                                    type: "text",
-                                    text: "Please translate the following Fijian text to English. Provide your response in JSON format with these keys:\n              - translation: Your direct English translation\n              - confidence: \"high\", \"medium\", or \"low\"\n              - notes: Any disclaimers, uncertainties, or additional context about the translation\n              \n              Fijian text: \"".concat(fijianText, "\"")
-                                }
-                            ]
-                        }
-                    ]
-                };
-                command = new client_bedrock_runtime_1.InvokeModelCommand({
-                    modelId: "anthropic.claude-3-sonnet-20240229-v1:0",
-                    contentType: "application/json",
-                    accept: "application/json",
-                    body: JSON.stringify(prompt_1)
-                });
-                return [4 /*yield*/, bedrockClient.send(command)];
-            case 1:
-                response = _a.sent();
-                responseBody = JSON.parse(new TextDecoder().decode(response.body));
-                claudeResponse = responseBody.content[0].text;
-                parsedResponse = void 0;
-                try {
-                    jsonMatch = claudeResponse.match(/```json[\r\n]?([\s\S]*?)[\r\n]?```/) ||
-                        claudeResponse.match(/{[\s\S]*}/);
-                    jsonStr = jsonMatch ? jsonMatch[1] || jsonMatch[0] : claudeResponse;
-                    parsedResponse = JSON.parse(jsonStr.trim());
-                }
-                catch (parseError) {
-                    console.error('Error parsing Claude response:', parseError);
-                    parsedResponse = {
-                        translation: claudeResponse,
-                        confidence: "unknown",
-                        notes: "Error parsing structured response"
-                    };
-                }
-                return [2 /*return*/, {
-                        statusCode: 200,
-                        headers: headers,
-                        body: JSON.stringify({
-                            originalText: fijianText,
-                            translation: parsedResponse.translation,
-                            confidence: parsedResponse.confidence,
-                            notes: parsedResponse.notes,
-                            rawResponse: claudeResponse // Optional: include for debugging
-                        })
-                    }];
-            case 2:
-                error_3 = _a.sent();
-                console.error('Error:', error_3);
-                return [2 /*return*/, {
-                        statusCode: 500,
-                        headers: headers,
-                        body: JSON.stringify({
-                            error: "Error translating text",
-                            details: error_3.message
-                        })
-                    }];
-            case 3: return [2 /*return*/];
-        }
-    });
-}); };
-// Modified main handler with client reuse
-var opensearchClient = null;
-var main = function (event) { return __awaiter(void 0, void 0, void 0, function () {
-    var headers, path, body, _a, error_4;
-    return __generator(this, function (_b) {
-        switch (_b.label) {
-            case 0:
-                headers = {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type',
-                    'Access-Control-Allow-Methods': 'OPTIONS,POST'
-                };
-                _b.label = 1;
-            case 1:
-                _b.trys.push([1, 10, , 11]);
-                if (event.httpMethod === 'OPTIONS') {
-                    return [2 /*return*/, { statusCode: 200, headers: headers, body: '' }];
-                }
-                if (!!opensearchClient) return [3 /*break*/, 3];
-                opensearchClient = createOpenSearchClient();
-                return [4 /*yield*/, createIndexIfNotExists(opensearchClient)];
-            case 2:
-                _b.sent();
-                _b.label = 3;
-            case 3:
-                path = event.path;
-                body = JSON.parse(event.body || '{}');
-                _a = path;
-                switch (_a) {
-                    case '/translate': return [3 /*break*/, 4];
-                    case '/verify': return [3 /*break*/, 6];
-                }
-                return [3 /*break*/, 8];
-            case 4: return [4 /*yield*/, handleTranslate(body, headers)];
-            case 5: return [2 /*return*/, _b.sent()];
-            case 6: return [4 /*yield*/, handleVerify(opensearchClient, body, headers)];
-            case 7: return [2 /*return*/, _b.sent()];
-            case 8: return [2 /*return*/, {
-                    statusCode: 404,
-                    headers: headers,
-                    body: JSON.stringify({ message: 'Not Found' })
-                }];
-            case 9: return [3 /*break*/, 11];
-            case 10:
-                error_4 = _b.sent();
-                console.error('Error:', error_4);
-                return [2 /*return*/, {
-                        statusCode: 500,
-                        headers: headers,
-                        body: JSON.stringify({
-                            message: 'Internal Server Error',
-                            error: error_4.message
-                        })
-                    }];
-            case 11: return [2 /*return*/];
-        }
-    });
-}); };
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TABLE_NAME = void 0;
 exports.main = main;
+// lambda/handler.ts
+var client_bedrock_runtime_1 = require("@aws-sdk/client-bedrock-runtime");
+var client_dynamodb_1 = require("@aws-sdk/client-dynamodb");
+var lib_dynamodb_1 = require("@aws-sdk/lib-dynamodb");
+var uuid_1 = require("uuid");
+// Constants
+exports.TABLE_NAME = process.env.TABLE_NAME || 'TranslationsTable';
+// Initialize AWS clients
+var ddb = lib_dynamodb_1.DynamoDBDocument.from(new client_dynamodb_1.DynamoDB());
+var bedrock = new client_bedrock_runtime_1.BedrockRuntimeClient({ region: 'us-west-2' });
+// Helper functions
+function getEmbedding(text) {
+    return __awaiter(this, void 0, void 0, function () {
+        var command, response, embedding;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    command = new client_bedrock_runtime_1.InvokeModelCommand({
+                        modelId: 'amazon.titan-embed-text-v1',
+                        contentType: 'application/json',
+                        body: JSON.stringify({
+                            inputText: text
+                        })
+                    });
+                    return [4 /*yield*/, bedrock.send(command)];
+                case 1:
+                    response = _a.sent();
+                    embedding = JSON.parse(new TextDecoder().decode(response.body)).embedding;
+                    return [2 /*return*/, embedding];
+            }
+        });
+    });
+}
+function cosineSimilarity(vecA, vecB) {
+    var dotProduct = vecA.reduce(function (acc, val, i) { return acc + val * vecB[i]; }, 0);
+    var magnitudeA = Math.sqrt(vecA.reduce(function (acc, val) { return acc + val * val; }, 0));
+    var magnitudeB = Math.sqrt(vecB.reduce(function (acc, val) { return acc + val * val; }, 0));
+    return dotProduct / (magnitudeA * magnitudeB);
+}
+function translateWithClaude(text, sourceLanguage) {
+    return __awaiter(this, void 0, void 0, function () {
+        var prompt, command, response, result;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    prompt = sourceLanguage === 'fj'
+                        ? "Translate this Fijian text to English: \"".concat(text, "\"")
+                        : "Translate this English text to Fijian: \"".concat(text, "\"");
+                    command = new client_bedrock_runtime_1.InvokeModelCommand({
+                        modelId: 'anthropic.claude-3-sonnet-20240229-v1:0',
+                        contentType: 'application/json',
+                        body: JSON.stringify({
+                            anthropic_version: "bedrock-2023-05-31",
+                            max_tokens: 1000,
+                            messages: [
+                                {
+                                    role: "user",
+                                    content: prompt
+                                }
+                            ],
+                            temperature: 0.1
+                        })
+                    });
+                    return [4 /*yield*/, bedrock.send(command)];
+                case 1:
+                    response = _a.sent();
+                    result = JSON.parse(new TextDecoder().decode(response.body));
+                    return [2 /*return*/, result.content[0].text];
+            }
+        });
+    });
+}
+function findSimilarTranslations(text_1, sourceLanguage_1) {
+    return __awaiter(this, arguments, void 0, function (text, sourceLanguage, threshold) {
+        var queryEmbedding, result, withSimilarity;
+        if (threshold === void 0) { threshold = 0.85; }
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, getEmbedding(text)];
+                case 1:
+                    queryEmbedding = _a.sent();
+                    return [4 /*yield*/, ddb.scan({
+                            TableName: exports.TABLE_NAME,
+                            FilterExpression: 'verified = :v AND sourceLanguage = :sl',
+                            ExpressionAttributeValues: {
+                                ':v': 'true',
+                                ':sl': sourceLanguage
+                            }
+                        })];
+                case 2:
+                    result = _a.sent();
+                    if (!result.Items)
+                        return [2 /*return*/, []];
+                    withSimilarity = result.Items.map(function (item) { return (__assign(__assign({}, item), { similarity: cosineSimilarity(queryEmbedding, item.embedding) })); });
+                    return [2 /*return*/, withSimilarity
+                            .filter(function (item) { return item.similarity >= threshold; })
+                            .sort(function (a, b) { return b.similarity - a.similarity; })
+                            .map(function (_a) {
+                            var similarity = _a.similarity, item = __rest(_a, ["similarity"]);
+                            return item;
+                        })];
+            }
+        });
+    });
+}
+function main(event) {
+    return __awaiter(this, void 0, void 0, function () {
+        var path, body, parsedBody, _a, _b, text, _c, sourceLanguage, similarTranslations, translation, newTranslation, id, verifiedTranslation, verifier, _d, sourceLanguage, category, queryParams, result, error_1;
+        var _e;
+        return __generator(this, function (_f) {
+            switch (_f.label) {
+                case 0:
+                    _f.trys.push([0, 12, , 13]);
+                    path = event.path, body = event.body;
+                    parsedBody = JSON.parse(body || '{}');
+                    _a = path;
+                    switch (_a) {
+                        case '/translate': return [3 /*break*/, 1];
+                        case '/verify': return [3 /*break*/, 6];
+                        case '/learn': return [3 /*break*/, 8];
+                    }
+                    return [3 /*break*/, 10];
+                case 1:
+                    _b = parsedBody, text = _b.text, _c = _b.sourceLanguage, sourceLanguage = _c === void 0 ? 'fj' : _c;
+                    return [4 /*yield*/, findSimilarTranslations(text, sourceLanguage)];
+                case 2:
+                    similarTranslations = _f.sent();
+                    if (similarTranslations.length > 0) {
+                        // Use the best matching verified translation
+                        return [2 /*return*/, {
+                                statusCode: 200,
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Access-Control-Allow-Origin': '*'
+                                },
+                                body: JSON.stringify({
+                                    sourceText: similarTranslations[0].sourceText,
+                                    translation: similarTranslations[0].translation,
+                                    source: 'verified',
+                                    sourceLanguage: similarTranslations[0].sourceLanguage
+                                })
+                            }];
+                    }
+                    return [4 /*yield*/, translateWithClaude(text, sourceLanguage)];
+                case 3:
+                    translation = _f.sent();
+                    _e = {
+                        id: (0, uuid_1.v4)(),
+                        sourceText: text,
+                        translation: translation,
+                        sourceLanguage: sourceLanguage
+                    };
+                    return [4 /*yield*/, getEmbedding(text)];
+                case 4:
+                    newTranslation = (_e.embedding = _f.sent(),
+                        _e.verified = 'false',
+                        _e.createdAt = new Date().toISOString(),
+                        _e);
+                    return [4 /*yield*/, ddb.put({
+                            TableName: exports.TABLE_NAME,
+                            Item: newTranslation
+                        })];
+                case 5:
+                    _f.sent();
+                    return [2 /*return*/, {
+                            statusCode: 200,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Access-Control-Allow-Origin': '*'
+                            },
+                            body: JSON.stringify({
+                                sourceText: text,
+                                translation: translation,
+                                source: 'claude',
+                                sourceLanguage: sourceLanguage
+                            })
+                        }];
+                case 6:
+                    id = parsedBody.id, verifiedTranslation = parsedBody.verifiedTranslation, verifier = parsedBody.verifier;
+                    return [4 /*yield*/, ddb.update({
+                            TableName: exports.TABLE_NAME,
+                            Key: { id: id },
+                            UpdateExpression: 'set translation = :t, verified = :v, verifier = :r, verificationDate = :d',
+                            ExpressionAttributeValues: {
+                                ':t': verifiedTranslation,
+                                ':v': 'true',
+                                ':r': verifier,
+                                ':d': new Date().toISOString()
+                            }
+                        })];
+                case 7:
+                    _f.sent();
+                    return [2 /*return*/, {
+                            statusCode: 200,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Access-Control-Allow-Origin': '*'
+                            },
+                            body: JSON.stringify({ message: 'Translation verified successfully' })
+                        }];
+                case 8:
+                    _d = parsedBody.sourceLanguage, sourceLanguage = _d === void 0 ? 'fj' : _d, category = parsedBody.category;
+                    queryParams = {
+                        TableName: exports.TABLE_NAME,
+                        IndexName: 'VerifiedIndex',
+                        KeyConditionExpression: 'verified = :v',
+                        ExpressionAttributeValues: {
+                            ':v': 'true',
+                            ':sl': sourceLanguage
+                        },
+                        FilterExpression: 'sourceLanguage = :sl'
+                    };
+                    if (category) {
+                        queryParams.FilterExpression += ' AND category = :c';
+                        queryParams.ExpressionAttributeValues[':c'] = category;
+                    }
+                    return [4 /*yield*/, ddb.query(queryParams)];
+                case 9:
+                    result = _f.sent();
+                    return [2 /*return*/, {
+                            statusCode: 200,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Access-Control-Allow-Origin': '*'
+                            },
+                            body: JSON.stringify(result.Items)
+                        }];
+                case 10: return [2 /*return*/, {
+                        statusCode: 404,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Access-Control-Allow-Origin': '*'
+                        },
+                        body: JSON.stringify({ message: 'Not found' })
+                    }];
+                case 11: return [3 /*break*/, 13];
+                case 12:
+                    error_1 = _f.sent();
+                    console.error('Error:', error_1);
+                    return [2 /*return*/, {
+                            statusCode: 500,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Access-Control-Allow-Origin': '*'
+                            },
+                            body: JSON.stringify({ message: 'Internal server error' })
+                        }];
+                case 13: return [2 /*return*/];
+            }
+        });
+    });
+}
