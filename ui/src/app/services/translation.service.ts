@@ -1,4 +1,4 @@
-// src/app/services/translation.service.ts
+// ui/src/app/services/translation.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -26,13 +26,16 @@ export class TranslationService {
 
   constructor(private http: HttpClient) {}
 
-  translateText(fijianText: string): Observable<TranslationResponse> {
-    return this.http.post<TranslationResponse>(this.translateUrl, { text });
+  translateText(inputText: string): Observable<TranslationResponse> {
+    return this.http.post<TranslationResponse>(this.translateUrl, { 
+      text: inputText,
+      sourceLanguage: 'fj'
+    });
   }
 
   verifyTranslation(originalFijian: string, verifiedEnglish: string): Observable<VerifyResponse> {
     return this.http.post<VerifyResponse>(this.verifyUrl, {
-      text,
+      text: originalFijian,
       verifiedEnglish
     });
   }
