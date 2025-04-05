@@ -21,8 +21,8 @@ export interface VerifyResponse {
   providedIn: 'root'
 })
 export class TranslationService {
-  private readonly translateUrl = 'https://9vvnczutih.execute-api.us-west-2.amazonaws.com/prod/translate';
-  private readonly verifyUrl = 'https://9vvnczutih.execute-api.us-west-2.amazonaws.com/prod/verify';
+  private readonly translateUrl = 'https://n3qls6xdk6.execute-api.us-west-2.amazonaws.com/prod/translate';
+  private readonly verifyUrl = 'https://n3qls6xdk6.execute-api.us-west-2.amazonaws.com/prod/verify';
 
   constructor(private http: HttpClient) {}
 
