@@ -22,7 +22,8 @@ interface Translation {
   sourceText: string;
   translation: string;
   sourceLanguage: 'en' | 'fj';
-  embedding: number[];
+  sourceEmbedding: number[];    // Embedding for source text
+  translationEmbedding: number[]; // Embedding for translated text
   verified: string;
   createdAt: string;
   verifier?: string;
@@ -114,9 +115,10 @@ async function findSimilarTranslations(
 ): Promise<Translation[]> {
   const queryEmbedding = await getEmbedding(text);
   
-  const result = await ddb.scan({
+  const result = await ddb.query({
     TableName: TABLE_NAME,
-    FilterExpression: 'verified = :v AND sourceLanguage = :sl',
+    IndexName: 'VerifiedSourceLanguageIndex',
+    KeyConditionExpression: 'verified = :v AND sourceLanguage = :sl',
     ExpressionAttributeValues: {
       ':v': 'true',
       ':sl': sourceLanguage
@@ -127,7 +129,10 @@ async function findSimilarTranslations(
 
   const withSimilarity = result.Items.map(item => ({
     ...item,
-    similarity: cosineSimilarity(queryEmbedding, item.embedding)
+    // Check similarity against both source and translation embeddings
+    similarity: sourceLanguage === 'fj' 
+      ? cosineSimilarity(queryEmbedding, item.sourceEmbedding)
+      : cosineSimilarity(queryEmbedding, item.translationEmbedding)
   }));
 
   return withSimilarity
@@ -140,6 +145,9 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
   try {
     const { path, body } = event;
     const parsedBody = JSON.parse(body || '{}');
+
+    console.log('Received event:', event);
+    console.log('Parsed body:', parsedBody);
 
     switch (path) {
       case '/translate': {
@@ -166,6 +174,12 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
 
         // Fall back to Claude for translation
         const translationResult = await translateWithClaude(text, sourceLanguage);
+
+        // Get embeddings for both source and translation
+        const [sourceEmbedding, translationEmbedding] = await Promise.all([
+          getEmbedding(text),
+          getEmbedding(translationResult.translation)
+        ]);
         
         // Store unverified translation
         const newTranslation: Translation = {
@@ -173,11 +187,12 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
           sourceText: text,
           translation: translationResult.translation,
           sourceLanguage,
-          embedding: await getEmbedding(text),
+          sourceEmbedding,
+          translationEmbedding,
           verified: 'false',
           createdAt: new Date().toISOString()
         };
-
+        
         await ddb.put({
           TableName: TABLE_NAME,
           Item: newTranslation
@@ -201,19 +216,40 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
       }
 
       case '/verify': {
-        const { id, verifiedTranslation, verifier } = parsedBody;
+        const { text, verifiedEnglish } = parsedBody;
+        const id = uuidv4(); // Using uuid v4 for unique IDs
+        
+        console.log('Verifying translation for:', text);
+        console.log('Verified translation:', verifiedEnglish);
+        
+        // Get embeddings for both source and translation
+        const [sourceEmbedding, translationEmbedding] = await Promise.all([
+          getEmbedding(text),
+          getEmbedding(verifiedEnglish)
+        ]);
         
         await ddb.update({
           TableName: TABLE_NAME,
           Key: { id },
-          UpdateExpression: 'set translation = :t, verified = :v, verifier = :r, verificationDate = :d',
+          ExpressionAttributeNames: {
+            '#translation': 'translation',
+            '#sourceText': 'sourceText',
+            '#sourceEmbed': 'sourceEmbedding',
+            '#translationEmbed': 'translationEmbedding'
+          },
+          UpdateExpression: 'set #sourceText = :s, #translation = :t, ' +
+                          '#sourceEmbed = :se, #translationEmbed = :te, ' +
+                          'verified = :v, verificationDate = :d',
           ExpressionAttributeValues: {
-            ':t': verifiedTranslation,
+            ':s': text,
+            ':t': verifiedEnglish,
+            ':se': sourceEmbedding,
+            ':te': translationEmbedding,
             ':v': 'true',
-            ':r': verifier,
             ':d': new Date().toISOString()
           }
         });
+
 
         return {
           statusCode: 200,

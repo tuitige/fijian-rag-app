@@ -159,9 +159,10 @@ function findSimilarTranslations(text_1, sourceLanguage_1) {
                 case 0: return [4 /*yield*/, getEmbedding(text)];
                 case 1:
                     queryEmbedding = _a.sent();
-                    return [4 /*yield*/, ddb.scan({
+                    return [4 /*yield*/, ddb.query({
                             TableName: exports.TABLE_NAME,
-                            FilterExpression: 'verified = :v AND sourceLanguage = :sl',
+                            IndexName: 'VerifiedSourceLanguageIndex',
+                            KeyConditionExpression: 'verified = :v AND sourceLanguage = :sl',
                             ExpressionAttributeValues: {
                                 ':v': 'true',
                                 ':sl': sourceLanguage
@@ -171,7 +172,11 @@ function findSimilarTranslations(text_1, sourceLanguage_1) {
                     result = _a.sent();
                     if (!result.Items)
                         return [2 /*return*/, []];
-                    withSimilarity = result.Items.map(function (item) { return (__assign(__assign({}, item), { similarity: cosineSimilarity(queryEmbedding, item.embedding) })); });
+                    withSimilarity = result.Items.map(function (item) { return (__assign(__assign({}, item), { 
+                        // Check similarity against both source and translation embeddings
+                        similarity: sourceLanguage === 'fj'
+                            ? cosineSimilarity(queryEmbedding, item.sourceEmbedding)
+                            : cosineSimilarity(queryEmbedding, item.translationEmbedding) })); });
                     return [2 /*return*/, withSimilarity
                             .filter(function (item) { return item.similarity >= threshold; })
                             .sort(function (a, b) { return b.similarity - a.similarity; })
@@ -185,26 +190,27 @@ function findSimilarTranslations(text_1, sourceLanguage_1) {
 }
 function main(event) {
     return __awaiter(this, void 0, void 0, function () {
-        var path, body, parsedBody, _a, _b, text, _c, sourceLanguage, similarTranslations, translationResult, newTranslation, id, verifiedTranslation, verifier, _d, sourceLanguage, category, queryParams, result, error_1;
-        var _e;
-        return __generator(this, function (_f) {
-            switch (_f.label) {
+        var path, body, parsedBody, _a, _b, text, _c, sourceLanguage, similarTranslations, translationResult, _d, sourceEmbedding, translationEmbedding, newTranslation, text, verifiedEnglish, id, _e, sourceEmbedding, translationEmbedding, _f, sourceLanguage, category, queryParams, result, error_1;
+        return __generator(this, function (_g) {
+            switch (_g.label) {
                 case 0:
-                    _f.trys.push([0, 12, , 13]);
+                    _g.trys.push([0, 13, , 14]);
                     path = event.path, body = event.body;
                     parsedBody = JSON.parse(body || '{}');
+                    console.log('Received event:', event);
+                    console.log('Parsed body:', parsedBody);
                     _a = path;
                     switch (_a) {
                         case '/translate': return [3 /*break*/, 1];
                         case '/verify': return [3 /*break*/, 6];
-                        case '/learn': return [3 /*break*/, 8];
+                        case '/learn': return [3 /*break*/, 9];
                     }
-                    return [3 /*break*/, 10];
+                    return [3 /*break*/, 11];
                 case 1:
                     _b = parsedBody, text = _b.text, _c = _b.sourceLanguage, sourceLanguage = _c === void 0 ? 'fj' : _c;
                     return [4 /*yield*/, findSimilarTranslations(text, sourceLanguage)];
                 case 2:
-                    similarTranslations = _f.sent();
+                    similarTranslations = _g.sent();
                     if (similarTranslations.length > 0) {
                         return [2 /*return*/, {
                                 statusCode: 200,
@@ -222,25 +228,29 @@ function main(event) {
                     }
                     return [4 /*yield*/, translateWithClaude(text, sourceLanguage)];
                 case 3:
-                    translationResult = _f.sent();
-                    _e = {
+                    translationResult = _g.sent();
+                    return [4 /*yield*/, Promise.all([
+                            getEmbedding(text),
+                            getEmbedding(translationResult.translation)
+                        ])];
+                case 4:
+                    _d = _g.sent(), sourceEmbedding = _d[0], translationEmbedding = _d[1];
+                    newTranslation = {
                         id: (0, uuid_1.v4)(),
                         sourceText: text,
                         translation: translationResult.translation,
-                        sourceLanguage: sourceLanguage
+                        sourceLanguage: sourceLanguage,
+                        sourceEmbedding: sourceEmbedding,
+                        translationEmbedding: translationEmbedding,
+                        verified: 'false',
+                        createdAt: new Date().toISOString()
                     };
-                    return [4 /*yield*/, getEmbedding(text)];
-                case 4:
-                    newTranslation = (_e.embedding = _f.sent(),
-                        _e.verified = 'false',
-                        _e.createdAt = new Date().toISOString(),
-                        _e);
                     return [4 /*yield*/, ddb.put({
                             TableName: exports.TABLE_NAME,
                             Item: newTranslation
                         })];
                 case 5:
-                    _f.sent();
+                    _g.sent();
                     return [2 /*return*/, {
                             statusCode: 200,
                             headers: {
@@ -257,20 +267,39 @@ function main(event) {
                             })
                         }];
                 case 6:
-                    id = parsedBody.id, verifiedTranslation = parsedBody.verifiedTranslation, verifier = parsedBody.verifier;
+                    text = parsedBody.text, verifiedEnglish = parsedBody.verifiedEnglish;
+                    id = (0, uuid_1.v4)();
+                    console.log('Verifying translation for:', text);
+                    console.log('Verified translation:', verifiedEnglish);
+                    return [4 /*yield*/, Promise.all([
+                            getEmbedding(text),
+                            getEmbedding(verifiedEnglish)
+                        ])];
+                case 7:
+                    _e = _g.sent(), sourceEmbedding = _e[0], translationEmbedding = _e[1];
                     return [4 /*yield*/, ddb.update({
                             TableName: exports.TABLE_NAME,
                             Key: { id: id },
-                            UpdateExpression: 'set translation = :t, verified = :v, verifier = :r, verificationDate = :d',
+                            ExpressionAttributeNames: {
+                                '#translation': 'translation',
+                                '#sourceText': 'sourceText',
+                                '#sourceEmbed': 'sourceEmbedding',
+                                '#translationEmbed': 'translationEmbedding'
+                            },
+                            UpdateExpression: 'set #sourceText = :s, #translation = :t, ' +
+                                '#sourceEmbed = :se, #translationEmbed = :te, ' +
+                                'verified = :v, verificationDate = :d',
                             ExpressionAttributeValues: {
-                                ':t': verifiedTranslation,
+                                ':s': text,
+                                ':t': verifiedEnglish,
+                                ':se': sourceEmbedding,
+                                ':te': translationEmbedding,
                                 ':v': 'true',
-                                ':r': verifier,
                                 ':d': new Date().toISOString()
                             }
                         })];
-                case 7:
-                    _f.sent();
+                case 8:
+                    _g.sent();
                     return [2 /*return*/, {
                             statusCode: 200,
                             headers: {
@@ -279,8 +308,8 @@ function main(event) {
                             },
                             body: JSON.stringify({ message: 'Translation verified successfully' })
                         }];
-                case 8:
-                    _d = parsedBody.sourceLanguage, sourceLanguage = _d === void 0 ? 'fj' : _d, category = parsedBody.category;
+                case 9:
+                    _f = parsedBody.sourceLanguage, sourceLanguage = _f === void 0 ? 'fj' : _f, category = parsedBody.category;
                     queryParams = {
                         TableName: exports.TABLE_NAME,
                         IndexName: 'VerifiedIndex',
@@ -296,8 +325,8 @@ function main(event) {
                         queryParams.ExpressionAttributeValues[':c'] = category;
                     }
                     return [4 /*yield*/, ddb.query(queryParams)];
-                case 9:
-                    result = _f.sent();
+                case 10:
+                    result = _g.sent();
                     return [2 /*return*/, {
                             statusCode: 200,
                             headers: {
@@ -306,7 +335,7 @@ function main(event) {
                             },
                             body: JSON.stringify(result.Items)
                         }];
-                case 10: return [2 /*return*/, {
+                case 11: return [2 /*return*/, {
                         statusCode: 404,
                         headers: {
                             'Content-Type': 'application/json',
@@ -314,9 +343,9 @@ function main(event) {
                         },
                         body: JSON.stringify({ message: 'Not found' })
                     }];
-                case 11: return [3 /*break*/, 13];
-                case 12:
-                    error_1 = _f.sent();
+                case 12: return [3 /*break*/, 14];
+                case 13:
+                    error_1 = _g.sent();
                     console.error('Error:', error_1);
                     return [2 /*return*/, {
                             statusCode: 500,
@@ -326,7 +355,7 @@ function main(event) {
                             },
                             body: JSON.stringify({ message: 'Internal server error' })
                         }];
-                case 13: return [2 /*return*/];
+                case 14: return [2 /*return*/];
             }
         });
     });

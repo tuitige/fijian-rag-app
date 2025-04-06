@@ -13,27 +13,27 @@ export class FijianRagStack extends Stack {
     super(scope, id, props);
 
     // 1. S3 Buckets
-    const contentBucket = new s3.Bucket(this, 'fijian-rag-app-content', {
-      bucketName: 'fijian-rag-app-content',
+    const contentBucket = new s3.Bucket(this, 'XXXXXXXXXXXXXXXXXXXXXX', {
+      bucketName: 'XXXXXXXXXXXXXXXXXXXXXX',
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true
     });
 
-// 2. DynamoDB Tables
-const translationsTable = new dynamodb.Table(this, 'FijianTranslationsTable', {
-  partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
-  billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-  removalPolicy: RemovalPolicy.DESTROY,
-});
+    // 2. DynamoDB Tables
+    const translationsTable = new dynamodb.Table(this, 'FijianTranslationsTable', {
+      partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
 
-// Add only one GSI for now - we'll add others in subsequent deployments
-translationsTable.addGlobalSecondaryIndex({
-  indexName: 'VerifiedIndex',
-  partitionKey: { name: 'verified', type: dynamodb.AttributeType.STRING },
-  sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
-});
+    // Add only one GSI for now - we'll add others in subsequent deployments
+    translationsTable.addGlobalSecondaryIndex({
+      indexName: 'VerifiedIndex',
+      partitionKey: { name: 'verified', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
+    });
 
-    // 3. Cognito Setup
+    // Rest of the stack configuration remains the same
     const userPool = new cognito.UserPool(this, 'FijianAppUserPool', {
       userPoolName: 'fijian-app-user-pool',
       selfSignUpEnabled: false,
@@ -82,42 +82,6 @@ translationsTable.addGlobalSecondaryIndex({
       handler: 'handler.main',
       role: lambdaRole,
       timeout: Duration.minutes(1),
-      environment: {
-        TABLE_NAME: translationsTable.tableName,
-        CONTENT_BUCKET: contentBucket.bucketName
-      },
-    });
-
-    // 6. API Gateway
-    const api = new apigateway.RestApi(this, 'FijianRagApi', {
-      restApiName: 'FijianLanguageService',
-      defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: ['POST', 'OPTIONS'],
-        allowHeaders: ['Content-Type'],
-      }
-    });
-
-    ['translate', 'verify', 'learn'].forEach(path => {
-      api.root.addResource(path).addMethod('POST', 
-        new apigateway.LambdaIntegration(handler)
-      );
-    });
-
-    // 7. Outputs
-    new CfnOutput(this, 'ApiUrl', {
-      value: api.url,
-      description: 'API Gateway URL'
-    });
-
-    new CfnOutput(this, 'UserPoolId', {
-      value: userPool.userPoolId,
-      description: 'Cognito User Pool ID'
-    });
-
-    new CfnOutput(this, 'UserPoolClientId', {
-      value: userPoolClient.userPoolClientId,
-      description: 'Cognito User Pool Client ID'
     });
   }
 }
