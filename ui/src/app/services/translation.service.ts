@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 
 export interface TranslationResponse {
   sourceText: string;
-  translation: string;
+  translatedText: string;
   rawResponse?: string;
   confidence?: number;
   source: 'claude' | 'verified';

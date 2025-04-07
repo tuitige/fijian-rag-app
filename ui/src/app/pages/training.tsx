@@ -13,10 +13,13 @@ export default function Training() {
       const response = await fetch('/api/translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fijianText })
+        body: JSON.stringify({
+          sourceText: sourceText,
+          sourceLanguage: sourceLanguage
+        }),
       });
       const data = await response.json();
-      setTranslation(data.translation);
+      setTranslation(data);
       setVerifiedTranslation(data.translation);
     } catch (error) {
       console.error('Translation error:', error);

@@ -225,20 +225,27 @@ Provide only the translation without any additional explanation.`;
   console.log('Bedrock response:', response);
 
   const result = JSON.parse(new TextDecoder().decode(response.body));
-  const translation = result.content[0].text.trim();
-  console.log('Translation result:', translation);    
+  const rawResponse = result.content[0].text;
+  console.log('Raw response:', rawResponse);
+
+  const translatedText = rawResponse
+  .replace(/^(Here is the (English|Fijian) translation:?\s*\n*)/i, '')
+  .replace(/^["']|["']$/g, '') // Remove leading/trailing quotes
+  .trim();
+
+  console.log('Translation result:', translatedText);    
         // Create new unverified translation record
         const id = uuidv4();
         const [sourceEmbedding, translationEmbedding] = await Promise.all([
           getEmbedding(sourceText),
-          getEmbedding(translation)
+          getEmbedding(translatedText)
         ]);
       
         const currentDate = new Date().toISOString();
         const newTranslation: Translation = {
           id,
           sourceText,
-          translation,
+          translatedText,
           sourceLanguage,
           sourceEmbedding,
           translationEmbedding,
@@ -259,7 +266,9 @@ Provide only the translation without any additional explanation.`;
             'Access-Control-Allow-Origin': '*'
           },
           body: JSON.stringify({
-            translation,
+            translatedText,
+            rawResponse,
+            confidence: result.confidence || undefined,
             id,
             similarTranslations: similarTranslations.length
           })

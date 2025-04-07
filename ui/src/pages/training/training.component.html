@@ -95,17 +95,17 @@
             <div *ngIf="showRawResponse" class="mt-2">
               <div class="card bg-light">
                 <div class="card-body">
-                  <div *ngIf="currentTranslation.similarTranslations !== undefined" class="mb-2">
-                    <small class="text-muted">Similar translations found: {{ currentTranslation.similarTranslations }}</small>
-                  </div>
-                  <div *ngIf="currentTranslation.id" class="mb-2">
-                    <small class="text-muted">Translation ID: {{ currentTranslation.id }}</small>
-                  </div>
                   <div *ngIf="currentTranslation.rawResponse" class="mb-2">
                     <small class="text-muted">Raw response from Claude: {{ currentTranslation.rawResponse }}</small>
                   </div>
                   <div *ngIf="currentTranslation.confidence" class="mb-2">
                     <small class="text-muted">Confidence: {{ currentTranslation.confidence | percent }}</small>
+                  </div>
+                  <div *ngIf="currentTranslation.source" class="mb-2">
+                    <small class="text-muted">Source: {{ currentTranslation.source }}</small>
+                  </div>
+                  <div *ngIf="currentTranslation.sourceLanguage" class="mb-2">
+                    <small class="text-muted">Source Language: {{ currentTranslation.sourceLanguage }}</small>
                   </div>
                 </div>
               </div>

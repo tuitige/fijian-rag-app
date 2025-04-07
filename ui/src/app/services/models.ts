@@ -1,10 +1,10 @@
 export interface TranslationResponse {
-  translation: string;
+  sourceText: string;
+  translatedText: string;
   rawResponse?: string;
   confidence?: number;
-  id?: string;
-  similarTranslations?: number;
-  source?: 'claude' | 'verified';
+  source: 'claude' | 'verified';
+  sourceLanguage: 'en' | 'fj';
 }
 
 export interface VerificationResponse {
