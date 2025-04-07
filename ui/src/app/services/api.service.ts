@@ -29,7 +29,7 @@ export interface VerificationResponse {
   providedIn: 'root'
 })
 export class ApiService {
-  private apiUrl = process.env.apiUrl || 'https://v85j0rmo8e.execute-api.us-west-2.amazonaws.com/prod';
+  private readonly apiUrl: string = environment.apiUrl;
 
   constructor(private http: HttpClient) {}
 
