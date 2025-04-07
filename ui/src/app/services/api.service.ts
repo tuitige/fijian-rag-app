@@ -39,11 +39,11 @@ export class ApiService {
     });
   }
 
-  verify(sourceText: string, translatedText: string): Observable<VerificationResponse> {
+  verify(sourceText: string, translatedText: string, sourceLanguage: string): Observable<VerificationResponse> {
     const payload: VerificationRequest = {
       sourceText,
       translatedText,
-      sourceLanguage: 'fj', // default to Fijian
+      sourceLanguage, 
       verified: true
     };
     return this.http.post<VerificationResponse>(`${this.apiUrl}/verify`, payload);
