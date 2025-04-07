@@ -4,9 +4,31 @@ import { Observable } from 'rxjs';
 import { TranslationResponse, VerificationResponse } from './models';
 import { environment } from '../../environments/environment';
 
+export interface Translation {
+  translatedText: string;
+  rawResponse: string;
+  confidence?: number;
+  id: string;
+  similarTranslations: number;
+  source?: 'claude' | 'verified';
+}
+
+export interface VerificationRequest {
+  sourceText: string;
+  translatedText: string;  // Changed from 'translation'
+  sourceLanguage: string;
+  verified: boolean;
+}
+
+export interface VerificationResponse {
+  message: string;
+  success: boolean;
+}
+
 @Injectable({
   providedIn: 'root'
 })
+
 export class ApiService {
   private apiUrl = environment.apiUrl;
 

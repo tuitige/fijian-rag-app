@@ -77,7 +77,7 @@ export class TrainingComponent {
     this.verificationSuccess = '';
     this.isVerifying = true;
 
-    this.translationService.verify(this.sourceText, this.verifiedTranslation)
+    this.translationService.verify(this.sourceText, this.verifiedTranslation, this.sourceLanguage)
       .subscribe({
         next: (response) => {
           this.verificationSuccess = response.message;
