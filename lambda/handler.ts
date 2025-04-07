@@ -21,7 +21,7 @@ interface Translation {
   id: string;
   sourceText: string;
   translation: string;
-  sourceLanguage: 'en' | 'fj';
+  sourceLanguage: string;
   sourceEmbedding: number[];
   translationEmbedding: number[];
   verified: string;
@@ -30,6 +30,14 @@ interface Translation {
   verifier?: string;
   context?: string;
   category?: string;
+}
+
+interface TranslateResponse {
+  translatedText: string;
+  rawResponse: string;
+  confidence?: number;
+  id: string;
+  similarTranslations: number;
 }
 
 
@@ -195,45 +203,43 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
         }
       
         // Prepare the prompt based on source language
-  // Prepare the prompt based on source language
-  const targetLanguage = sourceLanguage === 'fj' ? 'English' : 'Fijian';
-  const systemPrompt = `You are a helpful translator between Fijian and English languages.`;
-  
-  const humanPrompt = `Translate the following ${sourceLanguage === 'fj' ? 'Fijian' : 'English'} text to ${targetLanguage}. 
-${context ? `\nHere are some similar translations for reference:\n${context}\n` : ''}
-Text to translate: "${sourceText}"
+        const targetLanguage = sourceLanguage === 'fj' ? 'English' : 'Fijian';
+        const systemPrompt = `You are a helpful translator between Fijian and English languages.`;
 
-Provide only the translation without any additional explanation.`;
+        const humanPrompt = `Translate the following ${sourceLanguage === 'fj' ? 'Fijian' : 'English'} text to ${targetLanguage}. 
+        ${context ? `\nHere are some similar translations for reference:\n${context}\n` : ''}
+        Text to translate: "${sourceText}"\n\nProvide only the translation without any additional explanation.`;
 
-  const command = new InvokeModelCommand({
-    modelId: 'anthropic.claude-v2',
-    contentType: 'application/json',
-    body: JSON.stringify({
-      anthropic_version: "bedrock-2023-05-31",
-      max_tokens: 2000,
-      temperature: 0.1,
-      messages: [
-        {
-          role: "user",
-          content: humanPrompt
-        }
-      ]
-    })
-  });
+        const command = new InvokeModelCommand({
+          modelId: 'anthropic.claude-v2',
+          contentType: 'application/json',
+          body: JSON.stringify({
+            anthropic_version: "bedrock-2023-05-31",
+            max_tokens: 2000,
+            temperature: 0.1,
+            messages: [
+              {
+                role: "user",
+                content: humanPrompt
+              }
+            ]
+          })
+        });
 
-  const response = await bedrock.send(command);
-  console.log('Bedrock response:', response);
+        const bedrockResponse  = await bedrock.send(command);
+        console.log('Bedrock response:', bedrockResponse );
 
-  const result = JSON.parse(new TextDecoder().decode(response.body));
-  const rawResponse = result.content[0].text;
-  console.log('Raw response:', rawResponse);
+        const result = JSON.parse(new TextDecoder().decode(bedrockResponse .body));
+        const rawResponse = result.content[0].text;
+        console.log('Raw response:', rawResponse);
 
-  const translatedText = rawResponse
-  .replace(/^(Here is the (English|Fijian) translation:?\s*\n*)/i, '')
-  .replace(/^["']|["']$/g, '') // Remove leading/trailing quotes
-  .trim();
+        const translatedText = rawResponse
+        .replace(/^(Here is the (English|Fijian) translation:?\s*\n*)/i, '')
+        .replace(/^["']|["']$/g, '') // Remove leading/trailing quotes
+        .trim();
 
-  console.log('Translation result:', translatedText);    
+        console.log('Translation result:', translatedText);    
+
         // Create new unverified translation record
         const id = uuidv4();
         const [sourceEmbedding, translationEmbedding] = await Promise.all([
@@ -245,7 +251,7 @@ Provide only the translation without any additional explanation.`;
         const newTranslation: Translation = {
           id,
           sourceText,
-          translatedText,
+          translation: translatedText,
           sourceLanguage,
           sourceEmbedding,
           translationEmbedding,
@@ -258,25 +264,25 @@ Provide only the translation without any additional explanation.`;
           TableName: TABLE_NAME,
           Item: newTranslation
         });
-      
+
+        const response: TranslateResponse = {
+          translatedText,
+          rawResponse,
+          confidence: result.confidence,
+          id,
+          similarTranslations: similarTranslations.length
+        };        
+
         return {
           statusCode: 200,
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*'
           },
-          body: JSON.stringify({
-            translatedText,
-            rawResponse,
-            confidence: result.confidence || undefined,
-            id,
-            similarTranslations: similarTranslations.length
-          })
+          body: JSON.stringify(response)
         };
       }
-      
-      
-
+    
       case '/verify': {
         const { sourceText, translatedText, sourceLanguage, verified = true } = parsedBody;
         

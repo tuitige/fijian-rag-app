@@ -191,7 +191,7 @@ function findSimilarTranslations(text_1, sourceLanguage_1) {
 }
 function main(event) {
     return __awaiter(this, void 0, void 0, function () {
-        var path, body, parsedBody, _a, sourceText, sourceLanguage, similarTranslations, context, targetLanguage, systemPrompt, humanPrompt, command, response, result, translation, id, _b, sourceEmbedding, translationEmbedding, currentDate, newTranslation, sourceText, translatedText, sourceLanguage, _c, verified, id, _d, sourceEmbedding, translationEmbedding, newTranslation, _e, sourceLanguage, category, queryParams, result, error_1;
+        var path, body, parsedBody, _a, sourceText, sourceLanguage, similarTranslations, context, targetLanguage, systemPrompt, humanPrompt, command, bedrockResponse, result, rawResponse, translatedText, id, _b, sourceEmbedding, translationEmbedding, currentDate, newTranslation, response, sourceText, translatedText, sourceLanguage, _c, verified, id, _d, sourceEmbedding, translationEmbedding, newTranslation, _e, sourceLanguage, category, queryParams, result, error_1;
         return __generator(this, function (_f) {
             switch (_f.label) {
                 case 0:
@@ -246,7 +246,7 @@ function main(event) {
                     }
                     targetLanguage = sourceLanguage === 'fj' ? 'English' : 'Fijian';
                     systemPrompt = "You are a helpful translator between Fijian and English languages.";
-                    humanPrompt = "Translate the following ".concat(sourceLanguage === 'fj' ? 'Fijian' : 'English', " text to ").concat(targetLanguage, ". \n").concat(context ? "\nHere are some similar translations for reference:\n".concat(context, "\n") : '', "\nText to translate: \"").concat(sourceText, "\"\n\nProvide only the translation without any additional explanation.");
+                    humanPrompt = "Translate the following ".concat(sourceLanguage === 'fj' ? 'Fijian' : 'English', " text to ").concat(targetLanguage, ". \n        ").concat(context ? "\nHere are some similar translations for reference:\n".concat(context, "\n") : '', "\n        Text to translate: \"").concat(sourceText, "\"\n\nProvide only the translation without any additional explanation.");
                     command = new client_bedrock_runtime_1.InvokeModelCommand({
                         modelId: 'anthropic.claude-v2',
                         contentType: 'application/json',
@@ -264,15 +264,20 @@ function main(event) {
                     });
                     return [4 /*yield*/, bedrock.send(command)];
                 case 3:
-                    response = _f.sent();
-                    console.log('Bedrock response:', response);
-                    result = JSON.parse(new TextDecoder().decode(response.body));
-                    translation = result.content[0].text.trim();
-                    console.log('Translation result:', translation);
+                    bedrockResponse = _f.sent();
+                    console.log('Bedrock response:', bedrockResponse);
+                    result = JSON.parse(new TextDecoder().decode(bedrockResponse.body));
+                    rawResponse = result.content[0].text;
+                    console.log('Raw response:', rawResponse);
+                    translatedText = rawResponse
+                        .replace(/^(Here is the (English|Fijian) translation:?\s*\n*)/i, '')
+                        .replace(/^["']|["']$/g, '') // Remove leading/trailing quotes
+                        .trim();
+                    console.log('Translation result:', translatedText);
                     id = (0, uuid_1.v4)();
                     return [4 /*yield*/, Promise.all([
                             getEmbedding(sourceText),
-                            getEmbedding(translation)
+                            getEmbedding(translatedText)
                         ])];
                 case 4:
                     _b = _f.sent(), sourceEmbedding = _b[0], translationEmbedding = _b[1];
@@ -280,7 +285,7 @@ function main(event) {
                     newTranslation = {
                         id: id,
                         sourceText: sourceText,
-                        translation: translation,
+                        translation: translatedText,
                         sourceLanguage: sourceLanguage,
                         sourceEmbedding: sourceEmbedding,
                         translationEmbedding: translationEmbedding,
@@ -294,17 +299,20 @@ function main(event) {
                         })];
                 case 5:
                     _f.sent();
+                    response = {
+                        translatedText: translatedText,
+                        rawResponse: rawResponse,
+                        confidence: result.confidence,
+                        id: id,
+                        similarTranslations: similarTranslations.length
+                    };
                     return [2 /*return*/, {
                             statusCode: 200,
                             headers: {
                                 'Content-Type': 'application/json',
                                 'Access-Control-Allow-Origin': '*'
                             },
-                            body: JSON.stringify({
-                                translation: translation,
-                                id: id,
-                                similarTranslations: similarTranslations.length
-                            })
+                            body: JSON.stringify(response)
                         }];
                 case 6:
                     sourceText = parsedBody.sourceText, translatedText = parsedBody.translatedText, sourceLanguage = parsedBody.sourceLanguage, _c = parsedBody.verified, verified = _c === void 0 ? true : _c;
