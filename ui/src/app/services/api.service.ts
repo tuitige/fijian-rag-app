@@ -28,7 +28,7 @@ export interface VerificationResponse {
   providedIn: 'root'
 })
 export class ApiService {
-  private apiUrl = '/api';
+  private apiUrl = 'process.env.API_URL';
 
   constructor(private http: HttpClient) {}
 
