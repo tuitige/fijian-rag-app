@@ -28,7 +28,7 @@ export interface VerificationResponse {
   providedIn: 'root'
 })
 export class ApiService {
-  private apiUrl = process.env.API_URL || 'https://v85j0rmo8e.execute-api.us-west-2.amazonaws.com/prod';
+  private apiUrl = process.env.apiUrl || 'https://v85j0rmo8e.execute-api.us-west-2.amazonaws.com/prod';
 
   constructor(private http: HttpClient) {}
 
