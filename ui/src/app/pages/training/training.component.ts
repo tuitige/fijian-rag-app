@@ -4,6 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
 import { HeaderComponent } from '../../components/header/header.component';
 
+interface Translation {
+  translatedText: string;
+  rawResponse: string;
+  confidence?: number;
+  id: string;
+  similarTranslations: number;
+  source?: 'claude' | 'verified';
+}
+
 @Component({
   selector: 'app-training',
   templateUrl: './training.component.html',
@@ -16,15 +25,6 @@ import { HeaderComponent } from '../../components/header/header.component';
   providers: [],
   standalone: true
 })
-
-interface Translation {
-  translatedText: string;
-  rawResponse: string;
-  confidence?: number;
-  id: string;
-  similarTranslations: number;
-  source?: 'claude' | 'verified';
-}
 
 export class TrainingComponent {
   sourceText = '';
