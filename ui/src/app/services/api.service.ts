@@ -1,9 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { TranslationResponse, VerificationResponse } from './models';
-import { environment } from '../../environments/environment';
 
+// Remove the import from './models' since we're defining interfaces here
 export interface Translation {
   translatedText: string;
   rawResponse: string;
@@ -15,7 +14,7 @@ export interface Translation {
 
 export interface VerificationRequest {
   sourceText: string;
-  translatedText: string;  // Changed from 'translation'
+  translatedText: string;
   sourceLanguage: string;
   verified: boolean;
 }
@@ -28,36 +27,25 @@ export interface VerificationResponse {
 @Injectable({
   providedIn: 'root'
 })
-
 export class ApiService {
-  private apiUrl = environment.apiUrl;
+  private apiUrl = '/api';
 
   constructor(private http: HttpClient) {}
 
-  private createHeaders() {
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
-  }
-
-  translate(text: string, sourceLanguage: 'en' | 'fj' = 'fj'): Observable<TranslationResponse> {
-    const options = {
-      headers: this.createHeaders()
-    };
-    return this.http.post<TranslationResponse>(`${this.apiUrl}/translate`, {
-      sourceText: text,
+  translate(sourceText: string, sourceLanguage: string): Observable<Translation> {
+    return this.http.post<Translation>(`${this.apiUrl}/translate`, {
+      sourceText,
       sourceLanguage
-    }, options);
+    });
   }
 
-  verify(originalFijian: string, verifiedEnglish: string): Observable<VerificationResponse> {
-    const options = {
-      headers: this.createHeaders()
+  verify(sourceText: string, translatedText: string): Observable<VerificationResponse> {
+    const payload: VerificationRequest = {
+      sourceText,
+      translatedText,
+      sourceLanguage: 'fj', // default to Fijian
+      verified: true
     };
-    return this.http.post<VerificationResponse>(`${this.apiUrl}/verify`, {
-      originalFijian,
-      verifiedEnglish
-    }, options);
+    return this.http.post<VerificationResponse>(`${this.apiUrl}/verify`, payload);
   }
 }
