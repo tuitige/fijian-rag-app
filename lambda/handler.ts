@@ -216,7 +216,7 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
       }
 
       case '/verify': {
-        const { text, verifiedEnglish } = parsedBody;
+        const { originalFijian: text, verifiedEnglish } = parsedBody;
         const id = uuidv4(); // Using uuid v4 for unique IDs
         
         console.log('Verifying translation for:', text);
@@ -230,7 +230,7 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
         
         await ddb.update({
           TableName: TABLE_NAME,
-          Key: { id },
+          Key: { id: existingTranslation.id },
           ExpressionAttributeNames: {
             '#translation': 'translation',
             '#sourceText': 'sourceText',
