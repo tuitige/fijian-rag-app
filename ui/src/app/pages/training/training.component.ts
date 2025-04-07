@@ -2,7 +2,6 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
-import { TranslationResponse } from '../../services/models';
 import { HeaderComponent } from '../../components/header/header.component';
 
 @Component({
@@ -17,15 +16,25 @@ import { HeaderComponent } from '../../components/header/header.component';
   providers: [],
   standalone: true
 })
+
+interface Translation {
+  translatedText: string;
+  rawResponse: string;
+  confidence?: number;
+  id: string;
+  similarTranslations: number;
+  source?: 'claude' | 'verified';
+}
+
 export class TrainingComponent {
   sourceText = '';
-  currentTranslation: TranslationResponse | null = null;
+  currentTranslation: Translation | null = null;
   verifiedTranslation = '';
   error = '';
   verificationSuccess = '';
   isTranslating = false;
   isVerifying = false;
-  showRawResponse = false; // Toggle for showing/hiding raw response
+  showRawResponse = false;
   sourceLanguage: 'en' | 'fj' = 'fj';
 
   constructor(private translationService: ApiService) {}
@@ -42,8 +51,12 @@ export class TrainingComponent {
 
     this.translationService.translate(this.sourceText, this.sourceLanguage)
       .subscribe({
-        next: (response) => {
-          this.currentTranslation = response;
+        next: (response: any) => {  // Using any temporarily until API service is updated
+          this.currentTranslation = {
+            ...response,
+            source: 'claude'
+          };
+          this.verifiedTranslation = response.translatedText;
           this.isTranslating = false;
         },
         error: (error) => {
@@ -69,6 +82,9 @@ export class TrainingComponent {
         next: (response) => {
           this.verificationSuccess = response.message;
           this.isVerifying = false;
+          if (this.currentTranslation) {
+            this.currentTranslation.source = 'verified';
+          }
         },
         error: (error) => {
           console.error('Verification error:', error);
