@@ -22,15 +22,16 @@ interface Translation {
   sourceText: string;
   translation: string;
   sourceLanguage: 'en' | 'fj';
-  sourceEmbedding: number[];    // Embedding for source text
-  translationEmbedding: number[]; // Embedding for translated text
+  sourceEmbedding: number[];
+  translationEmbedding: number[];
   verified: string;
   createdAt: string;
+  verificationDate: string;
   verifier?: string;
-  verificationDate?: string;
   context?: string;
   category?: string;
 }
+
 
 // Helper functions
 async function getEmbedding(text: string): Promise<number[]> {
@@ -117,11 +118,12 @@ async function findSimilarTranslations(
   
   const result = await ddb.query({
     TableName: TABLE_NAME,
-    IndexName: 'VerifiedSourceLanguageIndex',
-    KeyConditionExpression: 'verified = :v AND sourceLanguage = :sl',
+    IndexName: 'SourceLanguageIndex', // New simplified index
+    KeyConditionExpression: 'sourceLanguage = :sl',
+    FilterExpression: 'verified = :v', // Move verified check to filter expression
     ExpressionAttributeValues: {
-      ':v': 'true',
-      ':sl': sourceLanguage
+      ':sl': sourceLanguage,
+      ':v': 'true'
     }
   });
 
@@ -151,53 +153,105 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
 
     switch (path) {
       case '/translate': {
-        const { text, sourceLanguage = 'fj' } = parsedBody as TranslationRequest;
-        
-        // First check for similar verified translations
-        const similarTranslations = await findSimilarTranslations(text, sourceLanguage);
-        
-        if (similarTranslations.length > 0) {
+        const { sourceText, sourceLanguage } = parsedBody;
+      
+        // Validate required fields
+        if (!sourceText || !sourceLanguage) {
           return {
-            statusCode: 200,
+            statusCode: 400,
             headers: {
               'Content-Type': 'application/json',
               'Access-Control-Allow-Origin': '*'
             },
-            body: JSON.stringify({
-              sourceText: similarTranslations[0].sourceText,
-              translation: similarTranslations[0].translation,
-              source: 'verified',
-              sourceLanguage: similarTranslations[0].sourceLanguage
+            body: JSON.stringify({ 
+              message: 'Missing required fields: sourceText and sourceLanguage are required' 
             })
           };
         }
+      
+        // Validate sourceLanguage is either 'en' or 'fj'
+        if (!['en', 'fj'].includes(sourceLanguage)) {
+          return {
+            statusCode: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            },
+            body: JSON.stringify({ 
+              message: 'sourceLanguage must be either "en" or "fj"' 
+            })
+          };
+        }
+      
+        // Find similar translations from the database
+        const similarTranslations = await findSimilarTranslations(sourceText, sourceLanguage);
+      
+        // Prepare context from similar translations
+        let context = '';
+        if (similarTranslations.length > 0) {
+          context = similarTranslations
+            .map(t => `${t.sourceText} = ${t.translation}`)
+            .join('\n');
+        }
+      
+        // Prepare the prompt based on source language
+  // Prepare the prompt based on source language
+  const targetLanguage = sourceLanguage === 'fj' ? 'English' : 'Fijian';
+  const systemPrompt = `You are a helpful translator between Fijian and English languages.`;
+  
+  const humanPrompt = `Translate the following ${sourceLanguage === 'fj' ? 'Fijian' : 'English'} text to ${targetLanguage}. 
+${context ? `\nHere are some similar translations for reference:\n${context}\n` : ''}
+Text to translate: "${sourceText}"
 
-        // Fall back to Claude for translation
-        const translationResult = await translateWithClaude(text, sourceLanguage);
+Provide only the translation without any additional explanation.`;
 
-        // Get embeddings for both source and translation
+  const command = new InvokeModelCommand({
+    modelId: 'anthropic.claude-v2',
+    contentType: 'application/json',
+    body: JSON.stringify({
+      anthropic_version: "bedrock-2023-05-31",
+      max_tokens: 2000,
+      temperature: 0.1,
+      messages: [
+        {
+          role: "user",
+          content: humanPrompt
+        }
+      ]
+    })
+  });
+
+  const response = await bedrock.send(command);
+  console.log('Bedrock response:', response);
+
+  const result = JSON.parse(new TextDecoder().decode(response.body));
+  const translation = result.content[0].text.trim();
+  console.log('Translation result:', translation);    
+        // Create new unverified translation record
+        const id = uuidv4();
         const [sourceEmbedding, translationEmbedding] = await Promise.all([
-          getEmbedding(text),
-          getEmbedding(translationResult.translation)
+          getEmbedding(sourceText),
+          getEmbedding(translation)
         ]);
-        
-        // Store unverified translation
+      
+        const currentDate = new Date().toISOString();
         const newTranslation: Translation = {
-          id: uuidv4(),
-          sourceText: text,
-          translation: translationResult.translation,
+          id,
+          sourceText,
+          translation,
           sourceLanguage,
           sourceEmbedding,
           translationEmbedding,
           verified: 'false',
-          createdAt: new Date().toISOString()
+          createdAt: currentDate,
+          verificationDate: currentDate  // Added this field
         };
-        
+      
         await ddb.put({
           TableName: TABLE_NAME,
           Item: newTranslation
         });
-
+      
         return {
           statusCode: 200,
           headers: {
@@ -205,74 +259,104 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
             'Access-Control-Allow-Origin': '*'
           },
           body: JSON.stringify({
-            sourceText: text,
-            translation: translationResult.translation,
-            rawResponse: translationResult.rawResponse,
-            confidence: translationResult.confidence,
-            source: 'claude',
-            sourceLanguage
+            translation,
+            id,
+            similarTranslations: similarTranslations.length
           })
         };
       }
+      
+      
 
       case '/verify': {
-        const { originalFijian: text, verifiedEnglish } = parsedBody;
-        const id = uuidv4(); // Using uuid v4 for unique IDs
+        const { sourceText, translatedText, sourceLanguage, verified = true } = parsedBody;
         
-        console.log('Verifying translation for:', text);
-        console.log('Verified translation:', verifiedEnglish);
+        // Validate required fields
+        if (!sourceText || !translatedText || !sourceLanguage) {
+          return {
+            statusCode: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            },
+            body: JSON.stringify({ 
+              message: 'Missing required fields: sourceText, translatedText, and sourceLanguage are required' 
+            })
+          };
+        }
+      
+        // Validate sourceLanguage is either 'en' or 'fj'
+        if (!['en', 'fj'].includes(sourceLanguage)) {
+          return {
+            statusCode: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            },
+            body: JSON.stringify({ 
+              message: 'sourceLanguage must be either "en" or "fj"' 
+            })
+          };
+        }
+      
+        const id = uuidv4();
+        
+        console.log('Verifying translation:', {
+          sourceText,
+          translatedText,
+          sourceLanguage
+        });
         
         // Get embeddings for both source and translation
         const [sourceEmbedding, translationEmbedding] = await Promise.all([
-          getEmbedding(text),
-          getEmbedding(verifiedEnglish)
+          getEmbedding(sourceText),
+          getEmbedding(translatedText)
         ]);
         
-        await ddb.update({
+        // Create new item with all required fields
+        const newTranslation: Translation = {
+          id,
+          sourceText,
+          translation: translatedText,
+          sourceLanguage,
+          sourceEmbedding,
+          translationEmbedding,
+          verified: 'true',
+          createdAt: new Date().toISOString(),
+          verificationDate: new Date().toISOString()
+        };
+      
+        await ddb.put({
           TableName: TABLE_NAME,
-          Key: { id: existingTranslation.id },
-          ExpressionAttributeNames: {
-            '#translation': 'translation',
-            '#sourceText': 'sourceText',
-            '#sourceEmbed': 'sourceEmbedding',
-            '#translationEmbed': 'translationEmbedding'
-          },
-          UpdateExpression: 'set #sourceText = :s, #translation = :t, ' +
-                          '#sourceEmbed = :se, #translationEmbed = :te, ' +
-                          'verified = :v, verificationDate = :d',
-          ExpressionAttributeValues: {
-            ':s': text,
-            ':t': verifiedEnglish,
-            ':se': sourceEmbedding,
-            ':te': translationEmbedding,
-            ':v': 'true',
-            ':d': new Date().toISOString()
-          }
+          Item: newTranslation
         });
-
-
+      
         return {
           statusCode: 200,
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*'
           },
-          body: JSON.stringify({ message: 'Translation verified successfully' })
+          body: JSON.stringify({ 
+            message: 'Translation verified successfully',
+            id 
+          })
         };
       }
+      
 
       case '/learn': {
         const { sourceLanguage = 'fj', category } = parsedBody;
         
         const queryParams: any = {
           TableName: TABLE_NAME,
-          IndexName: 'VerifiedIndex',
-          KeyConditionExpression: 'verified = :v',
+          IndexName: 'SourceLanguageIndex',
+          KeyConditionExpression: 'sourceLanguage = :sl',
           ExpressionAttributeValues: {
-            ':v': 'true',
-            ':sl': sourceLanguage
+            ':sl': sourceLanguage,
+            ':v': 'true'            
           },
-          FilterExpression: 'sourceLanguage = :sl'
+          FilterExpression: 'verified = :v'
         };
 
         if (category) {

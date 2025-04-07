@@ -26,20 +26,13 @@ const translationsTable = new dynamodb.Table(this, 'FijianTranslationsTable', {
   removalPolicy: RemovalPolicy.DESTROY,
 });
 
-// Add first two GSIs - we'll add CreatedAtIndex in the final deployment
+// Add GSI for source language queries
 translationsTable.addGlobalSecondaryIndex({
-  indexName: 'VerifiedIndex',
-  partitionKey: { name: 'verified', type: dynamodb.AttributeType.STRING },
-  sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
-});
-
-// Second GSI - VerifiedLanguageIndex
-translationsTable.addGlobalSecondaryIndex({
-  indexName: 'VerifiedLanguageIndex',
-  partitionKey: { name: 'verified', type: dynamodb.AttributeType.STRING },
-  sortKey: { name: 'sourceLanguage', type: dynamodb.AttributeType.STRING },
+  indexName: 'SourceLanguageIndex',
+  partitionKey: { name: 'sourceLanguage', type: dynamodb.AttributeType.STRING },
   projectionType: dynamodb.ProjectionType.ALL
 });
+
 
     // 3. Cognito Setup
     const userPool = new cognito.UserPool(this, 'FijianAppUserPool', {

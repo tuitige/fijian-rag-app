@@ -161,11 +161,12 @@ function findSimilarTranslations(text_1, sourceLanguage_1) {
                     queryEmbedding = _a.sent();
                     return [4 /*yield*/, ddb.query({
                             TableName: exports.TABLE_NAME,
-                            IndexName: 'VerifiedSourceLanguageIndex',
-                            KeyConditionExpression: 'verified = :v AND sourceLanguage = :sl',
+                            IndexName: 'SourceLanguageIndex', // New simplified index
+                            KeyConditionExpression: 'sourceLanguage = :sl',
+                            FilterExpression: 'verified = :v', // Move verified check to filter expression
                             ExpressionAttributeValues: {
-                                ':v': 'true',
-                                ':sl': sourceLanguage
+                                ':sl': sourceLanguage,
+                                ':v': 'true'
                             }
                         })];
                 case 2:
@@ -190,11 +191,11 @@ function findSimilarTranslations(text_1, sourceLanguage_1) {
 }
 function main(event) {
     return __awaiter(this, void 0, void 0, function () {
-        var path, body, parsedBody, _a, _b, text, _c, sourceLanguage, similarTranslations, translationResult, _d, sourceEmbedding, translationEmbedding, newTranslation, text, verifiedEnglish, id, _e, sourceEmbedding, translationEmbedding, _f, sourceLanguage, category, queryParams, result, error_1;
-        return __generator(this, function (_g) {
-            switch (_g.label) {
+        var path, body, parsedBody, _a, sourceText, sourceLanguage, similarTranslations, context, targetLanguage, systemPrompt, humanPrompt, command, response, result, translation, id, _b, sourceEmbedding, translationEmbedding, currentDate, newTranslation, sourceText, translatedText, sourceLanguage, _c, verified, id, _d, sourceEmbedding, translationEmbedding, newTranslation, _e, sourceLanguage, category, queryParams, result, error_1;
+        return __generator(this, function (_f) {
+            switch (_f.label) {
                 case 0:
-                    _g.trys.push([0, 13, , 14]);
+                    _f.trys.push([0, 13, , 14]);
                     path = event.path, body = event.body;
                     parsedBody = JSON.parse(body || '{}');
                     console.log('Received event:', event);
@@ -207,50 +208,92 @@ function main(event) {
                     }
                     return [3 /*break*/, 11];
                 case 1:
-                    _b = parsedBody, text = _b.text, _c = _b.sourceLanguage, sourceLanguage = _c === void 0 ? 'fj' : _c;
-                    return [4 /*yield*/, findSimilarTranslations(text, sourceLanguage)];
-                case 2:
-                    similarTranslations = _g.sent();
-                    if (similarTranslations.length > 0) {
+                    sourceText = parsedBody.sourceText, sourceLanguage = parsedBody.sourceLanguage;
+                    // Validate required fields
+                    if (!sourceText || !sourceLanguage) {
                         return [2 /*return*/, {
-                                statusCode: 200,
+                                statusCode: 400,
                                 headers: {
                                     'Content-Type': 'application/json',
                                     'Access-Control-Allow-Origin': '*'
                                 },
                                 body: JSON.stringify({
-                                    sourceText: similarTranslations[0].sourceText,
-                                    translation: similarTranslations[0].translation,
-                                    source: 'verified',
-                                    sourceLanguage: similarTranslations[0].sourceLanguage
+                                    message: 'Missing required fields: sourceText and sourceLanguage are required'
                                 })
                             }];
                     }
-                    return [4 /*yield*/, translateWithClaude(text, sourceLanguage)];
+                    // Validate sourceLanguage is either 'en' or 'fj'
+                    if (!['en', 'fj'].includes(sourceLanguage)) {
+                        return [2 /*return*/, {
+                                statusCode: 400,
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Access-Control-Allow-Origin': '*'
+                                },
+                                body: JSON.stringify({
+                                    message: 'sourceLanguage must be either "en" or "fj"'
+                                })
+                            }];
+                    }
+                    return [4 /*yield*/, findSimilarTranslations(sourceText, sourceLanguage)];
+                case 2:
+                    similarTranslations = _f.sent();
+                    context = '';
+                    if (similarTranslations.length > 0) {
+                        context = similarTranslations
+                            .map(function (t) { return "".concat(t.sourceText, " = ").concat(t.translation); })
+                            .join('\n');
+                    }
+                    targetLanguage = sourceLanguage === 'fj' ? 'English' : 'Fijian';
+                    systemPrompt = "You are a helpful translator between Fijian and English languages.";
+                    humanPrompt = "Translate the following ".concat(sourceLanguage === 'fj' ? 'Fijian' : 'English', " text to ").concat(targetLanguage, ". \n").concat(context ? "\nHere are some similar translations for reference:\n".concat(context, "\n") : '', "\nText to translate: \"").concat(sourceText, "\"\n\nProvide only the translation without any additional explanation.");
+                    command = new client_bedrock_runtime_1.InvokeModelCommand({
+                        modelId: 'anthropic.claude-v2',
+                        contentType: 'application/json',
+                        body: JSON.stringify({
+                            anthropic_version: "bedrock-2023-05-31",
+                            max_tokens: 2000,
+                            temperature: 0.1,
+                            messages: [
+                                {
+                                    role: "user",
+                                    content: humanPrompt
+                                }
+                            ]
+                        })
+                    });
+                    return [4 /*yield*/, bedrock.send(command)];
                 case 3:
-                    translationResult = _g.sent();
+                    response = _f.sent();
+                    console.log('Bedrock response:', response);
+                    result = JSON.parse(new TextDecoder().decode(response.body));
+                    translation = result.content[0].text.trim();
+                    console.log('Translation result:', translation);
+                    id = (0, uuid_1.v4)();
                     return [4 /*yield*/, Promise.all([
-                            getEmbedding(text),
-                            getEmbedding(translationResult.translation)
+                            getEmbedding(sourceText),
+                            getEmbedding(translation)
                         ])];
                 case 4:
-                    _d = _g.sent(), sourceEmbedding = _d[0], translationEmbedding = _d[1];
+                    _b = _f.sent(), sourceEmbedding = _b[0], translationEmbedding = _b[1];
+                    currentDate = new Date().toISOString();
                     newTranslation = {
-                        id: (0, uuid_1.v4)(),
-                        sourceText: text,
-                        translation: translationResult.translation,
+                        id: id,
+                        sourceText: sourceText,
+                        translation: translation,
                         sourceLanguage: sourceLanguage,
                         sourceEmbedding: sourceEmbedding,
                         translationEmbedding: translationEmbedding,
                         verified: 'false',
-                        createdAt: new Date().toISOString()
+                        createdAt: currentDate,
+                        verificationDate: currentDate // Added this field
                     };
                     return [4 /*yield*/, ddb.put({
                             TableName: exports.TABLE_NAME,
                             Item: newTranslation
                         })];
                 case 5:
-                    _g.sent();
+                    _f.sent();
                     return [2 /*return*/, {
                             statusCode: 200,
                             headers: {
@@ -258,67 +301,90 @@ function main(event) {
                                 'Access-Control-Allow-Origin': '*'
                             },
                             body: JSON.stringify({
-                                sourceText: text,
-                                translation: translationResult.translation,
-                                rawResponse: translationResult.rawResponse,
-                                confidence: translationResult.confidence,
-                                source: 'claude',
-                                sourceLanguage: sourceLanguage
+                                translation: translation,
+                                id: id,
+                                similarTranslations: similarTranslations.length
                             })
                         }];
                 case 6:
-                    text = parsedBody.text, verifiedEnglish = parsedBody.verifiedEnglish;
+                    sourceText = parsedBody.sourceText, translatedText = parsedBody.translatedText, sourceLanguage = parsedBody.sourceLanguage, _c = parsedBody.verified, verified = _c === void 0 ? true : _c;
+                    // Validate required fields
+                    if (!sourceText || !translatedText || !sourceLanguage) {
+                        return [2 /*return*/, {
+                                statusCode: 400,
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Access-Control-Allow-Origin': '*'
+                                },
+                                body: JSON.stringify({
+                                    message: 'Missing required fields: sourceText, translatedText, and sourceLanguage are required'
+                                })
+                            }];
+                    }
+                    // Validate sourceLanguage is either 'en' or 'fj'
+                    if (!['en', 'fj'].includes(sourceLanguage)) {
+                        return [2 /*return*/, {
+                                statusCode: 400,
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Access-Control-Allow-Origin': '*'
+                                },
+                                body: JSON.stringify({
+                                    message: 'sourceLanguage must be either "en" or "fj"'
+                                })
+                            }];
+                    }
                     id = (0, uuid_1.v4)();
-                    console.log('Verifying translation for:', text);
-                    console.log('Verified translation:', verifiedEnglish);
+                    console.log('Verifying translation:', {
+                        sourceText: sourceText,
+                        translatedText: translatedText,
+                        sourceLanguage: sourceLanguage
+                    });
                     return [4 /*yield*/, Promise.all([
-                            getEmbedding(text),
-                            getEmbedding(verifiedEnglish)
+                            getEmbedding(sourceText),
+                            getEmbedding(translatedText)
                         ])];
                 case 7:
-                    _e = _g.sent(), sourceEmbedding = _e[0], translationEmbedding = _e[1];
-                    return [4 /*yield*/, ddb.update({
+                    _d = _f.sent(), sourceEmbedding = _d[0], translationEmbedding = _d[1];
+                    newTranslation = {
+                        id: id,
+                        sourceText: sourceText,
+                        translation: translatedText,
+                        sourceLanguage: sourceLanguage,
+                        sourceEmbedding: sourceEmbedding,
+                        translationEmbedding: translationEmbedding,
+                        verified: 'true',
+                        createdAt: new Date().toISOString(),
+                        verificationDate: new Date().toISOString()
+                    };
+                    return [4 /*yield*/, ddb.put({
                             TableName: exports.TABLE_NAME,
-                            Key: { id: id },
-                            ExpressionAttributeNames: {
-                                '#translation': 'translation',
-                                '#sourceText': 'sourceText',
-                                '#sourceEmbed': 'sourceEmbedding',
-                                '#translationEmbed': 'translationEmbedding'
-                            },
-                            UpdateExpression: 'set #sourceText = :s, #translation = :t, ' +
-                                '#sourceEmbed = :se, #translationEmbed = :te, ' +
-                                'verified = :v, verificationDate = :d',
-                            ExpressionAttributeValues: {
-                                ':s': text,
-                                ':t': verifiedEnglish,
-                                ':se': sourceEmbedding,
-                                ':te': translationEmbedding,
-                                ':v': 'true',
-                                ':d': new Date().toISOString()
-                            }
+                            Item: newTranslation
                         })];
                 case 8:
-                    _g.sent();
+                    _f.sent();
                     return [2 /*return*/, {
                             statusCode: 200,
                             headers: {
                                 'Content-Type': 'application/json',
                                 'Access-Control-Allow-Origin': '*'
                             },
-                            body: JSON.stringify({ message: 'Translation verified successfully' })
+                            body: JSON.stringify({
+                                message: 'Translation verified successfully',
+                                id: id
+                            })
                         }];
                 case 9:
-                    _f = parsedBody.sourceLanguage, sourceLanguage = _f === void 0 ? 'fj' : _f, category = parsedBody.category;
+                    _e = parsedBody.sourceLanguage, sourceLanguage = _e === void 0 ? 'fj' : _e, category = parsedBody.category;
                     queryParams = {
                         TableName: exports.TABLE_NAME,
-                        IndexName: 'VerifiedIndex',
-                        KeyConditionExpression: 'verified = :v',
+                        IndexName: 'SourceLanguageIndex',
+                        KeyConditionExpression: 'sourceLanguage = :sl',
                         ExpressionAttributeValues: {
-                            ':v': 'true',
-                            ':sl': sourceLanguage
+                            ':sl': sourceLanguage,
+                            ':v': 'true'
                         },
-                        FilterExpression: 'sourceLanguage = :sl'
+                        FilterExpression: 'verified = :v'
                     };
                     if (category) {
                         queryParams.FilterExpression += ' AND category = :c';
@@ -326,7 +392,7 @@ function main(event) {
                     }
                     return [4 /*yield*/, ddb.query(queryParams)];
                 case 10:
-                    result = _g.sent();
+                    result = _f.sent();
                     return [2 /*return*/, {
                             statusCode: 200,
                             headers: {
@@ -345,7 +411,7 @@ function main(event) {
                     }];
                 case 12: return [3 /*break*/, 14];
                 case 13:
-                    error_1 = _g.sent();
+                    error_1 = _f.sent();
                     console.error('Error:', error_1);
                     return [2 /*return*/, {
                             statusCode: 500,
