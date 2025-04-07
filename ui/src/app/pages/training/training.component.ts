@@ -36,6 +36,7 @@ export class TrainingComponent {
   isVerifying = false;
   showRawResponse = false;
   sourceLanguage: 'en' | 'fj' = 'fj';
+  similarTranslations: Translation[] = [];
 
   constructor(private translationService: ApiService) {}
 
@@ -48,10 +49,29 @@ export class TrainingComponent {
     this.error = '';
     this.isTranslating = true;
     this.currentTranslation = null;
+    this.similarTranslations = [];
 
+    this.translationService.getSimilarTranslations(this.sourceText, this.sourceLanguage)
+      .subscribe({
+        next: (response) => {
+          this.similarTranslations = response.translations;
+          
+          // If no similar translations found, proceed with new translation
+          if (response.translations.length === 0) {
+            this.performNewTranslation();
+          }
+        },
+        error: (error) => {
+          console.error('Error checking similar translations:', error);
+          this.performNewTranslation();
+        }
+      });
+  }
+
+  private performNewTranslation(): void {
     this.translationService.translate(this.sourceText, this.sourceLanguage)
       .subscribe({
-        next: (response: any) => {  // Using any temporarily until API service is updated
+        next: (response: Translation) => {
           this.currentTranslation = {
             ...response,
             source: 'claude'
@@ -66,6 +86,7 @@ export class TrainingComponent {
         }
       });
   }
+}
 
   verifyTranslation(): void {
     if (!this.sourceText || !this.verifiedTranslation) {
@@ -92,6 +113,11 @@ export class TrainingComponent {
           this.isVerifying = false;
         }
       });
+  }
+
+  useExistingTranslation(translation: Translation): void {
+    this.currentTranslation = translation;
+    this.verifiedTranslation = translation.translatedText;
   }
 
   toggleRawResponse(): void {

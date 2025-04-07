@@ -3,7 +3,6 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-// Remove the import from './models' since we're defining interfaces here
 export interface Translation {
   translatedText: string;
   rawResponse: string;
@@ -13,16 +12,9 @@ export interface Translation {
   source?: 'claude' | 'verified';
 }
 
-export interface VerificationRequest {
-  sourceText: string;
-  translatedText: string;
-  sourceLanguage: string;
-  verified: boolean;
-}
-
-export interface VerificationResponse {
-  message: string;
-  success: boolean;
+export interface SimilarTranslationsResponse {
+  translations: Translation[];
+  count: number;
 }
 
 @Injectable({
@@ -48,5 +40,13 @@ export class ApiService {
       verified: true
     };
     return this.http.post<VerificationResponse>(`${this.apiUrl}/verify`, payload);
+  }
+
+  // Add method to get similar translations
+  getSimilarTranslations(sourceText: string, sourceLanguage: string): Observable<SimilarTranslationsResponse> {
+    return this.http.post<SimilarTranslationsResponse>(`${this.apiUrl}/similar`, {
+      sourceText,
+      sourceLanguage
+    });
   }
 }

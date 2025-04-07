@@ -55,6 +55,31 @@
         </div>
       </div>
 
+<!-- Add this section after the translation form and before the translation result -->
+<div *ngIf="similarTranslations.length > 0" class="card mb-4 shadow-sm">
+  <div class="card-body">
+    <h3 class="card-title h5 mb-3">Similar Translations Found</h3>
+    <div class="list-group">
+      <div *ngFor="let translation of similarTranslations" class="list-group-item">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <p class="mb-1"><strong>Translation:</strong> {{ translation.translatedText }}</p>
+            <small class="text-muted">
+              Source: {{ translation.source === 'verified' ? 'Verified Translation' : 'Claude AI Translation' }}
+            </small>
+          </div>
+          <button 
+            class="btn btn-outline-primary btn-sm"
+            (click)="useExistingTranslation(translation)">
+            Use This Translation
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
       <!-- Translation Result Section -->
       <div *ngIf="currentTranslation" class="card shadow-sm">
         <div class="card-body">
