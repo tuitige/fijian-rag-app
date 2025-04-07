@@ -12,6 +12,18 @@ export interface Translation {
   source?: 'claude' | 'verified';
 }
 
+export interface VerificationRequest {
+  sourceText: string;
+  translatedText: string;
+  sourceLanguage: string;
+  verified: boolean;
+}
+
+export interface VerificationResponse {
+  message: string;
+  success: boolean;
+}
+
 export interface SimilarTranslationsResponse {
   translations: Translation[];
   count: number;
