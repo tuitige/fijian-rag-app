@@ -86,7 +86,6 @@ export class TrainingComponent {
         }
       });
   }
-}
 
   verifyTranslation(): void {
     if (!this.sourceText || !this.verifiedTranslation) {
