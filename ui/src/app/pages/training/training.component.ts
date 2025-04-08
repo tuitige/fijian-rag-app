@@ -54,10 +54,24 @@ export class TrainingComponent {
     this.translationService.getSimilarTranslations(this.sourceText, this.sourceLanguage)
       .subscribe({
         next: (response) => {
+          console.log('Similar translations response:', response);
           this.similarTranslations = response.translations;
           
           // If no similar translations found, proceed with new translation
-          if (response.translations.length === 0) {
+          if (response.translations.length > 0) {
+            console.log('Found similar translations:', this.similarTranslations);
+            // Automatically use the first verified translation if available
+            const verifiedTranslation = response.translations.find(t => t.source === 'verified');
+            if (verifiedTranslation) {
+              console.log('Using verified translation:', verifiedTranslation);
+              this.useExistingTranslation(verifiedTranslation);
+              this.isTranslating = false;
+            } else {
+              console.log('No verified translations found, proceeding with new translation');
+              this.performNewTranslation();
+            }
+          } else {
+            console.log('No similar translations found, proceeding with new translation');
             this.performNewTranslation();
           }
         },
@@ -66,6 +80,14 @@ export class TrainingComponent {
           this.performNewTranslation();
         }
       });
+  }
+
+  useExistingTranslation(translation: Translation): void {
+    console.log('Using existing translation:', translation);
+    this.currentTranslation = translation;
+    this.verifiedTranslation = translation.translatedText;
+    // Add a visual indicator that this is a verified translation
+    this.verificationSuccess = 'Using verified translation';
   }
 
   private performNewTranslation(): void {

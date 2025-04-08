@@ -1,147 +1,115 @@
 <app-header></app-header>
-<div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-8">
-      <!-- Translation Input Section -->
-      <div class="card mb-4 shadow-sm">
+
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-8 offset-md-2">
+      <div class="card">
         <div class="card-body">
-          <h2 class="card-title mb-4">Translation Tool</h2>
+          <h2 class="card-title">Translation Training</h2>
           
-          <div class="mb-3">
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="sourceLanguage" id="sourceFijian" 
-                     [(ngModel)]="sourceLanguage" value="fj">
-              <label class="form-check-label" for="sourceFijian">
-                Fijian to English
-              </label>
-            </div>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="sourceLanguage" id="sourceEnglish" 
-                     [(ngModel)]="sourceLanguage" value="en">
-              <label class="form-check-label" for="sourceEnglish">
-                English to Fijian
-              </label>
-            </div>
-          </div>
-          
-          <!-- Error Message -->
-          <div *ngIf="error" class="alert alert-danger">
-            {{ error }}
-          </div>
-
-          <!-- Success Message -->
-          <div *ngIf="verificationSuccess" class="alert alert-success">
-            {{ verificationSuccess }}
-          </div>
-
           <!-- Translation Form -->
           <div class="mb-3">
-            <label for="fijianText" class="form-label">Enter {{ sourceLanguage === 'fj' ? 'Fijian' : 'English' }} Text</label>
+            <label for="sourceText" class="form-label">Enter text to translate:</label>
             <textarea 
-              id="fijianText"
+              id="sourceText" 
               class="form-control" 
-              rows="4"
-              [(ngModel)]="sourceText"
-              [disabled]="isTranslating"
-              placeholder="Enter text to translate..."></textarea>
+              [(ngModel)]="sourceText" 
+              rows="3">
+            </textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Source Language:</label>
+            <div class="btn-group" role="group">
+              <input type="radio" class="btn-check" name="sourceLanguage" id="fijian" 
+                     [(ngModel)]="sourceLanguage" value="fj" autocomplete="off">
+              <label class="btn btn-outline-primary" for="fijian">Fijian</label>
+
+              <input type="radio" class="btn-check" name="sourceLanguage" id="english" 
+                     [(ngModel)]="sourceLanguage" value="en" autocomplete="off">
+              <label class="btn btn-outline-primary" for="english">English</label>
+            </div>
           </div>
 
           <button 
-            class="btn btn-primary"
-            (click)="translateUsingClaude()"
-            [disabled]="isTranslating || !sourceText.trim()">
+            class="btn btn-primary" 
+            (click)="translateUsingClaude()" 
+            [disabled]="isTranslating">
             {{ isTranslating ? 'Translating...' : 'Translate' }}
           </button>
         </div>
       </div>
 
-<!-- Add this section after the translation form and before the translation result -->
-<div *ngIf="similarTranslations.length > 0" class="card mb-4 shadow-sm">
-  <div class="card-body">
-    <h3 class="card-title h5 mb-3">Similar Translations Found</h3>
-    <div class="list-group">
-      <div *ngFor="let translation of similarTranslations" class="list-group-item">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <p class="mb-1"><strong>Translation:</strong> {{ translation.translatedText }}</p>
-            <small class="text-muted">
-              Source: {{ translation.source === 'verified' ? 'Verified Translation' : 'Claude AI Translation' }}
-            </small>
+      <!-- Error Message -->
+      <div *ngIf="error" class="alert alert-danger mt-3">
+        {{ error }}
+      </div>
+
+      <!-- Similar Translations Section -->
+      <div *ngIf="similarTranslations.length > 0" class="alert alert-info mt-3">
+        <h4 class="alert-heading">Similar Translations Found</h4>
+        <div class="list-group mt-2">
+          <div *ngFor="let translation of similarTranslations" 
+               class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+              <h5 class="mb-1">{{ translation.translatedText }}</h5>
+              <small>
+                <span [class]="translation.source === 'verified' ? 'badge bg-success' : 'badge bg-secondary'">
+                  {{ translation.source === 'verified' ? 'Verified' : 'AI Generated' }}
+                </span>
+              </small>
+            </div>
+            <p class="mb-1">Original: {{ translation.sourceText }}</p>
+            <button class="btn btn-sm btn-outline-primary mt-2" 
+                    (click)="useExistingTranslation(translation)">
+              Use This Translation
+            </button>
           </div>
-          <button 
-            class="btn btn-outline-primary btn-sm"
-            (click)="useExistingTranslation(translation)">
-            Use This Translation
-          </button>
         </div>
       </div>
-    </div>
-  </div>
-</div>
 
-
-      <!-- Translation Result Section -->
-      <div *ngIf="currentTranslation" class="card shadow-sm">
+      <!-- Translation Result -->
+      <div *ngIf="currentTranslation" class="card mt-3">
         <div class="card-body">
-          <h3 class="card-title h5 mb-3">Translation Result</h3>
-
-          <!-- Source Badge -->
-          <div class="mb-3">
-            <span class="badge" [ngClass]="{
-              'bg-primary': currentTranslation.source === 'claude',
-              'bg-success': currentTranslation.source === 'verified'
-            }">
-              {{ currentTranslation.source === 'verified' ? 'Verified Translation' : 'Claude AI Translation' }}
-            </span>
+          <h5 class="card-title">Translation Result</h5>
+          <p class="card-text">{{ currentTranslation.translatedText }}</p>
+          <div *ngIf="currentTranslation.source === 'verified'" 
+               class="alert alert-success">
+            This is a verified translation
           </div>
           
-          <!-- Translation textarea -->
-          <div class="mb-3">
-            <label class="form-label">{{ sourceLanguage === 'fj' ? 'English' : 'Fijian' }} Translation</label>
+          <!-- Verification Form -->
+          <div class="mt-3">
+            <label for="verifiedTranslation" class="form-label">Verified Translation:</label>
             <textarea 
-              class="form-control"
-              rows="4"
-              [(ngModel)]="verifiedTranslation"
-              [disabled]="isVerifying"
-              placeholder="Translation will appear here..."></textarea>
-          </div>
-
-          <!-- Translation Details -->
-          <div class="mt-3">
-            <button 
-              class="btn btn-link p-0"
-              (click)="toggleRawResponse()">
-              {{ showRawResponse ? 'Hide' : 'Show' }} Details
-            </button>
+              id="verifiedTranslation" 
+              class="form-control" 
+              [(ngModel)]="verifiedTranslation" 
+              rows="3">
+            </textarea>
             
-            <div *ngIf="showRawResponse" class="mt-2">
-              <div class="card bg-light">
-                <div class="card-body">
-                  <div *ngIf="currentTranslation.rawResponse" class="mb-2">
-                    <small class="text-muted">Raw response from Claude: {{ currentTranslation.rawResponse }}</small>
-                  </div>
-                  <div *ngIf="currentTranslation.confidence" class="mb-2">
-                    <small class="text-muted">Confidence: {{ currentTranslation.confidence | percent }}</small>
-                  </div>
-                  <div *ngIf="currentTranslation.source" class="mb-2">
-                    <small class="text-muted">Source: {{ currentTranslation.source }}</small>
-                  </div>
-                  <div *ngIf="currentTranslation.similarTranslations !== undefined" class="mb-2">
-                    <small class="text-muted">Similar Translations Found: {{ currentTranslation.similarTranslations }}</small>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <button 
+              class="btn btn-success mt-2" 
+              (click)="verifyTranslation()" 
+              [disabled]="isVerifying">
+              {{ isVerifying ? 'Verifying...' : 'Submit Verification' }}
+            </button>
           </div>
 
-          <div class="mt-3">
-            <button 
-              class="btn btn-primary"
-              (click)="verifyTranslation()"
-              [disabled]="isVerifying">
-              <span *ngIf="isVerifying" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-              Verify Translation
-            </button>
+          <!-- Verification Success Message -->
+          <div *ngIf="verificationSuccess" class="alert alert-success mt-3">
+            {{ verificationSuccess }}
+          </div>
+
+          <!-- Raw Response Toggle -->
+          <button 
+            class="btn btn-link mt-2" 
+            (click)="toggleRawResponse()">
+            {{ showRawResponse ? 'Hide' : 'Show' }} Raw Response
+          </button>
+          
+          <div *ngIf="showRawResponse" class="mt-2">
+            <pre>{{ currentTranslation.rawResponse }}</pre>
           </div>
         </div>
       </div>
