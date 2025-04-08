@@ -11,6 +11,7 @@ interface Translation {
   id: string;
   similarTranslations: number;
   source?: 'claude' | 'verified';
+  sourceText: string;
 }
 
 @Component({
@@ -134,11 +135,6 @@ export class TrainingComponent {
           this.isVerifying = false;
         }
       });
-  }
-
-  useExistingTranslation(translation: Translation): void {
-    this.currentTranslation = translation;
-    this.verifiedTranslation = translation.translatedText;
   }
 
   toggleRawResponse(): void {

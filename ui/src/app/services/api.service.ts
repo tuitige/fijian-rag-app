@@ -10,6 +10,7 @@ export interface Translation {
   id: string;
   similarTranslations: number;
   source?: 'claude' | 'verified';
+  sourceText: string;
 }
 
 export interface VerificationRequest {
