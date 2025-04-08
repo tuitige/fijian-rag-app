@@ -45,39 +45,17 @@
         {{ error }}
       </div>
 
-      <!-- Similar Translations Section -->
-      <div *ngIf="similarTranslations.length > 0" class="alert alert-info mt-3">
-        <h4 class="alert-heading">Similar Translations Found</h4>
-        <div class="list-group mt-2">
-          <div *ngFor="let translation of similarTranslations" 
-               class="list-group-item list-group-item-action">
-            <div class="d-flex w-100 justify-content-between">
-              <h5 class="mb-1">{{ translation.translatedText }}</h5>
-              <small>
-                <span [class]="translation.source === 'verified' ? 'badge bg-success' : 'badge bg-secondary'">
-                  {{ translation.source === 'verified' ? 'Verified' : 'AI Generated' }}
-                </span>
-              </small>
-            </div>
-            <p class="mb-1">Original: {{ translation.sourceText }}</p>
-            <button class="btn btn-sm btn-outline-primary mt-2" 
-                    (click)="useExistingTranslation(translation)">
-              Use This Translation
-            </button>
-          </div>
-        </div>
-      </div>
-
       <!-- Translation Result -->
       <div *ngIf="currentTranslation" class="card mt-3">
         <div class="card-body">
           <h5 class="card-title">Translation Result</h5>
           <p class="card-text">{{ currentTranslation.translatedText }}</p>
-          <div *ngIf="currentTranslation.source === 'verified'" 
-               class="alert alert-success">
-            This is a verified translation
-          </div>
           
+          <!-- Show number of similar translations if any -->
+          <div *ngIf="currentTranslation.similarTranslations > 0" class="alert alert-info">
+            Found {{ currentTranslation.similarTranslations }} similar translation(s) in the database.
+          </div>
+
           <!-- Verification Form -->
           <div class="mt-3">
             <label for="verifiedTranslation" class="form-label">Verified Translation:</label>
