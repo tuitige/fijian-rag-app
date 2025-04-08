@@ -11,7 +11,6 @@ interface Translation {
   id: string;
   similarTranslations: number;
   source?: 'claude' | 'verified';
-  sourceText: string;
 }
 
 @Component({
@@ -26,7 +25,6 @@ interface Translation {
   providers: [],
   standalone: true
 })
-
 export class TrainingComponent {
   sourceText = '';
   currentTranslation: Translation | null = null;
@@ -37,7 +35,6 @@ export class TrainingComponent {
   isVerifying = false;
   showRawResponse = false;
   sourceLanguage: 'en' | 'fj' = 'fj';
-  similarTranslations: Translation[] = [];
 
   constructor(private translationService: ApiService) {}
 
@@ -50,48 +47,7 @@ export class TrainingComponent {
     this.error = '';
     this.isTranslating = true;
     this.currentTranslation = null;
-    this.similarTranslations = [];
 
-    this.translationService.getSimilarTranslations(this.sourceText, this.sourceLanguage)
-      .subscribe({
-        next: (response) => {
-          console.log('Similar translations response:', response);
-          this.similarTranslations = response.translations;
-          
-          // If no similar translations found, proceed with new translation
-          if (response.translations.length > 0) {
-            console.log('Found similar translations:', this.similarTranslations);
-            // Automatically use the first verified translation if available
-            const verifiedTranslation = response.translations.find(t => t.source === 'verified');
-            if (verifiedTranslation) {
-              console.log('Using verified translation:', verifiedTranslation);
-              this.useExistingTranslation(verifiedTranslation);
-              this.isTranslating = false;
-            } else {
-              console.log('No verified translations found, proceeding with new translation');
-              this.performNewTranslation();
-            }
-          } else {
-            console.log('No similar translations found, proceeding with new translation');
-            this.performNewTranslation();
-          }
-        },
-        error: (error) => {
-          console.error('Error checking similar translations:', error);
-          this.performNewTranslation();
-        }
-      });
-  }
-
-  useExistingTranslation(translation: Translation): void {
-    console.log('Using existing translation:', translation);
-    this.currentTranslation = translation;
-    this.verifiedTranslation = translation.translatedText;
-    // Add a visual indicator that this is a verified translation
-    this.verificationSuccess = 'Using verified translation';
-  }
-
-  private performNewTranslation(): void {
     this.translationService.translate(this.sourceText, this.sourceLanguage)
       .subscribe({
         next: (response: Translation) => {

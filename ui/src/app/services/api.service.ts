@@ -56,10 +56,12 @@ export class ApiService {
   }
 
   // Add method to get similar translations
+  /*
   getSimilarTranslations(sourceText: string, sourceLanguage: string): Observable<SimilarTranslationsResponse> {
     return this.http.post<SimilarTranslationsResponse>(`${this.apiUrl}/similar`, {
       sourceText,
       sourceLanguage
     });
   }
+    */
 }
