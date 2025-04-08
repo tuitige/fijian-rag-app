@@ -16,6 +16,29 @@ interface TranslationRequest {
   text: string;
   sourceLanguage: 'en' | 'fj';  // 'en' for English, 'fj' for Fijian
 }
+interface TranslationDebug {
+  foundSimilarTranslations: Array<{
+    id: string;
+    sourceText: string;
+    translatedText: string;
+    verified: string;
+    createdAt: string;
+    similarity: number;
+  }>;
+}
+
+interface TranslationItem {
+  id: string;
+  source_text: string;
+  translated_text: string;
+  source_language: string;
+  raw_response: string;
+  confidence?: number;
+  verified?: boolean;
+  embedding?: number[];
+  created_at?: string;
+  similar_translations?: number;
+}
 
 interface Translation {
   id: string;
@@ -38,6 +61,7 @@ interface TranslateResponse {
   confidence?: number;
   id: string;
   similarTranslations: number;
+  debug?: TranslationDebug;
 }
 
 
@@ -121,34 +145,34 @@ async function findSimilarTranslations(
   text: string, 
   sourceLanguage: 'en' | 'fj',
   threshold: number = 0.85
-): Promise<Translation[]> {
+): Promise<{ translations: Translation[], similarities: number[] }> {
   const queryEmbedding = await getEmbedding(text);
   
   const result = await ddb.query({
     TableName: TABLE_NAME,
-    IndexName: 'SourceLanguageIndex', // New simplified index
+    IndexName: 'SourceLanguageIndex',
     KeyConditionExpression: 'sourceLanguage = :sl',
-    FilterExpression: 'verified = :v', // Move verified check to filter expression
     ExpressionAttributeValues: {
-      ':sl': sourceLanguage,
-      ':v': 'true'
+      ':sl': sourceLanguage
     }
   });
 
-  if (!result.Items) return [];
+  if (!result.Items) return { translations: [], similarities: [] };
 
   const withSimilarity = result.Items.map(item => ({
-    ...item,
-    // Check similarity against both source and translation embeddings
-    similarity: sourceLanguage === 'fj' 
-      ? cosineSimilarity(queryEmbedding, item.sourceEmbedding)
-      : cosineSimilarity(queryEmbedding, item.translationEmbedding)
+    translation: item as Translation,
+    similarity: cosineSimilarity(queryEmbedding, item.sourceLanguage === sourceLanguage ? 
+      item.sourceEmbedding : item.translationEmbedding)
   }));
 
-  return withSimilarity
+  const filtered = withSimilarity
     .filter(item => item.similarity >= threshold)
-    .sort((a, b) => b.similarity - a.similarity)
-    .map(({ similarity, ...item }) => item as Translation);
+    .sort((a, b) => b.similarity - a.similarity);
+
+  return {
+    translations: filtered.map(item => item.translation),
+    similarities: filtered.map(item => item.similarity)
+  };
 }
 
 export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -191,63 +215,66 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
           };
         }
       
-        // Find similar translations from the database
-        const similarTranslations = await findSimilarTranslations(sourceText, sourceLanguage);
+        // Get embeddings for similarity search
+        // Get embeddings for similarity search
+        const sourceEmbedding = await getEmbedding(sourceText);
+        
+        // Find similar translations
+        const queryResult = await ddb.query({
+          TableName: TABLE_NAME,
+          IndexName: 'SourceLanguageIndex',
+          KeyConditionExpression: 'sourceLanguage = :sl',
+          ExpressionAttributeValues: {
+            ':sl': sourceLanguage
+          }
+        });
       
-        // Prepare context from similar translations
-        let context = '';
-        if (similarTranslations.length > 0) {
-          context = similarTranslations
-            .map(t => `${t.sourceText} = ${t.translation}`)
-            .join('\n');
+        let similarTranslations = [];
+        let translatedText: string;
+        let rawResponse: string;
+        let confidence: number | undefined;
+        let useVerified = false;
+
+        if (queryResult.Items) {
+          // Calculate similarities and filter
+          const SIMILARITY_THRESHOLD = 0.85;
+          similarTranslations = queryResult.Items
+            .map(item => ({
+              ...item,
+              similarity: cosineSimilarity(sourceEmbedding, item.sourceEmbedding)
+            }))
+            .filter(item => item.similarity >= SIMILARITY_THRESHOLD)
+            .sort((a, b) => b.similarity - a.similarity);
+
+          // Check for verified translation
+          const verifiedTranslation = similarTranslations.find(item => item.verified === 'true');
+          
+          if (verifiedTranslation) {
+            useVerified = true;
+            translatedText = verifiedTranslation.translation;
+            rawResponse = JSON.stringify({
+              translation: verifiedTranslation.translation,
+              notes: `Using verified translation (similarity: ${verifiedTranslation.similarity.toFixed(3)})`
+            });
+            confidence = 1.0;
+          }
+        }
+
+        // Only call Claude if no verified translation was found
+        if (!useVerified) {
+          const claudeResponse = await translateWithClaude(sourceText, sourceLanguage);
+          translatedText = claudeResponse.translation;
+          rawResponse = claudeResponse.rawResponse;
+          confidence = claudeResponse.confidence;
         }
       
-        // Prepare the prompt based on source language
-        const targetLanguage = sourceLanguage === 'fj' ? 'English' : 'Fijian';
-        const systemPrompt = `You are a helpful translator between Fijian and English languages.`;
-
-        const humanPrompt = `Translate the following ${sourceLanguage === 'fj' ? 'Fijian' : 'English'} text to ${targetLanguage}. 
-        ${context ? `\nHere are some similar translations for reference:\n${context}\n` : ''}
-        Text to translate: "${sourceText}"\n\nProvide only the translation without any additional explanation.`;
-
-        const command = new InvokeModelCommand({
-          modelId: 'anthropic.claude-v2',
-          contentType: 'application/json',
-          body: JSON.stringify({
-            anthropic_version: "bedrock-2023-05-31",
-            max_tokens: 2000,
-            temperature: 0.1,
-            messages: [
-              {
-                role: "user",
-                content: humanPrompt
-              }
-            ]
-          })
-        });
-
-        const bedrockResponse  = await bedrock.send(command);
-        console.log('Bedrock response:', bedrockResponse );
-
-        const result = JSON.parse(new TextDecoder().decode(bedrockResponse .body));
-        const rawResponse = result.content[0].text;
-        console.log('Raw response:', rawResponse);
-
-        const translatedText = rawResponse
-        .replace(/^(Here is the (English|Fijian) translation:?\s*\n*)/i, '')
-        .replace(/^["']|["']$/g, '') // Remove leading/trailing quotes
-        .trim();
-
-        console.log('Translation result:', translatedText);    
-
-        // Create new unverified translation record
-        const id = uuidv4();
-        const [sourceEmbedding, translationEmbedding] = await Promise.all([
-          getEmbedding(sourceText),
-          getEmbedding(translatedText)
-        ]);
+        // Create embeddings for the new translation
+        const translationEmbedding = await getEmbedding(translatedText);
       
+        // Create new translation record
+        const id = uuidv4();
         const currentDate = new Date().toISOString();
+        
         const newTranslation: Translation = {
           id,
           sourceText,
@@ -255,24 +282,34 @@ export async function main(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
           sourceLanguage,
           sourceEmbedding,
           translationEmbedding,
-          verified: 'false',
+          verified: useVerified ? 'true' : 'false',
           createdAt: currentDate,
-          verificationDate: currentDate  // Added this field
+          verificationDate: currentDate
         };
       
         await ddb.put({
           TableName: TABLE_NAME,
           Item: newTranslation
         });
-
+      
         const response: TranslateResponse = {
           translatedText,
           rawResponse,
-          confidence: result.confidence,
+          confidence,
           id,
-          similarTranslations: similarTranslations.length
-        };        
-
+          similarTranslations: similarTranslations.length,
+          debug: {
+            foundSimilarTranslations: similarTranslations.map(item => ({
+              id: item.id,
+              sourceText: item.sourceText,
+              translatedText: item.translation,
+              verified: item.verified,
+              createdAt: item.createdAt,
+              similarity: item.similarity
+            }))
+          }
+        };
+      
         return {
           statusCode: 200,
           headers: {

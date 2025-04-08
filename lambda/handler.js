@@ -46,17 +46,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __rest = (this && this.__rest) || function (s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                t[p[i]] = s[p[i]];
-        }
-    return t;
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TABLE_NAME = void 0;
 exports.main = main;
@@ -152,7 +141,7 @@ function translateWithClaude(text, sourceLanguage) {
 }
 function findSimilarTranslations(text_1, sourceLanguage_1) {
     return __awaiter(this, arguments, void 0, function (text, sourceLanguage, threshold) {
-        var queryEmbedding, result, withSimilarity;
+        var queryEmbedding, result, withSimilarity, filtered;
         if (threshold === void 0) { threshold = 0.85; }
         return __generator(this, function (_a) {
             switch (_a.label) {
@@ -161,41 +150,39 @@ function findSimilarTranslations(text_1, sourceLanguage_1) {
                     queryEmbedding = _a.sent();
                     return [4 /*yield*/, ddb.query({
                             TableName: exports.TABLE_NAME,
-                            IndexName: 'SourceLanguageIndex', // New simplified index
+                            IndexName: 'SourceLanguageIndex',
                             KeyConditionExpression: 'sourceLanguage = :sl',
-                            FilterExpression: 'verified = :v', // Move verified check to filter expression
                             ExpressionAttributeValues: {
-                                ':sl': sourceLanguage,
-                                ':v': 'true'
+                                ':sl': sourceLanguage
                             }
                         })];
                 case 2:
                     result = _a.sent();
                     if (!result.Items)
-                        return [2 /*return*/, []];
-                    withSimilarity = result.Items.map(function (item) { return (__assign(__assign({}, item), { 
-                        // Check similarity against both source and translation embeddings
-                        similarity: sourceLanguage === 'fj'
-                            ? cosineSimilarity(queryEmbedding, item.sourceEmbedding)
-                            : cosineSimilarity(queryEmbedding, item.translationEmbedding) })); });
-                    return [2 /*return*/, withSimilarity
-                            .filter(function (item) { return item.similarity >= threshold; })
-                            .sort(function (a, b) { return b.similarity - a.similarity; })
-                            .map(function (_a) {
-                            var similarity = _a.similarity, item = __rest(_a, ["similarity"]);
-                            return item;
-                        })];
+                        return [2 /*return*/, { translations: [], similarities: [] }];
+                    withSimilarity = result.Items.map(function (item) { return ({
+                        translation: item,
+                        similarity: cosineSimilarity(queryEmbedding, item.sourceLanguage === sourceLanguage ?
+                            item.sourceEmbedding : item.translationEmbedding)
+                    }); });
+                    filtered = withSimilarity
+                        .filter(function (item) { return item.similarity >= threshold; })
+                        .sort(function (a, b) { return b.similarity - a.similarity; });
+                    return [2 /*return*/, {
+                            translations: filtered.map(function (item) { return item.translation; }),
+                            similarities: filtered.map(function (item) { return item.similarity; })
+                        }];
             }
         });
     });
 }
 function main(event) {
     return __awaiter(this, void 0, void 0, function () {
-        var path, body, parsedBody, _a, sourceText, sourceLanguage, similarTranslations, context, targetLanguage, systemPrompt, humanPrompt, command, bedrockResponse, result, rawResponse, translatedText, id, _b, sourceEmbedding, translationEmbedding, currentDate, newTranslation, response, sourceText, translatedText, sourceLanguage, _c, verified, id, _d, sourceEmbedding, translationEmbedding, newTranslation, _e, sourceLanguage, category, queryParams, result, error_1;
-        return __generator(this, function (_f) {
-            switch (_f.label) {
+        var path, body, parsedBody, _a, sourceText, sourceLanguage, sourceEmbedding_1, queryResult, similarTranslations, translatedText, rawResponse, confidence, useVerified, SIMILARITY_THRESHOLD_1, verifiedTranslation, claudeResponse, translationEmbedding, id, currentDate, newTranslation, response, sourceText, translatedText, sourceLanguage, _b, verified, id, _c, sourceEmbedding, translationEmbedding, newTranslation, _d, sourceLanguage, category, queryParams, result, error_1;
+        return __generator(this, function (_e) {
+            switch (_e.label) {
                 case 0:
-                    _f.trys.push([0, 13, , 14]);
+                    _e.trys.push([0, 15, , 16]);
                     path = event.path, body = event.body;
                     parsedBody = JSON.parse(body || '{}');
                     console.log('Received event:', event);
@@ -203,10 +190,10 @@ function main(event) {
                     _a = path;
                     switch (_a) {
                         case '/translate': return [3 /*break*/, 1];
-                        case '/verify': return [3 /*break*/, 6];
-                        case '/learn': return [3 /*break*/, 9];
+                        case '/verify': return [3 /*break*/, 8];
+                        case '/learn': return [3 /*break*/, 11];
                     }
-                    return [3 /*break*/, 11];
+                    return [3 /*break*/, 13];
                 case 1:
                     sourceText = parsedBody.sourceText, sourceLanguage = parsedBody.sourceLanguage;
                     // Validate required fields
@@ -235,76 +222,87 @@ function main(event) {
                                 })
                             }];
                     }
-                    return [4 /*yield*/, findSimilarTranslations(sourceText, sourceLanguage)];
+                    return [4 /*yield*/, getEmbedding(sourceText)];
                 case 2:
-                    similarTranslations = _f.sent();
-                    context = '';
-                    if (similarTranslations.length > 0) {
-                        context = similarTranslations
-                            .map(function (t) { return "".concat(t.sourceText, " = ").concat(t.translation); })
-                            .join('\n');
-                    }
-                    targetLanguage = sourceLanguage === 'fj' ? 'English' : 'Fijian';
-                    systemPrompt = "You are a helpful translator between Fijian and English languages.";
-                    humanPrompt = "Translate the following ".concat(sourceLanguage === 'fj' ? 'Fijian' : 'English', " text to ").concat(targetLanguage, ". \n        ").concat(context ? "\nHere are some similar translations for reference:\n".concat(context, "\n") : '', "\n        Text to translate: \"").concat(sourceText, "\"\n\nProvide only the translation without any additional explanation.");
-                    command = new client_bedrock_runtime_1.InvokeModelCommand({
-                        modelId: 'anthropic.claude-v2',
-                        contentType: 'application/json',
-                        body: JSON.stringify({
-                            anthropic_version: "bedrock-2023-05-31",
-                            max_tokens: 2000,
-                            temperature: 0.1,
-                            messages: [
-                                {
-                                    role: "user",
-                                    content: humanPrompt
-                                }
-                            ]
-                        })
-                    });
-                    return [4 /*yield*/, bedrock.send(command)];
+                    sourceEmbedding_1 = _e.sent();
+                    return [4 /*yield*/, ddb.query({
+                            TableName: exports.TABLE_NAME,
+                            IndexName: 'SourceLanguageIndex',
+                            KeyConditionExpression: 'sourceLanguage = :sl',
+                            ExpressionAttributeValues: {
+                                ':sl': sourceLanguage
+                            }
+                        })];
                 case 3:
-                    bedrockResponse = _f.sent();
-                    console.log('Bedrock response:', bedrockResponse);
-                    result = JSON.parse(new TextDecoder().decode(bedrockResponse.body));
-                    rawResponse = result.content[0].text;
-                    console.log('Raw response:', rawResponse);
-                    translatedText = rawResponse
-                        .replace(/^(Here is the (English|Fijian) translation:?\s*\n*)/i, '')
-                        .replace(/^["']|["']$/g, '') // Remove leading/trailing quotes
-                        .trim();
-                    console.log('Translation result:', translatedText);
-                    id = (0, uuid_1.v4)();
-                    return [4 /*yield*/, Promise.all([
-                            getEmbedding(sourceText),
-                            getEmbedding(translatedText)
-                        ])];
+                    queryResult = _e.sent();
+                    similarTranslations = [];
+                    translatedText = void 0;
+                    rawResponse = void 0;
+                    confidence = void 0;
+                    useVerified = false;
+                    if (queryResult.Items) {
+                        SIMILARITY_THRESHOLD_1 = 0.85;
+                        similarTranslations = queryResult.Items
+                            .map(function (item) { return (__assign(__assign({}, item), { similarity: cosineSimilarity(sourceEmbedding_1, item.sourceEmbedding) })); })
+                            .filter(function (item) { return item.similarity >= SIMILARITY_THRESHOLD_1; })
+                            .sort(function (a, b) { return b.similarity - a.similarity; });
+                        verifiedTranslation = similarTranslations.find(function (item) { return item.verified === 'true'; });
+                        if (verifiedTranslation) {
+                            useVerified = true;
+                            translatedText = verifiedTranslation.translation;
+                            rawResponse = JSON.stringify({
+                                translation: verifiedTranslation.translation,
+                                notes: "Using verified translation (similarity: ".concat(verifiedTranslation.similarity.toFixed(3), ")")
+                            });
+                            confidence = 1.0;
+                        }
+                    }
+                    if (!!useVerified) return [3 /*break*/, 5];
+                    return [4 /*yield*/, translateWithClaude(sourceText, sourceLanguage)];
                 case 4:
-                    _b = _f.sent(), sourceEmbedding = _b[0], translationEmbedding = _b[1];
+                    claudeResponse = _e.sent();
+                    translatedText = claudeResponse.translation;
+                    rawResponse = claudeResponse.rawResponse;
+                    confidence = claudeResponse.confidence;
+                    _e.label = 5;
+                case 5: return [4 /*yield*/, getEmbedding(translatedText)];
+                case 6:
+                    translationEmbedding = _e.sent();
+                    id = (0, uuid_1.v4)();
                     currentDate = new Date().toISOString();
                     newTranslation = {
                         id: id,
                         sourceText: sourceText,
                         translation: translatedText,
                         sourceLanguage: sourceLanguage,
-                        sourceEmbedding: sourceEmbedding,
+                        sourceEmbedding: sourceEmbedding_1,
                         translationEmbedding: translationEmbedding,
-                        verified: 'false',
+                        verified: useVerified ? 'true' : 'false',
                         createdAt: currentDate,
-                        verificationDate: currentDate // Added this field
+                        verificationDate: currentDate
                     };
                     return [4 /*yield*/, ddb.put({
                             TableName: exports.TABLE_NAME,
                             Item: newTranslation
                         })];
-                case 5:
-                    _f.sent();
+                case 7:
+                    _e.sent();
                     response = {
                         translatedText: translatedText,
                         rawResponse: rawResponse,
-                        confidence: result.confidence,
+                        confidence: confidence,
                         id: id,
-                        similarTranslations: similarTranslations.length
+                        similarTranslations: similarTranslations.length,
+                        debug: {
+                            foundSimilarTranslations: similarTranslations.map(function (item) { return ({
+                                id: item.id,
+                                sourceText: item.sourceText,
+                                translatedText: item.translation,
+                                verified: item.verified,
+                                createdAt: item.createdAt,
+                                similarity: item.similarity
+                            }); })
+                        }
                     };
                     return [2 /*return*/, {
                             statusCode: 200,
@@ -314,8 +312,8 @@ function main(event) {
                             },
                             body: JSON.stringify(response)
                         }];
-                case 6:
-                    sourceText = parsedBody.sourceText, translatedText = parsedBody.translatedText, sourceLanguage = parsedBody.sourceLanguage, _c = parsedBody.verified, verified = _c === void 0 ? true : _c;
+                case 8:
+                    sourceText = parsedBody.sourceText, translatedText = parsedBody.translatedText, sourceLanguage = parsedBody.sourceLanguage, _b = parsedBody.verified, verified = _b === void 0 ? true : _b;
                     // Validate required fields
                     if (!sourceText || !translatedText || !sourceLanguage) {
                         return [2 /*return*/, {
@@ -352,8 +350,8 @@ function main(event) {
                             getEmbedding(sourceText),
                             getEmbedding(translatedText)
                         ])];
-                case 7:
-                    _d = _f.sent(), sourceEmbedding = _d[0], translationEmbedding = _d[1];
+                case 9:
+                    _c = _e.sent(), sourceEmbedding = _c[0], translationEmbedding = _c[1];
                     newTranslation = {
                         id: id,
                         sourceText: sourceText,
@@ -369,8 +367,8 @@ function main(event) {
                             TableName: exports.TABLE_NAME,
                             Item: newTranslation
                         })];
-                case 8:
-                    _f.sent();
+                case 10:
+                    _e.sent();
                     return [2 /*return*/, {
                             statusCode: 200,
                             headers: {
@@ -382,8 +380,8 @@ function main(event) {
                                 id: id
                             })
                         }];
-                case 9:
-                    _e = parsedBody.sourceLanguage, sourceLanguage = _e === void 0 ? 'fj' : _e, category = parsedBody.category;
+                case 11:
+                    _d = parsedBody.sourceLanguage, sourceLanguage = _d === void 0 ? 'fj' : _d, category = parsedBody.category;
                     queryParams = {
                         TableName: exports.TABLE_NAME,
                         IndexName: 'SourceLanguageIndex',
@@ -399,8 +397,8 @@ function main(event) {
                         queryParams.ExpressionAttributeValues[':c'] = category;
                     }
                     return [4 /*yield*/, ddb.query(queryParams)];
-                case 10:
-                    result = _f.sent();
+                case 12:
+                    result = _e.sent();
                     return [2 /*return*/, {
                             statusCode: 200,
                             headers: {
@@ -409,7 +407,7 @@ function main(event) {
                             },
                             body: JSON.stringify(result.Items)
                         }];
-                case 11: return [2 /*return*/, {
+                case 13: return [2 /*return*/, {
                         statusCode: 404,
                         headers: {
                             'Content-Type': 'application/json',
@@ -417,9 +415,9 @@ function main(event) {
                         },
                         body: JSON.stringify({ message: 'Not found' })
                     }];
-                case 12: return [3 /*break*/, 14];
-                case 13:
-                    error_1 = _f.sent();
+                case 14: return [3 /*break*/, 16];
+                case 15:
+                    error_1 = _e.sent();
                     console.error('Error:', error_1);
                     return [2 /*return*/, {
                             statusCode: 500,
@@ -429,7 +427,7 @@ function main(event) {
                             },
                             body: JSON.stringify({ message: 'Internal server error' })
                         }];
-                case 14: return [2 /*return*/];
+                case 16: return [2 /*return*/];
             }
         });
     });
