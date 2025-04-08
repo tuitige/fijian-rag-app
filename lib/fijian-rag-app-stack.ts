@@ -94,12 +94,19 @@ translationsTable.addGlobalSecondaryIndex({
       restApiName: 'FijianLanguageService',
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: ['POST', 'OPTIONS'],
-        allowHeaders: ['Content-Type'],
+        allowMethods: ['POST', 'OPTIONS', 'GET'],
+        allowHeaders: [
+          'Content-Type',
+          'X-Amz-Date',
+          'Authorization',
+          'X-Api-Key',
+          'X-Amz-Security-Token'
+        ],
+        allowCredentials: true,
       }
     });
-
-    ['translate', 'verify', 'learn'].forEach(path => {
+    
+    ['translate', 'verify', 'learn', 'similar'].forEach(path => {
       api.root.addResource(path).addMethod('POST', 
         new apigateway.LambdaIntegration(handler)
       );
