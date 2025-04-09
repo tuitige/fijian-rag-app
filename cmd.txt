@@ -1,2 +1,4 @@
 npm run build:lambdas
 cdk deploy
+
+s3://fijian-rag-app-content/modules/fijian_book_page_001.jpg

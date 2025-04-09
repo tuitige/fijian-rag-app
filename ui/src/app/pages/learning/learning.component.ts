@@ -2,19 +2,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
-interface LearningModule {
-  id: string;
-  title: string;
-  level: number;
-  content: ModuleContent[];
-  userProgress: number;
-}
-
-interface ModuleContent {
-  type: 'vocabulary' | 'grammar' | 'conversation';
-  content: any;
-}
+import { LearningService, LearningModule } from '../services/learning.service';
 
 @Component({
   selector: 'app-learning',
@@ -28,26 +16,58 @@ interface ModuleContent {
       <div class="mb-6">
         <h3 class="text-xl mb-3">Available Modules</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div *ngFor="let module of learningModules" 
+          <div *ngFor="let moduleTitle of availableModules" 
                class="p-4 border rounded-lg cursor-pointer hover:bg-gray-50"
-               (click)="selectModule(module)">
-            <h4 class="font-bold">{{module.title}}</h4>
-            <div class="mt-2">Progress: {{module.userProgress}}%</div>
+               (click)="selectModule(moduleTitle)">
+            <h4 class="font-bold">{{moduleTitle}}</h4>
           </div>
         </div>
       </div>
 
       <!-- Active Module Content -->
       <div *ngIf="activeModule" class="mt-6">
-        <h3 class="text-xl mb-3">{{activeModule.title}}</h3>
-        <!-- Module content here -->
+        <h3 class="text-xl mb-3">{{activeModule.learningModuleTitle}}</h3>
+        
+        <!-- Navigation -->
+        <div class="flex justify-between items-center mb-4">
+          <button 
+            [disabled]="currentPage === 1"
+            (click)="changePage(currentPage - 1)"
+            class="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-300">
+            Previous
+          </button>
+          <span>Page {{currentPage}} of {{activeModule.totalPages}}</span>
+          <button 
+            [disabled]="currentPage === activeModule.totalPages"
+            (click)="changePage(currentPage + 1)"
+            class="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-300">
+            Next
+          </button>
+        </div>
+
+        <!-- Content -->
+        <div class="space-y-4">
+          <div *ngFor="let paragraph of activeModule.paragraphs" 
+               class="p-4 bg-white rounded shadow">
+            {{paragraph}}
+          </div>
+        </div>
       </div>
 
       <!-- Chat Interface -->
       <div class="mt-6 border-t pt-4">
         <h3 class="text-xl mb-3">Practice with AI Tutor</h3>
-        <div class="chat-container">
+        <div class="chat-container min-h-[200px] border rounded p-4 mb-4">
           <!-- Chat messages here -->
+          <div *ngFor="let message of chatMessages" 
+               class="mb-2"
+               [ngClass]="{'text-right': message.isUser}">
+            <div [class]="message.isUser ? 
+                         'bg-blue-100 inline-block p-2 rounded' : 
+                         'bg-gray-100 inline-block p-2 rounded'">
+              {{message.text}}
+            </div>
+          </div>
         </div>
         <div class="mt-4">
           <input type="text" 
@@ -61,25 +81,67 @@ interface ModuleContent {
   `
 })
 export class LearningComponent implements OnInit {
-  learningModules: LearningModule[] = [];
+  availableModules: string[] = [];
   activeModule: LearningModule | null = null;
+  currentPage: number = 1;
   userMessage: string = '';
+  chatMessages: Array<{ text: string; isUser: boolean }> = [];
 
-  constructor() {}
+  constructor(private learningService: LearningService) {}
 
   ngOnInit() {
     this.loadModules();
   }
 
   async loadModules() {
-    // Fetch modules from your backend
+    this.learningService.getModules().subscribe({
+      next: (response) => {
+        this.availableModules = response.modules;
+      },
+      error: (error) => {
+        console.error('Error loading modules:', error);
+      }
+    });
   }
 
-  selectModule(module: LearningModule) {
-    this.activeModule = module;
+  selectModule(moduleTitle: string) {
+    this.currentPage = 1;
+    this.loadModulePage(moduleTitle, this.currentPage);
+  }
+
+  loadModulePage(moduleTitle: string, page: number) {
+    this.learningService.getModulePage(moduleTitle, page).subscribe({
+      next: (module) => {
+        this.activeModule = module;
+        this.currentPage = page;
+      },
+      error: (error) => {
+        console.error('Error loading module page:', error);
+      }
+    });
+  }
+
+  changePage(newPage: number) {
+    if (this.activeModule && newPage >= 1 && newPage <= (this.activeModule.totalPages || 1)) {
+      this.loadModulePage(this.activeModule.learningModuleTitle, newPage);
+    }
   }
 
   async sendMessage() {
-    // Implement RAG-powered chat functionality
+    if (!this.userMessage.trim()) return;
+
+    // Add user message to chat
+    this.chatMessages.push({ text: this.userMessage, isUser: true });
+    
+    // TODO: Implement actual chat functionality
+    // For now, just echo the message
+    setTimeout(() => {
+      this.chatMessages.push({ 
+        text: `You said: ${this.userMessage}`, 
+        isUser: false 
+      });
+    }, 1000);
+
+    this.userMessage = '';
   }
 }

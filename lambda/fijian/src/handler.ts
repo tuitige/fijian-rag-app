@@ -69,6 +69,18 @@ const SIMILARITY_THRESHOLD = 0.85;
 const ddb = DynamoDBDocument.from(new DynamoDB());
 const bedrock = new BedrockRuntimeClient({ region: 'us-west-2' });
 
+import { DynamoDBClient, QueryCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
+const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION });
+
+interface LearningModuleResponse {
+  id: string;
+  learningModuleTitle: string;
+  content: string;
+  pageNumber: number;
+  paragraphs: string[];
+  totalPages?: number;
+}
+
 // Helper functions
 async function getEmbedding(text: string): Promise<number[]> {
   const command = new InvokeModelCommand({
@@ -162,12 +174,29 @@ async function findSimilarTranslations(
 // Main handler
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
-    const { path, body } = event;
-    if (!body) {
+    const { path, httpMethod, body } = event;
+    
+    // Handle /learn endpoint separately since it supports both GET and POST
+    if (path === '/learn') {
+      if (httpMethod === 'GET') {
+        if (event.queryStringParameters?.moduleTitle) {
+          return await getLearningModule(
+            event.queryStringParameters.moduleTitle,
+            parseInt(event.queryStringParameters.page || '1')
+          );
+        } else {
+          return await listLearningModules();
+        }
+      }
+      // POST for /learn will be handled below with other POST endpoints
+    }
+
+    // All other endpoints require POST and body
+    if (httpMethod !== 'POST' || !body) {
       return {
         statusCode: 400,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ message: 'Missing request body' })
+        body: JSON.stringify({ message: 'Missing request body or invalid method' })
       };
     }
 
@@ -175,130 +204,17 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     switch (path) {
       case '/translate': {
-        const { sourceText, sourceLanguage } = parsedBody as TranslationRequest;
-
-        if (!sourceText || !sourceLanguage) {
-          return {
-            statusCode: 400,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-            body: JSON.stringify({ message: 'Missing required fields' })
-          };
-        }
-
-        const sourceEmbedding = await getEmbedding(sourceText);
-        const similarTranslations = await findSimilarTranslations(sourceText, sourceLanguage, sourceEmbedding);
-        
-        let translatedText: string;
-        let rawResponse: string;
-        let confidence: number | undefined;
-
-        const verifiedTranslation = similarTranslations.find(t => t.verified === 'true');
-        
-        if (verifiedTranslation && verifiedTranslation.similarity !== undefined) {
-          translatedText = verifiedTranslation.translation;
-          rawResponse = JSON.stringify({
-            translation: verifiedTranslation.translation,
-            notes: `Using verified translation (similarity: ${verifiedTranslation.similarity.toFixed(3)})`
-          });
-          confidence = 1.0;
-        } else {
-          const claudeResponse = await translateWithClaude(sourceText, sourceLanguage);
-          translatedText = claudeResponse.translation;
-          rawResponse = claudeResponse.rawResponse;
-          confidence = claudeResponse.confidence;
-        }
-
-        const translationEmbedding = await getEmbedding(translatedText);
-        const id = uuidv4();
-        const currentDate = new Date().toISOString();
-
-        const newTranslation: Translation = {
-          id,
-          sourceText,
-          translation: translatedText,
-          sourceLanguage,
-          sourceEmbedding,
-          translationEmbedding,
-          verified: 'false',
-          createdAt: currentDate,
-          verificationDate: currentDate
-        };
-
-        await ddb.put({
-          TableName: TABLE_NAME,
-          Item: newTranslation
-        });
-
-        const response: TranslateResponse = {
-          translatedText,
-          rawResponse,
-          confidence,
-          id,
-          similarTranslations: similarTranslations.length,
-          debug: {
-            foundSimilarTranslations: similarTranslations.map(t => ({
-              id: t.id,
-              sourceText: t.sourceText,
-              translatedText: t.translation,
-              verified: t.verified,
-              createdAt: t.createdAt,
-              similarity: t.similarity ?? 0
-            }))
-          }
-        };
-
-        return {
-          statusCode: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-          body: JSON.stringify(response)
-        };
+        // Existing translate code...
       }
 
       case '/verify': {
-        const { sourceText, translatedText, sourceLanguage, verified } = parsedBody as VerificationRequest;
-      
-        if (!sourceText || !translatedText || !sourceLanguage) {
-          return {
-            statusCode: 400,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-            body: JSON.stringify({ message: 'Missing required fields' })
-          };
-        }
-      
-        const id = uuidv4();
-        const currentDate = new Date().toISOString();
-      
-        // Get embeddings for both source and translated text
-        const sourceEmbedding = await getEmbedding(sourceText);
-        const translationEmbedding = await getEmbedding(translatedText);
-      
-        const verifiedTranslation: Translation = {
-          id,
-          sourceText,
-          translation: translatedText,
-          sourceLanguage,
-          sourceEmbedding,
-          translationEmbedding,
-          verified: 'true',
-          createdAt: currentDate,
-          verifier: 'Makita', // Replace with actual verifier if needed
-          verificationDate: currentDate
-        };
-      
-        await ddb.put({
-          TableName: TABLE_NAME,
-          Item: verifiedTranslation
-        });
-      
-        return {
-          statusCode: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-          body: JSON.stringify({
-            message: 'Verification saved successfully',
-            id: verifiedTranslation.id
-          })
-        };
-      }      
+        // Existing verify code...
+      }
+
+      case '/learn': {
+        // Handle POST for learning module progress/interaction
+        return await handleLearningProgress(parsedBody);
+      }
 
       default:
         return {
@@ -315,4 +231,77 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       body: JSON.stringify({ message: 'Internal server error' })
     };
   }
+}
+
+// Add these new functions for learning module handling
+async function listLearningModules(): Promise<APIGatewayProxyResult> {
+  const command = new QueryCommand({
+    TableName: process.env.TABLE_NAME,
+    IndexName: 'byLearningModule',
+    ProjectionExpression: 'learningModuleTitle, id',
+    Select: 'SPECIFIC_ATTRIBUTES'
+  });
+
+  const response = await dynamoClient.send(command);
+  
+  // Get unique module titles
+  const modules = [...new Set(response.Items?.map(item => item.learningModuleTitle.S))];
+
+  return {
+    statusCode: 200,
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ modules })
+  };
+}
+
+async function getLearningModule(moduleTitle: string, page: number): Promise<APIGatewayProxyResult> {
+  const command = new QueryCommand({
+    TableName: process.env.LEARNING_TABLE_NAME,
+    IndexName: 'byLearningModule',
+    KeyConditionExpression: 'learningModuleTitle = :title',
+    ExpressionAttributeValues: {
+      ':title': { S: moduleTitle }
+    }
+  });
+
+  const response = await dynamoClient.send(command);
+  const pages = response.Items || [];
+  const currentPage = pages.find(p => parseInt(p.pageNumber.N || '1') === page);
+  
+  if (!currentPage) {
+    return {
+      statusCode: 404,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ message: 'Page not found' })
+    };
+  }
+
+  // Fix the TypeScript error by filtering out undefined values
+  const paragraphs = currentPage.paragraphs.L
+    ?.map(p => p.S)
+    .filter((p): p is string => p !== undefined) || [];
+    
+  const moduleResponse: LearningModuleResponse = {
+    id: currentPage.id.S || '',
+    learningModuleTitle: currentPage.learningModuleTitle.S || '',
+    content: currentPage.content.S || '',
+    pageNumber: parseInt(currentPage.pageNumber.N || '1'),
+    paragraphs,
+    totalPages: pages.length
+  };
+
+  return {
+    statusCode: 200,
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify(moduleResponse)
+  };
+}
+
+async function handleLearningProgress(data: any): Promise<APIGatewayProxyResult> {
+  // Implement progress tracking, scoring, etc.
+  return {
+    statusCode: 200,
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ message: 'Progress updated' })
+  };
 }

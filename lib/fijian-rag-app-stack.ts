@@ -16,7 +16,6 @@ export class FijianRagStack extends Stack {
     super(scope, id, props);
 
     // 1. S3 Buckets
-    // 1. S3 Buckets
     const contentBucket = new s3.Bucket(this, 'fijian-rag-app-content', {
       bucketName: 'fijian-rag-app-content',
       removalPolicy: RemovalPolicy.DESTROY,
@@ -36,6 +35,20 @@ export class FijianRagStack extends Stack {
       indexName: 'SourceLanguageIndex',
       partitionKey: { name: 'sourceLanguage', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL
+    });
+
+    // DDB learningModulesTable
+    const learningModulesTable = new dynamodb.Table(this, 'LearningModules', {
+      partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+
+    // Add GSIs for querying
+    learningModulesTable.addGlobalSecondaryIndex({
+      indexName: 'byLearningModule',
+      partitionKey: { name: 'learningModuleTitle', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'pageNumber', type: dynamodb.AttributeType.NUMBER }
     });
 
     // 3. Cognito Setup
@@ -104,6 +117,7 @@ export class FijianRagStack extends Stack {
       role: lambdaRole,
       environment: {
         TABLE_NAME: translationsTable.tableName,
+        LEARNING_TABLE_NAME: learningModulesTable.tableName
       },
       bundling: {
         minify: true,
@@ -113,19 +127,22 @@ export class FijianRagStack extends Stack {
 
     const textractProcessor = new nodejsLambda.NodejsFunction(this, 'TextractProcessor', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      entry: path.join(__dirname, '../lambda/textract-processor/src/index.ts'),
+      entry: path.join(__dirname, '../lambda/textract-processor/src/handler.ts'),
       handler: 'handler',
       role: lambdaRole,
       timeout: Duration.minutes(5),
+      memorySize: 1024,
       environment: {
         BUCKET_NAME: contentBucket.bucketName,
-        TABLE_NAME: translationsTable.tableName,
+        TABLE_NAME: learningModulesTable.tableName,
       },
       bundling: {
         minify: true,
         sourceMap: true,
       }
     });
+
+    learningModulesTable.grantWriteData(textractProcessor);
 
     // Add Textract permissions
     textractProcessor.addToRolePolicy(new iam.PolicyStatement({
@@ -166,12 +183,19 @@ export class FijianRagStack extends Stack {
       }
     });
     
-    const paths: string[] = ['translate', 'verify', 'learn', 'similar'];
-    paths.forEach(pathPart => {
+    const postOnlyPaths: string[] = ['translate', 'verify', 'similar'];
+
+    // Add POST-only paths
+    postOnlyPaths.forEach(pathPart => {
       api.root.addResource(pathPart).addMethod('POST', 
         new apigateway.LambdaIntegration(fijianLambda)
       );
     });
+    
+    // Add learn endpoint with both GET and POST
+    const learnResource = api.root.addResource('learn');
+    learnResource.addMethod('GET', new apigateway.LambdaIntegration(fijianLambda));
+    learnResource.addMethod('POST', new apigateway.LambdaIntegration(fijianLambda));
 
     // 7. Outputs
     new CfnOutput(this, 'ApiUrl', {
