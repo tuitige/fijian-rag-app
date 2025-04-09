@@ -52,19 +52,36 @@ export class TrainingComponent {
     .subscribe({
       next: (response: any) => {
         console.log('Raw response:', response);
-        // Parse the translatedText since it's coming as a JSON string
-        const parsedResponse = JSON.parse(response.translatedText);
-        
-        this.currentTranslation = {
-          translatedText: parsedResponse.translation, // Get the translation from the parsed response
-          rawResponse: JSON.stringify(response, null, 2),
-          id: Date.now().toString(),
-          similarTranslations: 0,
-          source: 'claude'
-        };
-        console.log('Current Translation:', this.currentTranslation);
-        this.verifiedTranslation = parsedResponse.translation; // Use the parsed translation
-        console.log('Verified Translation:', this.verifiedTranslation);
+        try {
+          // Log the exact string we're trying to parse
+          console.log('Attempting to parse:', response.translatedText);
+          
+          // Try to clean up the JSON string if needed
+          const cleanedJson = response.translatedText.replace(/\n/g, '').trim();
+          console.log('Cleaned JSON:', cleanedJson);
+          
+          const parsedResponse = JSON.parse(cleanedJson);
+          
+          this.currentTranslation = {
+            translatedText: parsedResponse.translation,
+            rawResponse: JSON.stringify(response, null, 2),
+            id: Date.now().toString(),
+            similarTranslations: 0,
+            source: 'claude'
+          };
+          this.verifiedTranslation = parsedResponse.translation;
+        } catch (e) {
+          console.error('Parsing error:', e);
+          // Fallback: try to use the response directly
+          this.currentTranslation = {
+            translatedText: response.translation || response.translatedText,
+            rawResponse: JSON.stringify(response, null, 2),
+            id: Date.now().toString(),
+            similarTranslations: 0,
+            source: 'claude'
+          };
+          this.verifiedTranslation = response.translation || response.translatedText;
+        }
         this.isTranslating = false;
       },
       error: (error) => {
