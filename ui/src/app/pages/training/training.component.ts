@@ -49,25 +49,27 @@ export class TrainingComponent {
     this.currentTranslation = null;
 
     this.translationService.translate(this.sourceText, this.sourceLanguage)
-      .subscribe({
-        next: (response: any) => {
-          console.log('Response:', response);
-          this.currentTranslation = {
-            translatedText: response.translation,
-            rawResponse: JSON.stringify(response, null, 2),
-            id: Date.now().toString(),
-            similarTranslations: 0,
-            source: 'claude'
-          };
-          this.verifiedTranslation = response.translation;
-          this.isTranslating = false;
-        },
-        error: (error) => {
-          console.error('Translation error:', error);
-          this.error = 'Failed to translate text. Please try again.';
-          this.isTranslating = false;
-        }
-      });
+    .subscribe({
+      next: (response: any) => {
+        console.log('Raw response:', response); // Log the raw response
+        this.currentTranslation = {
+          translatedText: response.translation,
+          rawResponse: JSON.stringify(response, null, 2),
+          id: Date.now().toString(),
+          similarTranslations: 0,
+          source: 'claude'
+        };
+        console.log('Current Translation:', this.currentTranslation); // Log the currentTranslation object
+        this.verifiedTranslation = this.currentTranslation.translatedText;
+        console.log('Verified Translation:', this.verifiedTranslation); // Log the verifiedTranslation
+        this.isTranslating = false;
+      },
+      error: (error) => {
+        console.error('Translation error:', error);
+        this.error = 'Failed to translate text. Please try again.';
+        this.isTranslating = false;
+      }
+    });
   }
 
   verifyTranslation(): void {
