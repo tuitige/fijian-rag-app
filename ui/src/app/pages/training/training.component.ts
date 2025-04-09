@@ -53,21 +53,16 @@ export class TrainingComponent {
       next: (response: any) => {
         console.log('Raw response:', response);
         
-        // Store the full response for raw display
-        const rawResponse = response.translatedText;
-        
-        // Extract just the translation part using regex
-        const translationMatch = rawResponse.match(/"translation":\s*"([^"]+)"/);
-        const translationText = translationMatch ? translationMatch[1] : '';
-        
         this.currentTranslation = {
-          translatedText: translationText,
-          rawResponse: rawResponse,
-          id: Date.now().toString(),
-          similarTranslations: 0,
+          translatedText: response.translatedText,
+          rawResponse: response.rawResponse,
+          id: response.id,
+          similarTranslations: response.similarTranslations,
           source: 'claude'
         };
-        this.verifiedTranslation = translationText;
+        
+        // Set the verified translation directly from translatedText
+        this.verifiedTranslation = response.translatedText;
         this.isTranslating = false;
       },
       error: (error) => {
@@ -76,6 +71,7 @@ export class TrainingComponent {
         this.isTranslating = false;
       }
     });
+  
   }
 
   verifyTranslation(): void {
