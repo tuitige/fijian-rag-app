@@ -66,7 +66,8 @@
           <label for="verifiedTranslation">Verified Translation</label>
           <textarea
             id="verifiedTranslation"
-            [(ngModel)]="verifiedTranslation"
+            [ngModel]="currentTranslation?.translatedText"
+            (ngModelChange)="verifiedTranslation = $event"
             class="form-control"
             rows="4">
           </textarea>

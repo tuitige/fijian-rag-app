@@ -51,6 +51,7 @@ export class TrainingComponent {
     this.translationService.translate(this.sourceText, this.sourceLanguage)
       .subscribe({
         next: (response: any) => {
+          console.log('Response:', response);
           this.currentTranslation = {
             translatedText: response.translation,
             rawResponse: JSON.stringify(response, null, 2),
