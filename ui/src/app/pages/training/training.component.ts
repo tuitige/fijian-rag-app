@@ -53,16 +53,32 @@ export class TrainingComponent {
       next: (response: any) => {
         console.log('Raw response:', response);
         
+        // Parse the raw response to get just the translation
+        let translationText: string;
+        try {
+          // If response.translatedText is already a string (not JSON), use it directly
+          if (typeof response.translatedText === 'string' && !response.translatedText.startsWith('{')) {
+            translationText = response.translatedText;
+          } else {
+            // If it's JSON, parse it and get the translation
+            const parsedResponse = JSON.parse(response.translatedText);
+            translationText = parsedResponse.translation;
+          }
+        } catch (e) {
+          console.error('Error parsing translation:', e);
+          translationText = response.translatedText; // Fallback to raw text
+        }
+  
         this.currentTranslation = {
-          translatedText: response.translatedText,
+          translatedText: translationText, // Use the extracted translation
           rawResponse: response.rawResponse,
           id: response.id,
           similarTranslations: response.similarTranslations,
           source: 'claude'
         };
         
-        // Set the verified translation directly from translatedText
-        this.verifiedTranslation = response.translatedText;
+        // Set the verified translation to just the translation text
+        this.verifiedTranslation = translationText;
         this.isTranslating = false;
       },
       error: (error) => {
@@ -70,7 +86,7 @@ export class TrainingComponent {
         this.error = 'Failed to translate text. Please try again.';
         this.isTranslating = false;
       }
-    });
+    });  
   
   }
 
