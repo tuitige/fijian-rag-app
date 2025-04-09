@@ -1,8 +1,11 @@
 // lib/fijian-rag-app-stack.ts
+import * as path from 'path';
 import { Stack, StackProps, RemovalPolicy, Duration, CfnOutput } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as nodejsLambda from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
@@ -13,26 +16,27 @@ export class FijianRagStack extends Stack {
     super(scope, id, props);
 
     // 1. S3 Buckets
+    // 1. S3 Buckets
     const contentBucket = new s3.Bucket(this, 'fijian-rag-app-content', {
       bucketName: 'fijian-rag-app-content',
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true
     });
 
-// 2. DynamoDB Tables
-const translationsTable = new dynamodb.Table(this, 'FijianTranslationsTable', {
-  partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
-  billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-  removalPolicy: RemovalPolicy.DESTROY,
-});
+    // 2. DynamoDB Tables
+    const translationsTable = new dynamodb.Table(this, 'FijianTranslationsTable', {
+      tableName: 'TranslationsTable',
+      partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
 
-// Add GSI for source language queries
-translationsTable.addGlobalSecondaryIndex({
-  indexName: 'SourceLanguageIndex',
-  partitionKey: { name: 'sourceLanguage', type: dynamodb.AttributeType.STRING },
-  projectionType: dynamodb.ProjectionType.ALL
-});
-
+    // Add GSI for source language queries
+    translationsTable.addGlobalSecondaryIndex({
+      indexName: 'SourceLanguageIndex',
+      partitionKey: { name: 'sourceLanguage', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL
+    });
 
     // 3. Cognito Setup
     const userPool = new cognito.UserPool(this, 'FijianAppUserPool', {
@@ -54,7 +58,7 @@ translationsTable.addGlobalSecondaryIndex({
       }
     });
 
-    // 4. IAM Roles
+    // 4. IAM Role with all necessary permissions
     const lambdaRole = new iam.Role(this, 'LambdaRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
       managedPolicies: [
@@ -62,8 +66,24 @@ translationsTable.addGlobalSecondaryIndex({
       ]
     });
 
-    // Grant DynamoDB permissions
-    translationsTable.grantReadWriteData(lambdaRole);
+    // Grant DynamoDB permissions including GSI access
+    lambdaRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'dynamodb:Query',
+        'dynamodb:Scan',
+        'dynamodb:GetItem',
+        'dynamodb:PutItem',
+        'dynamodb:UpdateItem',
+        'dynamodb:DeleteItem',
+        'dynamodb:BatchGetItem',
+        'dynamodb:BatchWriteItem'
+      ],
+      resources: [
+        translationsTable.tableArn,
+        `${translationsTable.tableArn}/index/*`
+      ]
+    }));
 
     // Grant Bedrock permissions
     lambdaRole.addToPolicy(new iam.PolicyStatement({
@@ -76,18 +96,58 @@ translationsTable.addGlobalSecondaryIndex({
       ]
     }));
 
-    // 5. Lambda Function
-    const handler = new lambda.Function(this, 'FijianRagHandler', {
+    // 5. Lambda Functions
+    const fijianLambda = new nodejsLambda.NodejsFunction(this, 'FijianHandler', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      code: lambda.Code.fromAsset('lambda'),
-      handler: 'handler.main',
+      entry: path.join(__dirname, '../lambda/fijian/src/handler.ts'),
+      handler: 'handler',
       role: lambdaRole,
-      timeout: Duration.minutes(1),
       environment: {
         TABLE_NAME: translationsTable.tableName,
-        CONTENT_BUCKET: contentBucket.bucketName
       },
+      bundling: {
+        minify: true,
+        sourceMap: true,
+      }
     });
+
+    const textractProcessor = new nodejsLambda.NodejsFunction(this, 'TextractProcessor', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      entry: path.join(__dirname, '../lambda/textract-processor/src/index.ts'),
+      handler: 'handler',
+      role: lambdaRole,
+      timeout: Duration.minutes(5),
+      environment: {
+        BUCKET_NAME: contentBucket.bucketName,
+        TABLE_NAME: translationsTable.tableName,
+      },
+      bundling: {
+        minify: true,
+        sourceMap: true,
+      }
+    });
+
+    // Add Textract permissions
+    textractProcessor.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'textract:StartDocumentTextDetection',
+        'textract:GetDocumentTextDetection',
+        'textract:StartDocumentAnalysis',
+        'textract:GetDocumentAnalysis'
+      ],
+      resources: ['*']
+    }));
+
+    // Grant S3 permissions
+    contentBucket.grantRead(textractProcessor);
+    contentBucket.grantWrite(textractProcessor);
+
+    // Add S3 trigger
+    contentBucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new s3n.LambdaDestination(textractProcessor),
+      { prefix: 'modules/', suffix: '.jpg' }
+    );
 
     // 6. API Gateway
     const api = new apigateway.RestApi(this, 'FijianRagApi', {
@@ -106,9 +166,10 @@ translationsTable.addGlobalSecondaryIndex({
       }
     });
     
-    ['translate', 'verify', 'learn', 'similar'].forEach(path => {
-      api.root.addResource(path).addMethod('POST', 
-        new apigateway.LambdaIntegration(handler)
+    const paths: string[] = ['translate', 'verify', 'learn', 'similar'];
+    paths.forEach(pathPart => {
+      api.root.addResource(pathPart).addMethod('POST', 
+        new apigateway.LambdaIntegration(fijianLambda)
       );
     });
 

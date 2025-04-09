@@ -1,0 +1,19 @@
+{
+  "name": "textract-processor",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.782.0",
+    "@aws-sdk/client-s3": "^3.782.0",
+    "@aws-sdk/client-textract": "^3.782.0",
+    "@aws-sdk/lib-dynamodb": "^3.782.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.148",
+    "@types/node": "^18.0.0",
+    "typescript": "^5.0.0"
+  }
+}

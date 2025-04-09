@@ -1,0 +1,20 @@
+{
+    "name": "fijian-lambda",
+    "version": "1.0.0",
+    "scripts": {
+      "build": "tsc",
+      "watch": "tsc -w"
+    },
+    "dependencies": {
+      "@aws-sdk/client-dynamodb": "^3.0.0",
+      "@aws-sdk/lib-dynamodb": "^3.0.0",
+      "@aws-sdk/client-s3": "^3.0.0"
+    },
+    "devDependencies": {
+      "@types/aws-lambda": "^8.10.0",
+      "@types/node": "^18.0.0",
+      "typescript": "^5.0.0",
+      "esbuild": "^0.19.0"
+    }
+  }
+  

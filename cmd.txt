@@ -1,2 +1,2 @@
-npm run build:lambda
+npm run build:lambdas
 cdk deploy

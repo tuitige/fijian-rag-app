@@ -2,18 +2,19 @@
   "name": "fijian-rag-app",
   "version": "0.1.0",
   "scripts": {
-    "build": "cd ui && npm run build",
+    "build": "npm run build:lambdas && npm run cdk:build",
     "watch": "tsc -w",
-    "build:lambda": "tsc lambda/handler.ts --outDir lambda"
+    "build:lambdas": "cd lambda/fijian && npm install && npm run build && cd ../textract-processor && npm install && npm run build"
   },
   "dependencies": {
     "@aws-amplify/backend-auth": "^1.5.1",
     "@aws-cdk/aws-amplify-alpha": "^2.186.0-alpha.0",
     "@aws-sdk/client-bedrock-runtime": "^3.775.0",
-    "@aws-sdk/client-dynamodb": "^3.x",
-    "@aws-sdk/lib-dynamodb": "^3.x",
-    "uuid": "^9.x",
+    "@aws-sdk/client-dynamodb": "^3.782.0",
+    "@aws-sdk/client-s3": "^3.782.0",
+    "@aws-sdk/client-textract": "^3.782.0",
     "@aws-sdk/credential-provider-node": "^3.777.0",
+    "@aws-sdk/lib-dynamodb": "^3.782.0",
     "@heroicons/react": "^2.2.0",
     "@opensearch-project/opensearch": "^2.13.0",
     "@popperjs/core": "^2.11.8",
@@ -22,16 +23,17 @@
     "bootstrap": "^5.3.3",
     "constructs": "^10.3.0",
     "dotenv": "^16.4.7",
-    "next": "latest"
+    "next": "latest",
+    "uuid": "^9.x"
   },
   "devDependencies": {
     "@aws-amplify/backend": "^1.14.3",
     "@aws-amplify/backend-cli": "^1.5.0",
     "@aws-sdk/types": "^3.775.0",
     "@types/aws-lambda": "^8.10.148",
-    "@types/node": "^22.13.13",
-    "ts-node": "^10.9.2",
+    "@types/node": "^22.14.0",
     "@types/uuid": "^9.x",
-    "typescript": "^5.8.2"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   }
 }
