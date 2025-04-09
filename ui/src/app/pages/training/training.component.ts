@@ -52,13 +52,13 @@ export class TrainingComponent {
       .subscribe({
         next: (response: any) => {
           this.currentTranslation = {
-            translatedText: response.translatedText,
+            translatedText: response.translation,
             rawResponse: JSON.stringify(response, null, 2),
             id: Date.now().toString(),
             similarTranslations: 0,
             source: 'claude'
           };
-          this.verifiedTranslation = translatedText;
+          this.verifiedTranslation = response.translation;
           this.isTranslating = false;
         },
         error: (error) => {
