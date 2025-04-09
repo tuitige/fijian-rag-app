@@ -52,16 +52,9 @@ export class ApiService {
       sourceLanguage, 
       verified: true
     };
-    
-    // Add headers to the request
-    const headers = {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*'
-    };
   
     return this.http.post<VerificationResponse>(
       `${this.apiUrl}/verify`, 
-      payload,
-      { headers }
+      payload
     );
 }};
