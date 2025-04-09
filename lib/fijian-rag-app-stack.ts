@@ -125,6 +125,8 @@ export class FijianRagStack extends Stack {
       }
     });
 
+    learningModulesTable.grantReadWriteData(fijianLambda);
+
     const textractProcessor = new nodejsLambda.NodejsFunction(this, 'TextractProcessor', {
       runtime: lambda.Runtime.NODEJS_18_X,
       entry: path.join(__dirname, '../lambda/textract-processor/src/handler.ts'),

@@ -3,6 +3,7 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient, QueryCommand, ScanCommand } from '@aws-sdk/client-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 
@@ -61,17 +62,6 @@ interface ClaudeResponse {
   confidence?: number;
 }
 
-// Constants
-const TABLE_NAME = process.env.TABLE_NAME || 'TranslationsTable';
-const SIMILARITY_THRESHOLD = 0.85;
-
-// Initialize AWS clients
-const ddb = DynamoDBDocument.from(new DynamoDB());
-const bedrock = new BedrockRuntimeClient({ region: 'us-west-2' });
-
-import { DynamoDBClient, QueryCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
-const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION });
-
 interface LearningModuleResponse {
   id: string;
   learningModuleTitle: string;
@@ -80,6 +70,16 @@ interface LearningModuleResponse {
   paragraphs: string[];
   totalPages?: number;
 }
+
+// Constants
+const TABLE_NAME = process.env.TABLE_NAME || 'TranslationsTable';
+const LEARNING_TABLE_NAME = process.env.LEARNING_TABLE_NAME || 'LearningModulesTable';
+const SIMILARITY_THRESHOLD = 0.85;
+
+// Initialize AWS clients
+const ddb = DynamoDBDocument.from(new DynamoDB());
+const bedrock = new BedrockRuntimeClient({ region: 'us-west-2' });
+const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION });
 
 // Helper functions
 async function getEmbedding(text: string): Promise<number[]> {
@@ -139,7 +139,7 @@ async function translateWithClaude(text: string, sourceLanguage: 'en' | 'fj'): P
     console.warn('Failed to parse Claude response as JSON:', e);
     const rawText = result.content[0].text;
     return {
-      translation: rawText.replace(/^.*?"|"\n|"$/g, '').trim(),
+      translation: rawText.replace(/^.*?"|\n|"$/g, '').trim(),
       rawResponse: rawText,
       confidence: result.confidence
     };
@@ -174,11 +174,9 @@ async function findSimilarTranslations(
 // Main handler
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
-    const { path, httpMethod, body } = event;
-    
-    // Handle /learn endpoint separately since it supports both GET and POST
-    if (path === '/learn') {
-      if (httpMethod === 'GET') {
+    // Handle /learn endpoint separately since it supports GET
+    if (event.path === '/learn') {
+      if (event.httpMethod === 'GET') {
         if (event.queryStringParameters?.moduleTitle) {
           return await getLearningModule(
             event.queryStringParameters.moduleTitle,
@@ -188,11 +186,10 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
           return await listLearningModules();
         }
       }
-      // POST for /learn will be handled below with other POST endpoints
     }
 
     // All other endpoints require POST and body
-    if (httpMethod !== 'POST' || !body) {
+    if (event.httpMethod !== 'POST' || !event.body) {
       return {
         statusCode: 400,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
@@ -200,20 +197,87 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    const parsedBody = JSON.parse(body);
+    const parsedBody = JSON.parse(event.body);
 
-    switch (path) {
+    switch (event.path) {
       case '/translate': {
-        // Existing translate code...
+        const request = parsedBody as TranslationRequest;
+        const sourceEmbedding = await getEmbedding(request.sourceText);
+        
+        // Check for similar translations
+        const similarTranslations = await findSimilarTranslations(
+          request.sourceText,
+          request.sourceLanguage,
+          sourceEmbedding
+        );
+        
+        if (similarTranslations.length > 0) {
+          const bestMatch = similarTranslations[0];
+          return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({
+              translatedText: bestMatch.translation,
+              confidence: bestMatch.similarity,
+              id: bestMatch.id,
+              similarTranslations: similarTranslations.length,
+              debug: { foundSimilarTranslations: similarTranslations }
+            })
+          };
+        }
+
+        // If no similar translation found, use Claude
+        const claudeResponse = await translateWithClaude(request.sourceText, request.sourceLanguage);
+        const translationEmbedding = await getEmbedding(claudeResponse.translation);
+
+        // Store the new translation
+        const translation = {
+          id: uuidv4(),
+          sourceText: request.sourceText,
+          translation: claudeResponse.translation,
+          sourceLanguage: request.sourceLanguage,
+          sourceEmbedding,
+          translationEmbedding,
+          verified: 'false',
+          createdAt: new Date().toISOString()
+        };
+
+        await ddb.put({
+          TableName: TABLE_NAME,
+          Item: translation
+        });
+
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({
+            translatedText: claudeResponse.translation,
+            rawResponse: claudeResponse.rawResponse,
+            confidence: claudeResponse.confidence,
+            id: translation.id,
+            similarTranslations: 0
+          })
+        };
       }
 
       case '/verify': {
-        // Existing verify code...
-      }
+        const request = parsedBody as VerificationRequest;
+        const updateResponse = await ddb.update({
+          TableName: TABLE_NAME,
+          Key: { id: request.sourceText },
+          UpdateExpression: 'SET verified = :verified, verificationDate = :date',
+          ExpressionAttributeValues: {
+            ':verified': request.verified.toString(),
+            ':date': new Date().toISOString()
+          },
+          ReturnValues: 'ALL_NEW'
+        });
 
-      case '/learn': {
-        // Handle POST for learning module progress/interaction
-        return await handleLearningProgress(parsedBody);
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify(updateResponse.Attributes)
+        };
       }
 
       default:
@@ -233,75 +297,82 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
   }
 }
 
-// Add these new functions for learning module handling
+// Learning module functions
 async function listLearningModules(): Promise<APIGatewayProxyResult> {
-  const command = new QueryCommand({
-    TableName: process.env.TABLE_NAME,
-    IndexName: 'byLearningModule',
-    ProjectionExpression: 'learningModuleTitle, id',
-    Select: 'SPECIFIC_ATTRIBUTES'
-  });
+  try {
+    const command = new ScanCommand({
+      TableName: LEARNING_TABLE_NAME,
+      ProjectionExpression: 'learningModuleTitle',
+    });
 
-  const response = await dynamoClient.send(command);
-  
-  // Get unique module titles
-  const modules = [...new Set(response.Items?.map(item => item.learningModuleTitle.S))];
+    const response = await dynamoClient.send(command);
+    
+    const modules = [...new Set(response.Items
+      ?.map(item => item.learningModuleTitle?.S)
+      .filter((title): title is string => title !== undefined))];
 
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    body: JSON.stringify({ modules })
-  };
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ modules })
+    };
+  } catch (error) {
+    console.error('Error listing modules:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ message: 'Error listing modules' })
+    };
+  }
 }
 
 async function getLearningModule(moduleTitle: string, page: number): Promise<APIGatewayProxyResult> {
-  const command = new QueryCommand({
-    TableName: process.env.LEARNING_TABLE_NAME,
-    IndexName: 'byLearningModule',
-    KeyConditionExpression: 'learningModuleTitle = :title',
-    ExpressionAttributeValues: {
-      ':title': { S: moduleTitle }
-    }
-  });
+  try {
+    const command = new QueryCommand({
+      TableName: LEARNING_TABLE_NAME,
+      IndexName: 'byLearningModule',
+      KeyConditionExpression: 'learningModuleTitle = :title',
+      ExpressionAttributeValues: {
+        ':title': { S: moduleTitle }
+      }
+    });
 
-  const response = await dynamoClient.send(command);
-  const pages = response.Items || [];
-  const currentPage = pages.find(p => parseInt(p.pageNumber.N || '1') === page);
-  
-  if (!currentPage) {
+    const response = await dynamoClient.send(command);
+    const pages = response.Items || [];
+    const currentPage = pages.find(p => parseInt(p.pageNumber?.N || '1') === page);
+    
+    if (!currentPage) {
+      return {
+        statusCode: 404,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ message: 'Page not found' })
+      };
+    }
+
+    const paragraphs = currentPage.paragraphs?.L
+      ?.map(p => p.S)
+      .filter((p): p is string => p !== undefined) || [];
+
+    const moduleResponse: LearningModuleResponse = {
+      id: currentPage.id?.S || '',
+      learningModuleTitle: currentPage.learningModuleTitle?.S || '',
+      content: currentPage.content?.S || '',
+      pageNumber: parseInt(currentPage.pageNumber?.N || '1'),
+      paragraphs,
+      totalPages: pages.length
+    };
+
     return {
-      statusCode: 404,
+      statusCode: 200,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ message: 'Page not found' })
+      body: JSON.stringify(moduleResponse)
+    };
+  } catch (error) {
+    console.error('Error getting module:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ message: 'Error getting module' })
     };
   }
-
-  // Fix the TypeScript error by filtering out undefined values
-  const paragraphs = currentPage.paragraphs.L
-    ?.map(p => p.S)
-    .filter((p): p is string => p !== undefined) || [];
-    
-  const moduleResponse: LearningModuleResponse = {
-    id: currentPage.id.S || '',
-    learningModuleTitle: currentPage.learningModuleTitle.S || '',
-    content: currentPage.content.S || '',
-    pageNumber: parseInt(currentPage.pageNumber.N || '1'),
-    paragraphs,
-    totalPages: pages.length
-  };
-
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    body: JSON.stringify(moduleResponse)
-  };
-}
-
-async function handleLearningProgress(data: any): Promise<APIGatewayProxyResult> {
-  // Implement progress tracking, scoring, etc.
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    body: JSON.stringify({ message: 'Progress updated' })
-  };
 }
