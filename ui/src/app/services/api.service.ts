@@ -52,7 +52,7 @@ export class ApiService {
       sourceLanguage, 
       verified: true
     };
-    return this.http.post<VerificationResponse>(`${this.apiUrl}/verify`, payload);
+    return this.http.post<VerificationResponse>(`${this.apiUrl}/translations/verify`, payload); // Updated endpoint
   }
 
   // Add method to get similar translations
