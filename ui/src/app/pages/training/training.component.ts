@@ -58,7 +58,7 @@ export class TrainingComponent {
             similarTranslations: 0,
             source: 'claude'
           };
-          this.verifiedTranslation = response.translation;
+          this.verifiedTranslation = response.translatedText;
           this.isTranslating = false;
         },
         error: (error) => {
