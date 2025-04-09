@@ -52,16 +52,16 @@ export class ApiService {
       sourceLanguage, 
       verified: true
     };
-    return this.http.post<VerificationResponse>(`${this.apiUrl}/translations/verify`, payload); // Updated endpoint
-  }
-
-  // Add method to get similar translations
-  /*
-  getSimilarTranslations(sourceText: string, sourceLanguage: string): Observable<SimilarTranslationsResponse> {
-    return this.http.post<SimilarTranslationsResponse>(`${this.apiUrl}/similar`, {
-      sourceText,
-      sourceLanguage
-    });
-  }
-    */
+    
+    // Add headers to the request
+    const headers = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    };
+  
+    return this.http.post<VerificationResponse>(
+      `${this.apiUrl}/translations/verify`, 
+      payload,
+      { headers }
+    );
 }
