@@ -51,17 +51,20 @@ export class TrainingComponent {
     this.translationService.translate(this.sourceText, this.sourceLanguage)
     .subscribe({
       next: (response: any) => {
-        console.log('Raw response:', response); // Log the raw response
+        console.log('Raw response:', response);
+        // Parse the translatedText since it's coming as a JSON string
+        const parsedResponse = JSON.parse(response.translatedText);
+        
         this.currentTranslation = {
-          translatedText: response.translation,
+          translatedText: parsedResponse.translation, // Get the translation from the parsed response
           rawResponse: JSON.stringify(response, null, 2),
           id: Date.now().toString(),
           similarTranslations: 0,
           source: 'claude'
         };
-        console.log('Current Translation:', this.currentTranslation); // Log the currentTranslation object
-        this.verifiedTranslation = this.currentTranslation.translatedText;
-        console.log('Verified Translation:', this.verifiedTranslation); // Log the verifiedTranslation
+        console.log('Current Translation:', this.currentTranslation);
+        this.verifiedTranslation = parsedResponse.translation; // Use the parsed translation
+        console.log('Verified Translation:', this.verifiedTranslation);
         this.isTranslating = false;
       },
       error: (error) => {
