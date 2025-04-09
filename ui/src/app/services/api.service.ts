@@ -60,7 +60,7 @@ export class ApiService {
     };
   
     return this.http.post<VerificationResponse>(
-      `${this.apiUrl}/translations/verify`, 
+      `${this.apiUrl}/verify`, 
       payload,
       { headers }
     );

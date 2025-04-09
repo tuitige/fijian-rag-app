@@ -7,6 +7,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 
 // Types and Interfaces
+interface VerificationRequest {
+  sourceText: string;
+  translatedText: string;
+  sourceLanguage: 'en' | 'fj';
+  verified: boolean;
+}
+
 interface TranslationRequest {
   sourceText: string;
   sourceLanguage: 'en' | 'fj';
@@ -246,6 +253,52 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
           body: JSON.stringify(response)
         };
       }
+
+      case '/verify': {
+        const { sourceText, translatedText, sourceLanguage, verified } = parsedBody as VerificationRequest;
+      
+        if (!sourceText || !translatedText || !sourceLanguage) {
+          return {
+            statusCode: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ message: 'Missing required fields' })
+          };
+        }
+      
+        const id = uuidv4();
+        const currentDate = new Date().toISOString();
+      
+        // Get embeddings for both source and translated text
+        const sourceEmbedding = await getEmbedding(sourceText);
+        const translationEmbedding = await getEmbedding(translatedText);
+      
+        const verifiedTranslation: Translation = {
+          id,
+          sourceText,
+          translation: translatedText,
+          sourceLanguage,
+          sourceEmbedding,
+          translationEmbedding,
+          verified: 'true',
+          createdAt: currentDate,
+          verifier: 'Makita', // Replace with actual verifier if needed
+          verificationDate: currentDate
+        };
+      
+        await ddb.put({
+          TableName: TABLE_NAME,
+          Item: verifiedTranslation
+        });
+      
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({
+            message: 'Verification saved successfully',
+            id: verifiedTranslation.id
+          })
+        };
+      }      
 
       default:
         return {
