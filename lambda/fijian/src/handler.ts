@@ -8,6 +8,33 @@ import { v4 as uuidv4 } from 'uuid';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 
 // Types and Interfaces
+interface ModuleSummary {
+  title: string;
+  description: string;
+  totalPages: number;
+  topics: string[];
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimatedTimeMinutes: number;
+  contentOverview: {
+    vocabulary: number;
+    grammar: number;
+    conversations: number;
+    exercises: number;
+  };
+  learningObjectives: string[];
+  keyPhrases: {
+    fijian: string;
+    english: string;
+    usage: string;
+  }[];
+  culturalNotes?: string[];
+  prerequisites?: string[];
+}
+
+interface LearningModuleListResponse {
+  modules: ModuleSummary[];
+}
+
 interface VerificationRequest {
   sourceText: string;
   translatedText: string;
@@ -302,26 +329,144 @@ async function listLearningModules(): Promise<APIGatewayProxyResult> {
   try {
     const command = new ScanCommand({
       TableName: LEARNING_TABLE_NAME,
-      ProjectionExpression: 'learningModuleTitle',
     });
 
     const response = await dynamoClient.send(command);
-    
-    const modules = [...new Set(response.Items
-      ?.map(item => item.learningModuleTitle?.S)
-      .filter((title): title is string => title !== undefined))];
+    const items = response.Items || [];
+
+    // Group pages by module title
+    const moduleGroups = items.reduce((acc, item) => {
+      const title = item.learningModuleTitle?.S;
+      if (title) {
+        if (!acc[title]) {
+          acc[title] = [];
+        }
+        acc[title].push(item);
+      }
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    // Generate summaries for each module
+    const moduleSummaries = await Promise.all(
+      Object.entries(moduleGroups).map(async ([title, pages]) => {
+        return await generateModuleSummary(title, pages);
+      })
+    );
 
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ modules })
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({ 
+        modules: moduleSummaries
+      })
     };
   } catch (error) {
     console.error('Error listing modules:', error);
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Access-Control-Allow-Origin': '*'
+      },
       body: JSON.stringify({ message: 'Error listing modules' })
+    };
+  }
+}
+
+async function generateModuleSummary(moduleTitle: string, pages: any[]): Promise<ModuleSummary> {
+  const allContent = pages.map(page => page.content?.S || '').join('\n');
+  
+  const prompt = `Analyze this Fijian language learning module and provide a comprehensive summary. 
+  Return your response in JSON format with the following fields:
+  {
+    "description": "A detailed 3-4 sentence overview of what this module covers",
+    "topics": ["Array of specific topics covered"],
+    "difficulty": "beginner/intermediate/advanced",
+    "estimatedTimeMinutes": number,
+    "contentOverview": {
+      "vocabulary": number of vocabulary items,
+      "grammar": number of grammar concepts,
+      "conversations": number of conversation examples,
+      "exercises": number of practice exercises
+    },
+    "learningObjectives": [
+      "List of 3-5 specific learning objectives that clearly state what the student will be able to do after completing this module"
+    ],
+    "keyPhrases": [
+      {
+        "fijian": "Example phrase in Fijian",
+        "english": "English translation",
+        "usage": "Brief explanation of when/how to use this phrase"
+      }
+    ],
+    "culturalNotes": [
+      "2-3 relevant cultural context points that help understand the usage"
+    ],
+    "prerequisites": [
+      "List any concepts or modules that should be completed first"
+    ]
+  }
+
+  Module Title: "${moduleTitle}"
+  Content: "${allContent.substring(0, 2000)}"
+
+  Please ensure:
+  1. Learning objectives are specific and measurable
+  2. Key phrases are practical and commonly used
+  3. Cultural notes provide relevant context
+  4. Examples demonstrate practical usage`;
+
+  const command = new InvokeModelCommand({
+    modelId: 'anthropic.claude-3-sonnet-20240229-v1:0',
+    contentType: 'application/json',
+    body: JSON.stringify({
+      anthropic_version: "bedrock-2023-05-31",
+      max_tokens: 2000,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.1
+    })
+  });
+
+  try {
+    const response = await bedrock.send(command);
+    const result = JSON.parse(new TextDecoder().decode(response.body));
+    const summary = JSON.parse(result.content[0].text);
+
+    return {
+      title: moduleTitle,
+      description: summary.description,
+      totalPages: pages.length,
+      topics: summary.topics,
+      difficulty: summary.difficulty,
+      estimatedTimeMinutes: summary.estimatedTimeMinutes,
+      contentOverview: summary.contentOverview,
+      learningObjectives: summary.learningObjectives,
+      keyPhrases: summary.keyPhrases,
+      culturalNotes: summary.culturalNotes,
+      prerequisites: summary.prerequisites
+    };
+  } catch (error) {
+    console.error('Error generating module summary:', error);
+    return {
+      title: moduleTitle,
+      description: "Summary generation failed",
+      totalPages: pages.length,
+      topics: [],
+      difficulty: "beginner",
+      estimatedTimeMinutes: 30,
+      contentOverview: {
+        vocabulary: 0,
+        grammar: 0,
+        conversations: 0,
+        exercises: 0
+      },
+      learningObjectives: [],
+      keyPhrases: [],
+      culturalNotes: [],
+      prerequisites: []
     };
   }
 }
@@ -349,17 +494,21 @@ async function getLearningModule(moduleTitle: string, page: number): Promise<API
       };
     }
 
+    // Generate module summary
+    const moduleSummary = await generateModuleSummary(moduleTitle, pages);
+
     const paragraphs = currentPage.paragraphs?.L
       ?.map(p => p.S)
       .filter((p): p is string => p !== undefined) || [];
 
-    const moduleResponse: LearningModuleResponse = {
+    const moduleResponse = {
       id: currentPage.id?.S || '',
       learningModuleTitle: currentPage.learningModuleTitle?.S || '',
       content: currentPage.content?.S || '',
       pageNumber: parseInt(currentPage.pageNumber?.N || '1'),
       paragraphs,
-      totalPages: pages.length
+      totalPages: pages.length,
+      summary: moduleSummary  // Include the summary in the response
     };
 
     return {
