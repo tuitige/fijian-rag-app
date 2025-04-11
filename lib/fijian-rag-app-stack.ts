@@ -8,8 +8,8 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as nodejsLambda from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as opensearch from 'aws-cdk-lib/aws-opensearchservice';
 
 export class FijianRagStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -22,34 +22,35 @@ export class FijianRagStack extends Stack {
       autoDeleteObjects: true
     });
 
-    // 2. DynamoDB Tables
-    const translationsTable = new dynamodb.Table(this, 'FijianTranslationsTable', {
-      tableName: 'TranslationsTable',
-      partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: RemovalPolicy.DESTROY,
+    // AOSS Collection
+    const collection = new opensearch.CfnCollection(this, 'FijianCollection', {
+      name: 'fijian-translations',
+      description: 'Collection for Fijian language translations and learning modules',
+      type: 'SEARCH', // or 'TIMESERIES' if needed
     });
 
-    // Add GSI for source language queries
-    translationsTable.addGlobalSecondaryIndex({
-      indexName: 'SourceLanguageIndex',
-      partitionKey: { name: 'sourceLanguage', type: dynamodb.AttributeType.STRING },
-      projectionType: dynamodb.ProjectionType.ALL
+    // Lambda for Collection Management
+    const collectionManagerLambda = new nodejsLambda.NodejsFunction(this, 'CollectionManager', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      entry: path.join(__dirname, '../lambda/collection-manager/handler.ts'),
+      handler: 'handler',
+      environment: {
+        COLLECTION_NAME: collection.name,
+        COLLECTION_ARN: collection.attrArn,
+      }
     });
 
-    // DDB learningModulesTable
-    const learningModulesTable = new dynamodb.Table(this, 'LearningModules', {
-      partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: RemovalPolicy.DESTROY,
-    });
-
-    // Add GSIs for querying
-    learningModulesTable.addGlobalSecondaryIndex({
-      indexName: 'byLearningModule',
-      partitionKey: { name: 'learningModuleTitle', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'pageNumber', type: dynamodb.AttributeType.NUMBER }
-    });
+    // Grant AOSS permissions
+    collectionManagerLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'aoss:CreateCollection',
+        'aoss:DeleteCollection',
+        'aoss:CreateSnapshot',
+        'aoss:ListSnapshots',
+        'aoss:RestoreSnapshot'
+      ],
+      resources: [collection.attrArn]
+    }));
 
     // 3. Cognito Setup
     const userPool = new cognito.UserPool(this, 'FijianAppUserPool', {
@@ -78,25 +79,6 @@ export class FijianRagStack extends Stack {
         iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole')
       ]
     });
-
-    // Grant DynamoDB permissions including GSI access
-    lambdaRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: [
-        'dynamodb:Query',
-        'dynamodb:Scan',
-        'dynamodb:GetItem',
-        'dynamodb:PutItem',
-        'dynamodb:UpdateItem',
-        'dynamodb:DeleteItem',
-        'dynamodb:BatchGetItem',
-        'dynamodb:BatchWriteItem'
-      ],
-      resources: [
-        translationsTable.tableArn,
-        `${translationsTable.tableArn}/index/*`
-      ]
-    }));
 
     // Grant Bedrock permissions
     lambdaRole.addToPolicy(new iam.PolicyStatement({
@@ -198,6 +180,13 @@ export class FijianRagStack extends Stack {
     const learnResource = api.root.addResource('learn');
     learnResource.addMethod('GET', new apigateway.LambdaIntegration(fijianLambda));
     learnResource.addMethod('POST', new apigateway.LambdaIntegration(fijianLambda));
+
+    // aoss api collectionControl
+    const collectionControl = api.root.addResource('collection');
+    
+    collectionControl.addMethod('POST', new apigateway.LambdaIntegration(collectionManagerLambda), {
+      authorizationType: apigateway.AuthorizationType.IAM,
+    });
 
     // 7. Outputs
     new CfnOutput(this, 'ApiUrl', {
