@@ -1,0 +1,14 @@
+{
+    "name": "shared-lib",
+    "version": "1.0.0",
+    "private": true,
+    "main": "types/index.js",
+    "types": "types/index.d.ts",
+    "scripts": {
+      "build": "tsc"
+    },
+    "devDependencies": {
+      "typescript": "^5.3.3"
+    }
+  }
+  

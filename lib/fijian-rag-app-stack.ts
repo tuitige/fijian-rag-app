@@ -9,199 +9,338 @@ import * as nodejsLambda from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
-import * as opensearch from 'aws-cdk-lib/aws-opensearchservice';
+import * as opensearchserverless from 'aws-cdk-lib/aws-opensearchserverless';
 
 export class FijianRagStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    // 1. S3 Buckets
+    const COLLECTION_NAME = 'fijiantranslations';
+
+    // 1. S3 Bucket
     const contentBucket = new s3.Bucket(this, 'fijian-rag-app-content', {
       bucketName: 'fijian-rag-app-content',
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true
     });
 
-    // AOSS Collection
-    const collection = new opensearch.CfnCollection(this, 'FijianCollection', {
-      name: 'fijian-translations',
+    // 2. Security Policies
+    const encryptionPolicy = new opensearchserverless.CfnSecurityPolicy(this, 'EncryptionPolicy', {
+      name: 'fijian-translations-encryption',
+      type: 'encryption',
+      description: 'Encryption policy for Fijian translations collection',
+      policy: JSON.stringify({
+        Rules: [{ ResourceType: 'collection', Resource: [`collection/${COLLECTION_NAME}`] }],
+        AWSOwnedKey: true
+      })
+    });
+
+    const networkPolicy = new opensearchserverless.CfnSecurityPolicy(this, 'NetworkPolicy', {
+      name: 'fijian-translations-network',
+      type: 'network',
+      description: 'Network policy for Fijian translations collection and dashboards',
+      policy: JSON.stringify([
+        {
+          Description: 'Allow public access to collection and dashboard',
+          Rules: [
+            {
+              ResourceType: 'collection',
+              Resource: [`collection/${COLLECTION_NAME}`]
+            },
+            {
+              ResourceType: 'dashboard',
+              Resource: [`collection/${COLLECTION_NAME}`]
+            }
+          ],
+          AllowFromPublic: true
+        }
+      ])
+    });
+        
+    // 3. Collection
+    const collection = new opensearchserverless.CfnCollection(this, 'FijianCollection', {
+      name: COLLECTION_NAME,
       description: 'Collection for Fijian language translations and learning modules',
-      type: 'SEARCH', // or 'TIMESERIES' if needed
+      type: 'SEARCH'
     });
 
-    // Lambda for Collection Management
-    const collectionManagerLambda = new nodejsLambda.NodejsFunction(this, 'CollectionManager', {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      entry: path.join(__dirname, '../lambda/collection-manager/handler.ts'),
-      handler: 'handler',
-      environment: {
-        COLLECTION_NAME: collection.name,
-        COLLECTION_ARN: collection.attrArn,
-      }
-    });
+    collection.addDependency(encryptionPolicy);
+    collection.addDependency(networkPolicy);
 
-    // Grant AOSS permissions
-    collectionManagerLambda.addToRolePolicy(new iam.PolicyStatement({
-      actions: [
-        'aoss:CreateCollection',
-        'aoss:DeleteCollection',
-        'aoss:CreateSnapshot',
-        'aoss:ListSnapshots',
-        'aoss:RestoreSnapshot'
-      ],
-      resources: [collection.attrArn]
-    }));
-
-    // 3. Cognito Setup
-    const userPool = new cognito.UserPool(this, 'FijianAppUserPool', {
-      userPoolName: 'fijian-app-user-pool',
-      selfSignUpEnabled: false,
-      signInAliases: {
-        email: true
-      }
-    });
-
-    const userPoolClient = userPool.addClient('FijianAppClient', {
-      generateSecret: false,
-      oAuth: {
-        flows: {
-          implicitCodeGrant: true
-        },
-        scopes: [cognito.OAuthScope.OPENID],
-        callbackUrls: ['http://localhost:3000']
-      }
-    });
-
-    // 4. IAM Role with all necessary permissions
-    const lambdaRole = new iam.Role(this, 'LambdaRole', {
+    // 4. Lambda Roles
+    const translatorLambdaRole = new iam.Role(this, 'TranslatorLambdaRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole')
       ]
     });
 
-    // Grant Bedrock permissions
-    lambdaRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: ['bedrock:InvokeModel'],
-      resources: [
-        'arn:aws:bedrock:us-west-2::foundation-model/amazon.titan-embed-text-v1',
-        'arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-v2',
-        'arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0'
+    const collectionManagerRole = new iam.Role(this, 'CollectionManagerRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole')
       ]
-    }));
-
-    // 5. Lambda Functions
-    const fijianLambda = new nodejsLambda.NodejsFunction(this, 'FijianHandler', {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      entry: path.join(__dirname, '../lambda/fijian/src/handler.ts'),
-      handler: 'handler',
-      role: lambdaRole,
-      environment: {
-        TABLE_NAME: translationsTable.tableName,
-        LEARNING_TABLE_NAME: learningModulesTable.tableName
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-      }
     });
 
-    learningModulesTable.grantReadWriteData(fijianLambda);
-
-    const textractProcessor = new nodejsLambda.NodejsFunction(this, 'TextractProcessor', {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      entry: path.join(__dirname, '../lambda/textract-processor/src/handler.ts'),
-      handler: 'handler',
-      role: lambdaRole,
-      timeout: Duration.minutes(5),
-      memorySize: 1024,
-      environment: {
-        BUCKET_NAME: contentBucket.bucketName,
-        TABLE_NAME: learningModulesTable.tableName,
-      },
-      bundling: {
-        minify: true,
-        sourceMap: true,
-      }
-    });
-
-    learningModulesTable.grantWriteData(textractProcessor);
-
-    // Add Textract permissions
-    textractProcessor.addToRolePolicy(new iam.PolicyStatement({
+    // Add this new OpenSearch policy statement here
+    const openSearchPolicyStatement = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
       actions: [
-        'textract:StartDocumentTextDetection',
-        'textract:GetDocumentTextDetection',
-        'textract:StartDocumentAnalysis',
-        'textract:GetDocumentAnalysis'
+        'aoss:APIAccessAll',
+        'aoss:CreateCollection',
+        'aoss:DeleteCollection',
+        'aoss:GetCollection',
+        'aoss:CreateSecurityPolicy',
+        'aoss:GetSecurityPolicy',
+        'aoss:ListCollections',
+        'aoss:BatchGetCollection',
+        'aoss:CreateAccessPolicy',
+        'aoss:GetAccessPolicy',
+        'aoss:ListAccessPolicies'
       ],
-      resources: ['*']
+      resources: [
+        `arn:aws:aoss:${this.region}:${this.account}:collection/${collection.name}`,
+        `arn:aws:aoss:${this.region}:${this.account}:collection/${collection.name}/*`,
+        collection.attrArn,
+        `${collection.attrArn}/*`
+      ]
+    });
+
+    const translatorOpenSearchAccess = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'aoss:APIAccessAll',
+        'aoss:ReadDocument',
+        'aoss:WriteDocument',
+        'aoss:CreateIndex',
+        'aoss:DeleteIndex',
+        'aoss:UpdateIndex',
+        'aoss:DescribeIndex'
+      ],
+      resources: [
+        `arn:aws:aoss:${this.region}:${this.account}:collection/${COLLECTION_NAME}`,
+        `arn:aws:aoss:${this.region}:${this.account}:collection/${COLLECTION_NAME}/*`,
+        collection.attrArn,
+        `${collection.attrArn}/*`
+      ]
+    });
+    
+    translatorLambdaRole.addToPolicy(translatorOpenSearchAccess);    
+    translatorLambdaRole.addToPolicy(openSearchPolicyStatement);
+
+    const collectionManagerLambda = new nodejsLambda.NodejsFunction(this, 'CollectionManager', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      entry: path.join(__dirname, '../lambda/collection-manager/handler.ts'),
+      handler: 'handler',
+      role: collectionManagerRole,
+      environment: {
+        COLLECTION_NAME: collection.name,
+        COLLECTION_ENDPOINT: collection.attrCollectionEndpoint
+      },
+      bundling: {
+        minify: true,
+        sourceMap: false,
+        externalModules: [
+          'aws-sdk'
+        ],
+        nodeModules: [
+          '@smithy/signature-v4',
+          '@aws-sdk/client-opensearch'
+        ],
+        format: nodejsLambda.OutputFormat.CJS
+      }
+    });
+
+    const translatorLambda = new nodejsLambda.NodejsFunction(this, 'TranslatorHandler', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      entry: path.join(__dirname, '../lambda/agents/translator/handler.ts'),
+      handler: 'handler',
+      role: translatorLambdaRole,
+      environment: {
+        COLLECTION_ENDPOINT: collection.attrCollectionEndpoint,
+        COLLECTION_NAME: collection.name
+      },
+      timeout: Duration.minutes(5),
+      bundling: {
+        minify: true,
+        sourceMap: false,
+        externalModules: [
+          'aws-sdk'
+        ],
+        nodeModules: [
+          '@smithy/signature-v4',
+          '@aws-sdk/client-opensearchserverless',
+          '@aws-sdk/client-bedrock-runtime',
+          '@smithy/protocol-http',      // Add these
+          '@aws-crypto/sha256-js',      // new dependencies
+          '@aws-sdk/credential-provider-node'
+        ],
+        format: nodejsLambda.OutputFormat.CJS
+      }
+    });
+
+   // 5. Data Access Policy
+   const principals = [
+    translatorLambda.role?.roleArn,
+    collectionManagerLambda.role?.roleArn,
+    `arn:aws:iam::${Stack.of(this).account}:user/tigeyoung`
+  ].filter(Boolean); 
+
+  const dataAccessPolicy = new opensearchserverless.CfnAccessPolicy(this, 'DataAccessPolicy', {
+    name: 'collection-access-policy',
+    type: 'data',
+    description: 'Access policy for Fijian translations collection',
+    policy: JSON.stringify([
+      {
+        Description: 'Access policy for collection',
+        Rules: [
+          {
+            ResourceType: 'index',
+            Resource: [`index/${COLLECTION_NAME}/*`],
+            Permission: [
+              'aoss:ReadDocument',
+              'aoss:WriteDocument',
+              'aoss:CreateIndex',
+              'aoss:DeleteIndex',
+              'aoss:UpdateIndex',
+              'aoss:DescribeIndex'
+            ]
+          },
+          {
+            ResourceType: 'collection',
+            Resource: [`collection/${COLLECTION_NAME}`],
+            Permission: [
+              'aoss:CreateCollectionItems',
+              'aoss:DeleteCollectionItems',
+              'aoss:UpdateCollectionItems',
+              'aoss:DescribeCollectionItems'
+            ]
+          }
+        ],
+        Principal: principals
+      }
+    ])
+  });
+  
+  
+  // Add dependency
+  dataAccessPolicy.addDependency(collection);    
+
+    // 6. Add OpenSearch permissions to roles
+    translatorLambdaRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'aoss:APIAccessAll',
+        'aoss:ReadDocument',
+        'aoss:WriteDocument',
+        'aoss:CreateIndex',
+        'aoss:DeleteIndex',
+        'aoss:UpdateIndex',
+        'aoss:DescribeIndex'
+      ],
+      resources: [collection.attrArn]
     }));
 
-    // Grant S3 permissions
-    contentBucket.grantRead(textractProcessor);
-    contentBucket.grantWrite(textractProcessor);
+    collectionManagerRole.addToPolicy(new iam.PolicyStatement({
+      actions: [
+        'aoss:APIAccessAll',
+        'aoss:CreateCollectionItems',
+        'aoss:DeleteCollectionItems',
+        'aoss:UpdateCollectionItems',
+        'aoss:DescribeCollectionItems',
+        'aoss:ReadCollectionItems'
+      ],
+      resources: [collection.attrArn]
+    }));
 
-    // Add S3 trigger
-    contentBucket.addEventNotification(
-      s3.EventType.OBJECT_CREATED,
-      new s3n.LambdaDestination(textractProcessor),
-      { prefix: 'modules/', suffix: '.jpg' }
+    // 7. Lambda Functions
+
+    // 8. Cognito User Pool
+/*    const userPool = new cognito.UserPool(this, 'FijianUserPool', {
+      userPoolName: 'fijian-translations-users',
+      selfSignUpEnabled: true,
+      signInAliases: { email: true },
+      standardAttributes: {
+        email: { required: true, mutable: true }
+      }
+    });
+
+    const userPoolClient = new cognito.UserPoolClient(this, 'FijianUserPoolClient', {
+      userPool,
+      generateSecret: false
+    });
+*/
+    // 9. API Gateway with APIKEY Authorizer
+    const api = new apigateway.RestApi(this, 'FijianAPI', {
+      restApiName: 'Fijian Translations API',
+      deploy: true,
+      deployOptions: {
+        stageName: 'prod',
+      }
+    });
+
+    // Create API key
+    const apiKey = api.addApiKey('FijianApiKey', {
+      apiKeyName: 'fijian-translations-key',
+      description: 'API Key for Fijian Translations API'
+    });
+
+    // Create usage plan
+    const usagePlan = api.addUsagePlan('FijianUsagePlan', {
+      name: 'FijianUsagePlan',
+      apiStages: [{
+        api: api,
+        stage: api.deploymentStage
+      }]
+    });
+
+    // Associate API key with usage plan
+    usagePlan.addApiKey(apiKey);
+/*
+    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'FijianAuthorizer', {
+      cognitoUserPools: [userPool]
+    });
+*/
+    // 10. API Resources and Methods
+    const translations = api.root.addResource('translations');
+    
+    translations.addMethod('POST', 
+      new apigateway.LambdaIntegration(translatorLambda),
+      {
+        apiKeyRequired: true
+      }
     );
 
-    // 6. API Gateway
-    const api = new apigateway.RestApi(this, 'FijianRagApi', {
-      restApiName: 'FijianLanguageService',
-      defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: ['POST', 'OPTIONS', 'GET'],
-        allowHeaders: [
-          'Content-Type',
-          'X-Amz-Date',
-          'Authorization',
-          'X-Api-Key',
-          'X-Amz-Security-Token'
-        ],
-        allowCredentials: true,
+    translations.addMethod('GET',
+      new apigateway.LambdaIntegration(collectionManagerLambda),
+      {
+        apiKeyRequired: true
       }
-    });
-    
-    const postOnlyPaths: string[] = ['translate', 'verify', 'similar'];
+    );
 
-    // Add POST-only paths
-    postOnlyPaths.forEach(pathPart => {
-      api.root.addResource(pathPart).addMethod('POST', 
-        new apigateway.LambdaIntegration(fijianLambda)
-      );
-    });
-    
-    // Add learn endpoint with both GET and POST
-    const learnResource = api.root.addResource('learn');
-    learnResource.addMethod('GET', new apigateway.LambdaIntegration(fijianLambda));
-    learnResource.addMethod('POST', new apigateway.LambdaIntegration(fijianLambda));
+    // Logging in CW
+    translatorLambdaRole.addManagedPolicy(
+      iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess')
+    );
 
-    // aoss api collectionControl
-    const collectionControl = api.root.addResource('collection');
-    
-    collectionControl.addMethod('POST', new apigateway.LambdaIntegration(collectionManagerLambda), {
-      authorizationType: apigateway.AuthorizationType.IAM,
-    });
+    // 11. Add Bedrock permissions
+    translatorLambdaRole.addToPolicy(new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: ['arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0']
+    }));
 
-    // 7. Outputs
-    new CfnOutput(this, 'ApiUrl', {
-      value: api.url,
-      description: 'API Gateway URL'
-    });
+    //collection.addDependency(encryptionPolicy);
+    //collection.addDependency(networkPolicy);
+    //dataAccessPolicy.addDependency(collection);
+    translatorLambda.node.addDependency(dataAccessPolicy);
+    collectionManagerLambda.node.addDependency(dataAccessPolicy);
 
-    new CfnOutput(this, 'UserPoolId', {
-      value: userPool.userPoolId,
-      description: 'Cognito User Pool ID'
-    });
-
-    new CfnOutput(this, 'UserPoolClientId', {
-      value: userPoolClient.userPoolClientId,
-      description: 'Cognito User Pool Client ID'
+    // 12. Outputs
+    //new CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
+    //new CfnOutput(this, 'UserPoolClientId', { value: userPoolClient.userPoolClientId });
+    new CfnOutput(this, 'ApiUrl', { value: api.url });
+    new CfnOutput(this, 'CollectionEndpoint', { value: collection.attrCollectionEndpoint });
+    new CfnOutput(this, 'ApiKeyValue', {value: apiKey.keyId, description: 'API Key ID - use aws apigateway get-api-key --api-key <key-id> --include-value to get the value'
     });
   }
 }

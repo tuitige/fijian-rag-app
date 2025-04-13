@@ -1,7 +1,10 @@
 // lambda/agents/translator/handler.ts
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { TranslatorAgent } from './agent';
+// In handler.ts and other files
 import { TranslationRequest } from '../../shared/types/documents';
+
+
 
 export const handler = async (
   event: APIGatewayProxyEvent
@@ -18,6 +21,8 @@ export const handler = async (
         })
       };
     }
+
+    console.log('Translation request:', request);
 
     const agent = new TranslatorAgent();
     const result = await agent.translate(request);

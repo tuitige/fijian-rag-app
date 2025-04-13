@@ -1,0 +1,21 @@
+{
+  "name": "translator-lambda",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.x",
+    "@aws-sdk/client-opensearch": "^3.x",
+    "@opensearch-project/opensearch": "^2.x",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.124",
+    "@types/node": "^20.x",
+    "@types/uuid": "^9.0.8",
+    "typescript": "^5.x"
+  }
+}
