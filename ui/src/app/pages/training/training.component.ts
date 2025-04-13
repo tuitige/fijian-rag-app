@@ -90,11 +90,38 @@ export class TrainingComponent {
   
   }
 
-  verifyTranslation(): void {
-    if (!this.sourceText || !this.verifiedTranslation) {
-      this.error = 'Please provide both the original text and verified translation';
-      return;
+  
+verifyTranslation(): void {
+  if (!this.currentTranslation?.id) {
+    this.error = 'Missing translation ID for verification';
+    return;
+  }
+
+  this.isVerifying = true;
+  this.translationService.verify(
+    this.currentTranslation.id,
+    this.sourceText,
+    this.verifiedTranslation,
+    this.sourceLanguage
+  ).subscribe({
+    next: (response) => {
+      this.verificationSuccess = 'Translation verified and stored!';
+      this.error = '';
+      this.isVerifying = false;
+
+      if (this.currentTranslation) {
+        this.currentTranslation.source = 'verified';
+      }
+    },
+    error: (err) => {
+      this.error = 'Failed to verify translation';
+      this.verificationSuccess = '';
+      this.isVerifying = false;
+      console.error(err);
     }
+  });
+}
+
 
     this.error = '';
     this.verificationSuccess = '';

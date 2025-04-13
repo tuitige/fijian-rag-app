@@ -14,6 +14,7 @@ export interface Translation {
 }
 
 export interface VerificationRequest {
+  id: string;
   sourceText: string;
   translatedText: string;
   sourceLanguage: string;
@@ -45,16 +46,22 @@ export class ApiService {
     });
   }
 
-  verify(sourceText: string, translatedText: string, sourceLanguage: string): Observable<VerificationResponse> {
-    const payload: VerificationRequest = {
+  verify(
+    id: string,
+    sourceText: string,
+    translatedText: string,
+    sourceLanguage: string
+  ): Observable<VerificationResponse> {
+    const payload = {
+      id,
       sourceText,
       translatedText,
-      sourceLanguage, 
+      sourceLanguage,
       verified: true
     };
   
     return this.http.post<VerificationResponse>(
-      `${this.apiUrl}/verify`, 
+      `${this.apiUrl}/verify`,
       payload
     );
 }};
