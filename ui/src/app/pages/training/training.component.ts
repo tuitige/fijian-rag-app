@@ -1,3 +1,4 @@
+
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -5,25 +6,26 @@ import { ApiService } from '../../services/api.service';
 import { HeaderComponent } from '../../components/header/header.component';
 
 interface Translation {
+  id: string;
   translatedText: string;
   rawResponse: string;
   confidence?: number;
-  id: string;
   similarTranslations: number;
   source?: 'claude' | 'verified';
+  sourceLanguage?: 'en' | 'fj';
+  sourceText: string;
 }
 
 @Component({
   selector: 'app-training',
   templateUrl: './training.component.html',
   styleUrls: ['./training.component.scss'],
+  standalone: true,
   imports: [
     CommonModule,
     FormsModule,
     HeaderComponent
-  ],
-  providers: [],
-  standalone: true
+  ]
 })
 export class TrainingComponent {
   sourceText = '';
@@ -49,99 +51,58 @@ export class TrainingComponent {
     this.currentTranslation = null;
 
     this.translationService.translate(this.sourceText, this.sourceLanguage)
-    .subscribe({
-      next: (response: any) => {
-        console.log('Raw response:', response);
-        
-        // Parse the raw response to get just the translation
-        let translationText: string;
-        try {
-          // If response.translatedText is already a string (not JSON), use it directly
-          if (typeof response.translatedText === 'string' && !response.translatedText.startsWith('{')) {
-            translationText = response.translatedText;
-          } else {
-            // If it's JSON, parse it and get the translation
-            const parsedResponse = JSON.parse(response.translatedText);
-            translationText = parsedResponse.translation;
-          }
-        } catch (e) {
-          console.error('Error parsing translation:', e);
-          translationText = response.translatedText; // Fallback to raw text
-        }
-  
-        this.currentTranslation = {
-          translatedText: translationText, // Use the extracted translation
-          rawResponse: response.rawResponse,
-          id: response.id,
-          similarTranslations: response.similarTranslations,
-          source: 'claude'
-        };
-        
-        // Set the verified translation to just the translation text
-        this.verifiedTranslation = translationText;
-        this.isTranslating = false;
-      },
-      error: (error) => {
-        console.error('Translation error:', error);
-        this.error = 'Failed to translate text. Please try again.';
-        this.isTranslating = false;
-      }
-    });  
-  
-  }
-
-  
-verifyTranslation(): void {
-  if (!this.currentTranslation?.id) {
-    this.error = 'Missing translation ID for verification';
-    return;
-  }
-
-  this.isVerifying = true;
-  this.translationService.verify(
-    this.currentTranslation.id,
-    this.sourceText,
-    this.verifiedTranslation,
-    this.sourceLanguage
-  ).subscribe({
-    next: (response) => {
-      this.verificationSuccess = 'Translation verified and stored!';
-      this.error = '';
-      this.isVerifying = false;
-
-      if (this.currentTranslation) {
-        this.currentTranslation.source = 'verified';
-      }
-    },
-    error: (err) => {
-      this.error = 'Failed to verify translation';
-      this.verificationSuccess = '';
-      this.isVerifying = false;
-      console.error(err);
-    }
-  });
-}
-
-
-    this.error = '';
-    this.verificationSuccess = '';
-    this.isVerifying = true;
-
-    this.translationService.verify(this.sourceText, this.verifiedTranslation, this.sourceLanguage)
       .subscribe({
-        next: (response) => {
-          this.verificationSuccess = response.message;
-          this.isVerifying = false;
-          if (this.currentTranslation) {
-            this.currentTranslation.source = 'verified';
-          }
+        next: (response: Translation) => {
+          this.currentTranslation = {
+            id: response.id,
+            translatedText: response.translatedText,
+            rawResponse: response.rawResponse,
+            confidence: response.confidence,
+            similarTranslations: response.similarTranslations,
+            source: 'claude',
+            sourceLanguage: this.sourceLanguage,
+            sourceText: this.sourceText
+          };
+          this.verifiedTranslation = response.translatedText;
+          this.isTranslating = false;
         },
-        error: (error) => {
-          console.error('Verification error:', error);
-          this.error = 'Failed to verify translation. Please try again.';
-          this.isVerifying = false;
+        error: (err: any) => {
+          this.error = 'Translation failed. Please try again.';
+          this.isTranslating = false;
+          console.error(err);
         }
       });
+  }
+
+  verifyTranslation(): void {
+    if (!this.currentTranslation?.id) {
+      this.error = 'Missing translation ID for verification';
+      return;
+    }
+
+    this.isVerifying = true;
+    this.translationService.verify(
+      this.currentTranslation.id,
+      this.sourceText,
+      this.verifiedTranslation,
+      this.sourceLanguage
+    ).subscribe({
+      next: (response) => {
+        this.verificationSuccess = 'Translation verified and stored!';
+        this.error = '';
+        this.isVerifying = false;
+
+        if (this.currentTranslation) {
+          this.currentTranslation.source = 'verified';
+        }
+      },
+      error: (error: any) => {
+        this.error = 'Failed to verify translation. Please try again.';
+        this.verificationSuccess = '';
+        this.isVerifying = false;
+        console.error(error);
+      }
+    });
   }
 
   toggleRawResponse(): void {
