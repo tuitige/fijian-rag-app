@@ -36,7 +36,6 @@ interface LearningModuleListResponse {
 }
 
 interface VerificationRequest {
-  id: string; 
   sourceText: string;
   translatedText: string;
   sourceLanguage: 'en' | 'fj';
@@ -290,41 +289,23 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
       case '/verify': {
         const request = parsedBody as VerificationRequest;
-      
-        if (!request.id) {
-          return {
-            statusCode: 400,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-            body: JSON.stringify({ error: 'Missing required field: id' })
-          };
-        }
-      
-        try {
-          const updateResponse = await ddb.update({
-            TableName: TABLE_NAME,
-            Key: { id: { S: request.id } }, // Explicitly as DynamoDB string type
-            UpdateExpression: 'SET verified = :verified, verificationDate = :date',
-            ExpressionAttributeValues: {
-              ':verified': { S: request.verified.toString() },
-              ':date': { S: new Date().toISOString() }
-            },
-            ReturnValues: 'ALL_NEW'
-          });
-      
-          return {
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-            body: JSON.stringify(updateResponse.Attributes)
-          };
-        } catch (err) {
-          console.error('Error updating item:', err);
-          return {
-            statusCode: 500,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-            body: JSON.stringify({ error: 'Failed to verify item', debug: err })
-          };
-        }
-      }      
+        const updateResponse = await ddb.update({
+          TableName: TABLE_NAME,
+          Key: { id: request.sourceText },
+          UpdateExpression: 'SET verified = :verified, verificationDate = :date',
+          ExpressionAttributeValues: {
+            ':verified': request.verified.toString(),
+            ':date': new Date().toISOString()
+          },
+          ReturnValues: 'ALL_NEW'
+        });
+
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify(updateResponse.Attributes)
+        };
+      }
 
       default:
         return {
