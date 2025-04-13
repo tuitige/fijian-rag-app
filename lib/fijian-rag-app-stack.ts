@@ -115,6 +115,7 @@ export class FijianRagStack extends Stack {
       entry: path.join(__dirname, '../lambda/fijian/src/handler.ts'),
       handler: 'handler',
       role: lambdaRole,
+      timeout: Duration.minutes(5),
       environment: {
         TABLE_NAME: translationsTable.tableName,
         LEARNING_TABLE_NAME: learningModulesTable.tableName
