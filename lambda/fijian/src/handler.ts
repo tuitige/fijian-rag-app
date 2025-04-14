@@ -36,6 +36,7 @@ interface LearningModuleListResponse {
 }
 
 interface VerificationRequest {
+  id: string; 
   sourceText: string;
   translatedText: string;
   sourceLanguage: 'en' | 'fj';
@@ -288,14 +289,25 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       }
 
       case '/verify': {
+        console.log('Received /verify request with body:', JSON.stringify(parsedBody));
+        console.log('Parsed ID:', parsedBody.id);
+        console.log('Source Text:', parsedBody.sourceText);
+        console.log('Translated Text:', parsedBody.translatedText);
+        console.log('Source Language:', parsedBody.sourceLanguage);
+        console.log('Verified:', parsedBody.verified);
+
         const request = parsedBody as VerificationRequest;
         const updateResponse = await ddb.update({
           TableName: TABLE_NAME,
-          Key: { id: request.sourceText },
-          UpdateExpression: 'SET verified = :verified, verificationDate = :date',
+          Key: { id: request.id },
+          UpdateExpression: 'SET verified = :verified, verificationDate = :date, #translation = :translation',
+          ExpressionAttributeNames: {
+            '#translation': 'translation'
+          },
           ExpressionAttributeValues: {
             ':verified': request.verified.toString(),
-            ':date': new Date().toISOString()
+            ':date': new Date().toISOString(),
+            ':translation': request.translatedText
           },
           ReturnValues: 'ALL_NEW'
         });

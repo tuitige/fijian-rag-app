@@ -1,77 +1,53 @@
-
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { ApiService } from '../../services/api.service';
-import { HeaderComponent } from '../../components/header/header.component';
-
-interface Translation {
-  id: string;
-  translatedText: string;
-  rawResponse: string;
-  confidence?: number;
-  similarTranslations: number;
-  source?: 'claude' | 'verified';
-  sourceLanguage?: 'en' | 'fj';
-  sourceText: string;
-}
+import { TranslationService, TranslateResponse } from '../../services/translation.service';
 
 @Component({
   selector: 'app-training',
   templateUrl: './training.component.html',
-  styleUrls: ['./training.component.scss'],
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    HeaderComponent
-  ]
+  styleUrls: ['./training.component.css']
 })
 export class TrainingComponent {
-  sourceText = '';
-  currentTranslation: Translation | null = null;
-  verifiedTranslation = '';
-  error = '';
-  verificationSuccess = '';
-  isTranslating = false;
-  isVerifying = false;
-  showRawResponse = false;
+  sourceText: string = '';
   sourceLanguage: 'en' | 'fj' = 'fj';
+  verifiedTranslation: string = '';
+  verificationSuccess: string = '';
+  error: string = '';
+  isVerifying: boolean = false;
+  showRawResponse: boolean = false;
+  rawResponse: string = '';
 
-  constructor(private translationService: ApiService) {}
+  currentTranslation: {
+    id: string;
+    translation: string;
+    source: string;
+  } | null = null;
 
-  translateUsingClaude(): void {
+  constructor(private translationService: TranslationService) {}
+
+  translate(): void {
     if (!this.sourceText.trim()) {
-      this.error = 'Please enter some text to translate';
+      this.error = 'Please enter some source text.';
       return;
     }
 
-    this.error = '';
-    this.isTranslating = true;
-    this.currentTranslation = null;
-
-    this.translationService.translate(this.sourceText, this.sourceLanguage)
-      .subscribe({
-        next: (response: Translation) => {
-          this.currentTranslation = {
-            id: response.id,
-            translatedText: response.translatedText,
-            rawResponse: response.rawResponse,
-            confidence: response.confidence,
-            similarTranslations: response.similarTranslations,
-            source: 'claude',
-            sourceLanguage: this.sourceLanguage,
-            sourceText: this.sourceText
-          };
-          this.verifiedTranslation = response.translatedText;
-          this.isTranslating = false;
-        },
-        error: (err: any) => {
-          this.error = 'Translation failed. Please try again.';
-          this.isTranslating = false;
-          console.error(err);
-        }
-      });
+    this.translationService.translate(this.sourceText, this.sourceLanguage).subscribe({
+      next: (response: TranslateResponse) => {
+        this.verifiedTranslation = response.translatedText;
+        this.rawResponse = response.rawResponse || '';
+        this.currentTranslation = {
+          id: response.id,
+          translation: response.translatedText,
+          source: 'generated'
+        };
+        this.verificationSuccess = '';
+        this.error = '';
+      },
+      error: (err: any) => {
+        this.error = 'Translation failed. Please try again.';
+        this.verificationSuccess = '';
+        console.error(err);
+      }
+    });
   }
 
   verifyTranslation(): void {
