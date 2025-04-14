@@ -2,23 +2,24 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { HttpClientModule } from '@angular/common/http';
-import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
+import { AmplifyAuthenticatorModule } from '@aws-amplify/ui-angular';
 
 import { AppComponent } from './app.component';
 import { TrainingComponent } from './pages/training/training.component';
-import { HeaderComponent } from './components/header/header.component';
 import { TranslationService } from './services/translation.service';
+import { AppRoutingModule } from './app-routing.module';
 
 @NgModule({
   declarations: [
-    AppComponent,
-    TrainingComponent,
-    HeaderComponent
+    AppComponent
   ],
   imports: [
     BrowserModule,
     HttpClientModule,
-    FormsModule  // Make sure this is included
+    AppRoutingModule,
+    AmplifyAuthenticatorModule,
+    TrainingComponent  // Import standalone component here
   ],
   providers: [TranslationService],
   bootstrap: [AppComponent]

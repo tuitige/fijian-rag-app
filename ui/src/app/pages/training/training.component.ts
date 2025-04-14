@@ -1,5 +1,8 @@
 import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { TranslationService } from '../../services/translation.service';
+import { HeaderComponent } from '../../components/header/header.component';
 
 interface TranslationResponse {
   id: string;
@@ -10,7 +13,9 @@ interface TranslationResponse {
 @Component({
   selector: 'app-training',
   templateUrl: './training.component.html',
-  styleUrls: ['./training.component.css']
+  styleUrls: ['./training.component.css'],
+  standalone: true,
+  imports: [CommonModule, FormsModule, HeaderComponent]
 })
 export class TrainingComponent {
   sourceText: string = '';

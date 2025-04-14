@@ -23,8 +23,10 @@
     "@popperjs/core": "^2.11.8",
     "aws-amplify": "^5.3.11",
     "bootstrap": "^5.3.3",
+    "cd": "^0.3.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
+    "ui": "^0.2.4",
     "zone.js": "~0.14.0"
   },
   "devDependencies": {
