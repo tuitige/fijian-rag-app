@@ -1,17 +1,23 @@
+// src/app/app.module.ts
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { AmplifyAuthenticatorModule } from '@aws-amplify/ui-angular';
+import { HttpClientModule } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
 import { AppComponent } from './app.component';
-import { FormsModule } from '@angular/forms';     
+import { TrainingComponent } from './pages/training/training.component';
+import { TranslationService } from './services/translation.service';
 
 @NgModule({
+  declarations: [
+    AppComponent,
+    TrainingComponent
+  ],
   imports: [
     BrowserModule,
-    AmplifyAuthenticatorModule,
-    FormsModule,
-    AppComponent
+    HttpClientModule,
+    FormsModule
   ],
-  providers: [],
+  providers: [TranslationService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

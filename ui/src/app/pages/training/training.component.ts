@@ -1,5 +1,11 @@
 import { Component } from '@angular/core';
-import { TranslationService } from 'src/app/services/translation.service';
+import { TranslationService } from '../../services/translation.service';
+
+interface TranslationResponse {
+  id: string;
+  translatedText: string;
+  rawResponse?: string;
+}
 
 @Component({
   selector: 'app-training',
@@ -30,7 +36,7 @@ export class TrainingComponent {
     this.isTranslating = true;
 
     this.translationService.translate(this.sourceText, this.sourceLanguage).subscribe({
-      next: (response) => {
+      next: (response: TranslationResponse) => {
         this.currentTranslation = {
           id: response.id,
           translation: response.translatedText,
@@ -40,8 +46,8 @@ export class TrainingComponent {
         this.verifiedTranslation = response.translatedText;
         this.isTranslating = false;
       },
-      error: (err) => {
-        console.error(err);
+      error: (error: Error) => {
+        console.error(error);
         this.error = 'Translation failed';
         this.isTranslating = false;
       }
@@ -69,7 +75,7 @@ export class TrainingComponent {
           this.currentTranslation.source = 'verified';
         }
       },
-      error: (error: any) => {
+      error: (error: Error) => {
         this.error = 'Failed to verify translation. Please try again.';
         this.verificationSuccess = '';
         this.isVerifying = false;

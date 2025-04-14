@@ -1,34 +1,29 @@
-import { HttpClient } from '@angular/common/http';
+// src/app/services/translation.service.ts
 import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TranslationService {
-  private apiUrl = 'https://mbrdtlh12m.execute-api.us-west-2.amazonaws.com/prod';
+  private apiUrl = '/api';  // Update this with your API endpoint
 
   constructor(private http: HttpClient) {}
 
-  translate(sourceText: string, sourceLanguage: 'en' | 'fj'): Observable<any> {
+  translate(text: string, sourceLanguage: 'en' | 'fj'): Observable<any> {
     return this.http.post(`${this.apiUrl}/translate`, {
-      sourceText,
+      text,
       sourceLanguage
     });
   }
 
-  verify(
-    id: string,
-    sourceText: string,
-    translatedText: string,
-    sourceLanguage: 'en' | 'fj'
-  ): Observable<any> {
+  verify(id: string, sourceText: string, verifiedTranslation: string, sourceLanguage: 'en' | 'fj'): Observable<any> {
     return this.http.post(`${this.apiUrl}/verify`, {
       id,
       sourceText,
-      translatedText,
-      sourceLanguage,
-      verified: true
+      verifiedTranslation,
+      sourceLanguage
     });
   }
 }
