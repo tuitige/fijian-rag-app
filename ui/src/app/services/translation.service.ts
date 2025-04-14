@@ -7,7 +7,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class TranslationService {
-  private apiUrl = '/api';  // Update this with your API endpoint
+  private apiUrl = 'https://mbrdtlh12m.execute-api.us-west-2.amazonaws.com/prod';
 
   constructor(private http: HttpClient) {}
 
