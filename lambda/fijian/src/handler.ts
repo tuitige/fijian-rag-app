@@ -58,11 +58,45 @@ interface ClaudeResponse {
 
 // Constants
 const TABLE_NAME = process.env.TABLE_NAME || 'TranslationsTable';
+const LEARNING_TABLE_NAME = process.env.LEARNING_TABLE_NAME || 'LearningModules';
 const SIMILARITY_THRESHOLD = 0.85;
 
 // Initialize AWS clients
 const ddb = DynamoDBDocument.from(new DynamoDB());
 const bedrock = new BedrockRuntimeClient({ region: 'us-west-2' });
+
+interface LearningModule {
+  id: string;
+  learningModuleTitle: string;
+  pageNumber: number;
+  content: string;
+  summary?: string;
+}
+
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+
+async function generateModuleSummary(content: string): Promise<string> {
+  const prompt = `Please provide a concise summary of the following learning module content. Focus on the key points and main concepts:
+
+${content}
+
+Provide your response as a clear, well-structured summary that captures the essential information.`;
+
+  const command = new InvokeModelCommand({
+    modelId: 'anthropic.claude-3-sonnet-20240229-v1:0',
+    contentType: 'application/json',
+    body: JSON.stringify({
+      anthropic_version: "bedrock-2023-05-31",
+      max_tokens: 1000,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.1
+    })
+  });
+
+  const response = await bedrock.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.body));
+  return result.content[0].text.trim();
+}
 
 // Helper functions
 async function getEmbedding(text: string): Promise<number[]> {
@@ -189,18 +223,111 @@ async function findSimilarTranslations(
 // Main handler
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
-    if (event.httpMethod !== 'POST' || !event.body) {
+    if (['POST', 'PUT', 'PATCH'].includes(event.httpMethod) && !event.body) {
       return {
         statusCode: 400,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ message: 'Missing request body or invalid method' })
+        body: JSON.stringify({ message: 'Missing request body' })
       };
     }
 
-    const parsedBody = JSON.parse(event.body);
+    //const parsedBody = JSON.parse(event.body);
 
     switch (event.path) {
+      case '/learn': {
+        
+        // For GET requests, fetch all learning modules with summaries
+        if (event.httpMethod === 'GET') {
+          console.log('Learning module GET request:');
+          const result = await ddb.scan({
+            TableName: LEARNING_TABLE_NAME
+          });
+
+          console.log('Learning modules fetched:', result.Items);
+
+          if (!result.Items) {
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+              body: JSON.stringify({ modules: [] })
+            };
+          }
+
+          // Group items by learning module title
+          const moduleGroups = result.Items.reduce((acc: { [key: string]: LearningModule[] }, item) => {
+            const module = item as LearningModule;
+            const title = module.learningModuleTitle;
+            console.log('Processing module:', module);
+            if (!acc[title]) {
+              acc[title] = [];
+            }
+            acc[title].push(module);
+            return acc;
+          }, {});
+
+          // Process each module group
+          const processedModules = await Promise.all(
+            Object.entries(moduleGroups).map(async ([title, pages]) => {
+              // Sort pages by page number
+              pages.sort((a, b) => a.pageNumber - b.pageNumber);
+              
+              // Combine all content for summarization
+              const fullContent = pages.map(p => p.content).join('\n\n');
+              
+              // Generate summary using Claude
+              const summary = await generateModuleSummary(fullContent);
+
+              return {
+                title,
+                pages: pages.length,
+                summary,
+                moduleId: pages[0].id // Use first page's ID as module ID
+              };
+            })
+          );
+
+          return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ modules: processedModules })
+          };
+        }
+        else if (event.httpMethod === 'POST') {
+          if (!event.body) {
+            throw new Error('Request body is null or undefined');
+          }
+          const parsedBody = JSON.parse(event.body);
+          const newModule = {
+            id: uuidv4(),
+            learningModuleTitle: parsedBody.title,
+            pageNumber: parsedBody.pageNumber,
+            content: parsedBody.content
+          };
+
+          await ddb.put({
+            TableName: LEARNING_TABLE_NAME,
+            Item: newModule
+          });
+
+          return {
+            statusCode: 201,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ message: 'Learning module created', id: newModule.id })
+          };
+        }
+
+        return {
+          statusCode: 405,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({ message: 'Method not allowed' })
+        };
+      }
+
       case '/translate': {
+        if (!event.body) {
+          throw new Error('Request body is null or undefined');
+        }
+        const parsedBody = JSON.parse(event.body);
         const request = parsedBody as TranslationRequest;
         const sourceEmbedding = await getEmbedding(request.sourceText);
         
@@ -261,6 +388,10 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       }
 
       case '/verify': {
+        if (!event.body) {
+          throw new Error('Request body is null or undefined');
+        }
+        const parsedBody = JSON.parse(event.body);
         const request = parsedBody;
         const updateResponse = await ddb.update({
           TableName: TABLE_NAME,
@@ -300,3 +431,4 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     };
   }
 }
+

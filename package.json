@@ -4,7 +4,8 @@
   "scripts": {
     "build": "npm run build:lambdas && npm run cdk:build",
     "watch": "tsc -w",
-    "build:lambdas": "cd lambda/fijian && npm install && npm run build && cd ../textract-processor && npm install && npm run build"
+    "build:lambdas": "cd lambda/fijian && npm install && npm run build && cd ../textract-processor && npm install && npm run build",
+    "test": "jest"
   },
   "dependencies": {
     "@aws-amplify/backend-auth": "^1.5.1",
@@ -31,8 +32,11 @@
     "@aws-amplify/backend-cli": "^1.5.0",
     "@aws-sdk/types": "^3.775.0",
     "@types/aws-lambda": "^8.10.148",
+    "@types/jest": "^29.5.12",
     "@types/node": "^22.14.0",
     "@types/uuid": "^9.x",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
