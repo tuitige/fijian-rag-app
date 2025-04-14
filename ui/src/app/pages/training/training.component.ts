@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { TranslationService, TranslateResponse } from '../../services/translation.service';
+import { TranslationService } from 'src/app/services/translation.service';
 
 @Component({
   selector: 'app-training',
@@ -10,49 +10,40 @@ export class TrainingComponent {
   sourceText: string = '';
   sourceLanguage: 'en' | 'fj' = 'fj';
   verifiedTranslation: string = '';
-  verificationSuccess: string = '';
+  currentTranslation: { id: string; translation: string; source: string; rawResponse?: string } | null = null;
   error: string = '';
+  verificationSuccess: string = '';
   isVerifying: boolean = false;
   isTranslating: boolean = false;
   showRawResponse: boolean = false;
-  rawResponse: string = '';
-
-  currentTranslation: {
-    id: string;
-    translation: string;
-    source: string;
-    rawResponse?: string;
-  } | null = null;
 
   constructor(private translationService: TranslationService) {}
 
   translate(): void {
     if (!this.sourceText.trim()) {
-      this.error = 'Please enter some source text.';
+      this.error = 'Please enter a source text';
       return;
     }
 
+    this.error = '';
+    this.verificationSuccess = '';
     this.isTranslating = true;
 
     this.translationService.translate(this.sourceText, this.sourceLanguage).subscribe({
-      next: (response: TranslateResponse) => {
-        this.verifiedTranslation = response.translatedText;
-        this.rawResponse = response.rawResponse || '';
+      next: (response) => {
         this.currentTranslation = {
           id: response.id,
           translation: response.translatedText,
-          source: 'generated',
+          source: 'model',
           rawResponse: response.rawResponse
         };
-        this.verificationSuccess = '';
-        this.error = '';
+        this.verifiedTranslation = response.translatedText;
         this.isTranslating = false;
       },
-      error: (err: any) => {
-        this.isTranslating = false;
-        this.error = 'Translation failed. Please try again.';
-        this.verificationSuccess = '';
+      error: (err) => {
         console.error(err);
+        this.error = 'Translation failed';
+        this.isTranslating = false;
       }
     });
   }
@@ -70,11 +61,10 @@ export class TrainingComponent {
       this.verifiedTranslation,
       this.sourceLanguage
     ).subscribe({
-      next: (response) => {
+      next: () => {
         this.verificationSuccess = 'Translation verified and stored!';
         this.error = '';
         this.isVerifying = false;
-
         if (this.currentTranslation) {
           this.currentTranslation.source = 'verified';
         }

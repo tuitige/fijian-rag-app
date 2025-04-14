@@ -1,23 +1,6 @@
-import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-
-export interface TranslateResponse {
-  translatedText: string;
-  rawResponse?: string;
-  confidence?: number;
-  id: string;
-  similarTranslations?: number;
-  debug?: any;
-}
-
-export interface VerificationPayload {
-  id: string;
-  sourceText: string;
-  translatedText: string;
-  sourceLanguage: 'en' | 'fj';
-  verified: boolean;
-}
 
 @Injectable({
   providedIn: 'root'
@@ -27,19 +10,25 @@ export class TranslationService {
 
   constructor(private http: HttpClient) {}
 
-  translate(sourceText: string, sourceLanguage: 'en' | 'fj'): Observable<TranslateResponse> {
-    const payload = { sourceText, sourceLanguage };
-    return this.http.post<TranslateResponse>(`${this.apiUrl}/translate`, payload);
+  translate(sourceText: string, sourceLanguage: 'en' | 'fj'): Observable<any> {
+    return this.http.post(`${this.apiUrl}/translate`, {
+      sourceText,
+      sourceLanguage
+    });
   }
 
-  verify(id: string, sourceText: string, translatedText: string, sourceLanguage: 'en' | 'fj'): Observable<any> {
-    const payload: VerificationPayload = {
+  verify(
+    id: string,
+    sourceText: string,
+    translatedText: string,
+    sourceLanguage: 'en' | 'fj'
+  ): Observable<any> {
+    return this.http.post(`${this.apiUrl}/verify`, {
       id,
       sourceText,
       translatedText,
       sourceLanguage,
       verified: true
-    };
-    return this.http.post(`${this.apiUrl}/verify`, payload);
+    });
   }
 }
