@@ -8,44 +8,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 
 // Types and Interfaces
-interface ModuleSummary {
-  title: string;
-  description: string;
-  totalPages: number;
-  topics: string[];
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  estimatedTimeMinutes: number;
-  contentOverview: {
-    vocabulary: number;
-    grammar: number;
-    conversations: number;
-    exercises: number;
-  };
-  learningObjectives: string[];
-  keyPhrases: {
-    fijian: string;
-    english: string;
-    usage: string;
-  }[];
-  culturalNotes?: string[];
-  prerequisites?: string[];
-}
-
-interface LearningModuleListResponse {
-  modules: ModuleSummary[];
-}
-
-interface VerificationRequest {
-  id: string; 
-  sourceText: string;
-  translatedText: string;
-  sourceLanguage: 'en' | 'fj';
-  verified: boolean;
-}
-
 interface TranslationRequest {
   sourceText: string;
   sourceLanguage: 'en' | 'fj';
+  targetLanguage: 'en' | 'fj';
 }
 
 interface TranslationDebug {
@@ -68,7 +34,7 @@ interface Translation {
   translationEmbedding: number[];
   verified: string;
   createdAt: string;
-  verificationDate: string;
+  verificationDate?: string;
   verifier?: string;
   context?: string;
   category?: string;
@@ -90,24 +56,13 @@ interface ClaudeResponse {
   confidence?: number;
 }
 
-interface LearningModuleResponse {
-  id: string;
-  learningModuleTitle: string;
-  content: string;
-  pageNumber: number;
-  paragraphs: string[];
-  totalPages?: number;
-}
-
 // Constants
 const TABLE_NAME = process.env.TABLE_NAME || 'TranslationsTable';
-const LEARNING_TABLE_NAME = process.env.LEARNING_TABLE_NAME || 'LearningModulesTable';
 const SIMILARITY_THRESHOLD = 0.85;
 
 // Initialize AWS clients
 const ddb = DynamoDBDocument.from(new DynamoDB());
 const bedrock = new BedrockRuntimeClient({ region: 'us-west-2' });
-const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION });
 
 // Helper functions
 async function getEmbedding(text: string): Promise<number[]> {
@@ -157,20 +112,52 @@ async function translateWithClaude(text: string, sourceLanguage: 'en' | 'fj'): P
   const result = JSON.parse(new TextDecoder().decode(response.body));
   
   try {
-    const parsedResponse = JSON.parse(result.content[0].text);
-    return {
-      translation: parsedResponse.translation.trim(),
-      rawResponse: result.content[0].text,
-      confidence: result.confidence
-    };
-  } catch (e) {
-    console.warn('Failed to parse Claude response as JSON:', e);
     const rawText = result.content[0].text;
+    let parsedResponse;
+    
+    try {
+      // Try to parse the entire response as JSON
+      parsedResponse = JSON.parse(rawText);
+    } catch (e) {
+      // If that fails, try to extract JSON from the text
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          parsedResponse = JSON.parse(jsonMatch[0]);
+        } catch (e2) {
+          console.warn('Failed to parse extracted JSON:', e2);
+        }
+      }
+    }
+
+    if (parsedResponse && parsedResponse.translation) {
+      return {
+        translation: parsedResponse.translation.trim(),
+        rawResponse: rawText,
+        confidence: result.confidence
+      };
+    }
+
+    // Fallback: Try to extract translation from the raw text
+    const translationMatch = rawText.match(/"translation"\s*:\s*"([^"]+)"/);
+    if (translationMatch) {
+      return {
+        translation: translationMatch[1].trim(),
+        rawResponse: rawText,
+        confidence: result.confidence
+      };
+    }
+
+    // Last resort: Use the entire text as translation
+    console.warn('Using raw text as translation');
     return {
       translation: rawText.replace(/^.*?"|\n|"$/g, '').trim(),
       rawResponse: rawText,
       confidence: result.confidence
     };
+  } catch (e) {
+    console.error('Unexpected error processing Claude response:', e);
+    throw e;
   }
 }
 
@@ -202,21 +189,6 @@ async function findSimilarTranslations(
 // Main handler
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
-    // Handle /learn endpoint separately since it supports GET
-    if (event.path === '/learn') {
-      if (event.httpMethod === 'GET') {
-        if (event.queryStringParameters?.moduleTitle) {
-          return await getLearningModule(
-            event.queryStringParameters.moduleTitle,
-            parseInt(event.queryStringParameters.page || '1')
-          );
-        } else {
-          return await listLearningModules();
-        }
-      }
-    }
-
-    // All other endpoints require POST and body
     if (event.httpMethod !== 'POST' || !event.body) {
       return {
         statusCode: 400,
@@ -289,14 +261,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       }
 
       case '/verify': {
-        console.log('Received /verify request with body:', JSON.stringify(parsedBody));
-        console.log('Parsed ID:', parsedBody.id);
-        console.log('Source Text:', parsedBody.sourceText);
-        console.log('Translated Text:', parsedBody.translatedText);
-        console.log('Source Language:', parsedBody.sourceLanguage);
-        console.log('Verified:', parsedBody.verified);
-
-        const request = parsedBody as VerificationRequest;
+        const request = parsedBody;
         const updateResponse = await ddb.update({
           TableName: TABLE_NAME,
           Key: { id: request.id },
@@ -332,208 +297,6 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       statusCode: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ message: 'Internal server error' })
-    };
-  }
-}
-
-// Learning module functions
-async function listLearningModules(): Promise<APIGatewayProxyResult> {
-  try {
-    const command = new ScanCommand({
-      TableName: LEARNING_TABLE_NAME,
-    });
-
-    const response = await dynamoClient.send(command);
-    const items = response.Items || [];
-
-    // Group pages by module title
-    const moduleGroups = items.reduce((acc, item) => {
-      const title = item.learningModuleTitle?.S;
-      if (title) {
-        if (!acc[title]) {
-          acc[title] = [];
-        }
-        acc[title].push(item);
-      }
-      return acc;
-    }, {} as Record<string, any[]>);
-
-    // Generate summaries for each module
-    const moduleSummaries = await Promise.all(
-      Object.entries(moduleGroups).map(async ([title, pages]) => {
-        return await generateModuleSummary(title, pages);
-      })
-    );
-
-    return {
-      statusCode: 200,
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Access-Control-Allow-Origin': '*'
-      },
-      body: JSON.stringify({ 
-        modules: moduleSummaries
-      })
-    };
-  } catch (error) {
-    console.error('Error listing modules:', error);
-    return {
-      statusCode: 500,
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Access-Control-Allow-Origin': '*'
-      },
-      body: JSON.stringify({ message: 'Error listing modules' })
-    };
-  }
-}
-
-async function generateModuleSummary(moduleTitle: string, pages: any[]): Promise<ModuleSummary> {
-  const allContent = pages.map(page => page.content?.S || '').join('\n');
-  
-  const prompt = `Analyze this Fijian language learning module and provide a comprehensive summary. 
-  Return your response in JSON format with the following fields:
-  {
-    "description": "A detailed 3-4 sentence overview of what this module covers",
-    "topics": ["Array of specific topics covered"],
-    "difficulty": "beginner/intermediate/advanced",
-    "estimatedTimeMinutes": number,
-    "contentOverview": {
-      "vocabulary": number of vocabulary items,
-      "grammar": number of grammar concepts,
-      "conversations": number of conversation examples,
-      "exercises": number of practice exercises
-    },
-    "learningObjectives": [
-      "List of 3-5 specific learning objectives that clearly state what the student will be able to do after completing this module"
-    ],
-    "keyPhrases": [
-      {
-        "fijian": "Example phrase in Fijian",
-        "english": "English translation",
-        "usage": "Brief explanation of when/how to use this phrase"
-      }
-    ],
-    "culturalNotes": [
-      "2-3 relevant cultural context points that help understand the usage"
-    ],
-    "prerequisites": [
-      "List any concepts or modules that should be completed first"
-    ]
-  }
-
-  Module Title: "${moduleTitle}"
-  Content: "${allContent.substring(0, 2000)}"
-
-  Please ensure:
-  1. Learning objectives are specific and measurable
-  2. Key phrases are practical and commonly used
-  3. Cultural notes provide relevant context
-  4. Examples demonstrate practical usage`;
-
-  const command = new InvokeModelCommand({
-    modelId: 'anthropic.claude-3-sonnet-20240229-v1:0',
-    contentType: 'application/json',
-    body: JSON.stringify({
-      anthropic_version: "bedrock-2023-05-31",
-      max_tokens: 2000,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.1
-    })
-  });
-
-  try {
-    const response = await bedrock.send(command);
-    const result = JSON.parse(new TextDecoder().decode(response.body));
-    const summary = JSON.parse(result.content[0].text);
-
-    return {
-      title: moduleTitle,
-      description: summary.description,
-      totalPages: pages.length,
-      topics: summary.topics,
-      difficulty: summary.difficulty,
-      estimatedTimeMinutes: summary.estimatedTimeMinutes,
-      contentOverview: summary.contentOverview,
-      learningObjectives: summary.learningObjectives,
-      keyPhrases: summary.keyPhrases,
-      culturalNotes: summary.culturalNotes,
-      prerequisites: summary.prerequisites
-    };
-  } catch (error) {
-    console.error('Error generating module summary:', error);
-    return {
-      title: moduleTitle,
-      description: "Summary generation failed",
-      totalPages: pages.length,
-      topics: [],
-      difficulty: "beginner",
-      estimatedTimeMinutes: 30,
-      contentOverview: {
-        vocabulary: 0,
-        grammar: 0,
-        conversations: 0,
-        exercises: 0
-      },
-      learningObjectives: [],
-      keyPhrases: [],
-      culturalNotes: [],
-      prerequisites: []
-    };
-  }
-}
-
-async function getLearningModule(moduleTitle: string, page: number): Promise<APIGatewayProxyResult> {
-  try {
-    const command = new QueryCommand({
-      TableName: LEARNING_TABLE_NAME,
-      IndexName: 'byLearningModule',
-      KeyConditionExpression: 'learningModuleTitle = :title',
-      ExpressionAttributeValues: {
-        ':title': { S: moduleTitle }
-      }
-    });
-
-    const response = await dynamoClient.send(command);
-    const pages = response.Items || [];
-    const currentPage = pages.find(p => parseInt(p.pageNumber?.N || '1') === page);
-    
-    if (!currentPage) {
-      return {
-        statusCode: 404,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ message: 'Page not found' })
-      };
-    }
-
-    // Generate module summary
-    const moduleSummary = await generateModuleSummary(moduleTitle, pages);
-
-    const paragraphs = currentPage.paragraphs?.L
-      ?.map(p => p.S)
-      .filter((p): p is string => p !== undefined) || [];
-
-    const moduleResponse = {
-      id: currentPage.id?.S || '',
-      learningModuleTitle: currentPage.learningModuleTitle?.S || '',
-      content: currentPage.content?.S || '',
-      pageNumber: parseInt(currentPage.pageNumber?.N || '1'),
-      paragraphs,
-      totalPages: pages.length,
-      summary: moduleSummary  // Include the summary in the response
-    };
-
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify(moduleResponse)
-    };
-  } catch (error) {
-    console.error('Error getting module:', error);
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ message: 'Error getting module' })
     };
   }
 }

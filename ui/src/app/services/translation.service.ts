@@ -13,17 +13,19 @@ export class TranslationService {
 
   translate(text: string, sourceLanguage: 'en' | 'fj'): Observable<any> {
     return this.http.post(`${this.apiUrl}/translate`, {
-      text,
-      sourceLanguage
+      sourceText: text,
+      sourceLanguage,
+      targetLanguage: sourceLanguage === 'en' ? 'fj' : 'en'
     });
   }
 
-  verify(id: string, sourceText: string, verifiedTranslation: string, sourceLanguage: 'en' | 'fj'): Observable<any> {
+  verify(id: string, sourceText: string, translatedText: string, sourceLanguage: 'en' | 'fj', verified: boolean = true): Observable<any> {
     return this.http.post(`${this.apiUrl}/verify`, {
       id,
       sourceText,
-      verifiedTranslation,
-      sourceLanguage
+      translatedText,
+      sourceLanguage,
+      verified
     });
   }
 }
