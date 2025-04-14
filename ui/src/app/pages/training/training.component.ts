@@ -13,6 +13,7 @@ export class TrainingComponent {
   verificationSuccess: string = '';
   error: string = '';
   isVerifying: boolean = false;
+  isTranslating: boolean = false;
   showRawResponse: boolean = false;
   rawResponse: string = '';
 
@@ -20,6 +21,7 @@ export class TrainingComponent {
     id: string;
     translation: string;
     source: string;
+    rawResponse?: string;
   } | null = null;
 
   constructor(private translationService: TranslationService) {}
@@ -30,6 +32,8 @@ export class TrainingComponent {
       return;
     }
 
+    this.isTranslating = true;
+
     this.translationService.translate(this.sourceText, this.sourceLanguage).subscribe({
       next: (response: TranslateResponse) => {
         this.verifiedTranslation = response.translatedText;
@@ -37,12 +41,15 @@ export class TrainingComponent {
         this.currentTranslation = {
           id: response.id,
           translation: response.translatedText,
-          source: 'generated'
+          source: 'generated',
+          rawResponse: response.rawResponse
         };
         this.verificationSuccess = '';
         this.error = '';
+        this.isTranslating = false;
       },
       error: (err: any) => {
+        this.isTranslating = false;
         this.error = 'Translation failed. Please try again.';
         this.verificationSuccess = '';
         console.error(err);
