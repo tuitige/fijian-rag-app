@@ -1,16 +1,18 @@
-<div *ngIf="loading" class="text-center p-4">Loading module...</div>
+<div *ngIf="loading">Loading...</div>
 
 <div *ngIf="!loading">
-  <h2 class="text-xl font-bold mb-4">Module: {{ moduleTitle }}</h2>
+  <h2>Modules Loaded: {{ modules.length }}</h2>
 
-  <div *ngFor="let mod of modules" class="mb-6 border rounded-xl shadow p-4">
-    <h3 class="text-lg font-semibold">{{ mod.title }}</h3>
-    <p class="text-sm text-gray-600 mb-3">{{ mod.summary }}</p>
-  
-    <div *ngFor="let ex of mod.examples" class="mb-3 p-3 bg-gray-50 rounded-md">
+  <div *ngFor="let mod of modules">
+    <h3>{{ mod.title }}</h3>
+    <p>{{ mod.summary }}</p>
+
+    <div *ngFor="let ex of mod.examples">
       <p><strong>Fijian:</strong> {{ ex.fijian }}</p>
       <p><strong>English:</strong> {{ ex.english }}</p>
-      <p class="text-xs text-gray-500"><strong>Notes:</strong> {{ ex.notes }}</p>
+      <p><strong>Notes:</strong> {{ ex.notes }}</p>
+      <hr />
     </div>
-  </div>  
+    <hr />
+  </div>
 </div>
