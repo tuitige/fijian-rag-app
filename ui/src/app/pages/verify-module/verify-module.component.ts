@@ -4,7 +4,13 @@ import { TranslationService } from '../../services/translation.service';
 
 @Component({
   selector: 'app-verify-module',
-  templateUrl: './verify-module.component.html',
+  //templateUrl: './verify-module.component.html',
+  template: `
+  <div style="padding: 40px; background: #e0ffe0;">
+    ✅ INLINE TEMPLATE WORKS
+    <div *ngIf="!loading"><pre>{{ modules | json }}</pre></div>
+  </div>
+`,
   styleUrls: ['./verify-module.component.scss']
 })
 export class VerifyModuleComponent implements OnInit {
