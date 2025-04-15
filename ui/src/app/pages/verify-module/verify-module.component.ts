@@ -6,20 +6,20 @@ import { TranslationService } from '../../services/translation.service';
   selector: 'app-verify-module',
   //templateUrl: './verify-module.component.html',
   template: `
-  <div style="padding: 40px; background: #e0ffe0;">
-    ✅ INLINE TEMPLATE WORKS<br />
-    Module Title: {{ moduleTitle }}<br />
-    Loading: {{ loading }}<br />
-    Modules array: {{ modules.length }}<br />
+  <div *ngIf="!loading">
+  <p>✅ Finished loading!</p>
 
-    <div *ngIf="!loading">
-      <p>✅ Finished loading!</p>
-      <div *ngFor="let mod of modules">
-        <h3>{{ mod.title }}</h3>
-        <p>{{ mod.summary }}</p>
-      </div>
+  <div *ngFor="let mod of modules" style="margin: 1em; padding: 1em; border: 1px solid black;">
+    <h3>📘 Title: {{ mod.title }}</h3>
+    <p>📝 Summary: {{ mod.summary }}</p>
+
+    <div *ngFor="let ex of mod.examples" style="margin-top: 0.5em;">
+      <p>🗣 Fijian: {{ ex.fijian }}</p>
+      <p>💬 English: {{ ex.english }}</p>
+      <p>📚 Notes: {{ ex.notes }}</p>
     </div>
   </div>
+</div>
 `,
   styleUrls: ['./verify-module.component.scss']
 })
