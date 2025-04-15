@@ -6,15 +6,11 @@
   <div *ngFor="let mod of modules" class="mb-6 border rounded-xl shadow p-4">
     <h3 class="text-lg font-semibold">{{ mod.title }}</h3>
     <p class="text-sm text-gray-600 mb-3">{{ mod.summary }}</p>
-
+  
     <div *ngFor="let ex of mod.examples" class="mb-3 p-3 bg-gray-50 rounded-md">
       <p><strong>Fijian:</strong> {{ ex.fijian }}</p>
       <p><strong>English:</strong> {{ ex.english }}</p>
       <p class="text-xs text-gray-500"><strong>Notes:</strong> {{ ex.notes }}</p>
     </div>
-
-    <button class="mt-2 px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700">
-      ✅ Mark as Verified
-    </button>
-  </div>
+  </div>  
 </div>

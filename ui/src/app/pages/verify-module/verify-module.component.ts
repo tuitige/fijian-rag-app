@@ -22,6 +22,7 @@ export class VerifyModuleComponent implements OnInit {
 
     this.translationService.getModule(this.moduleTitle).subscribe({
       next: (data) => {
+        console.log('✅ Loaded module:', data);
         this.modules = data.modules;
         this.loading = false;
       },
