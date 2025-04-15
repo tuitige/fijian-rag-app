@@ -10,6 +10,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 
 export class FijianRagStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -199,6 +200,45 @@ export class FijianRagStack extends Stack {
     const learnResource = api.root.addResource('learn');
     learnResource.addMethod('GET', new apigateway.LambdaIntegration(fijianLambda));
     learnResource.addMethod('POST', new apigateway.LambdaIntegration(fijianLambda));
+    
+    // textract aggregator lambda/api
+    const textractAggregatorFn = new NodejsFunction(this, "TextractAggregatorLambda", {
+      entry: path.join(__dirname, "../lambda/textract-processor/src/textract-aggregator.ts"),
+      handler: "handler",
+      runtime: lambda.Runtime.NODEJS_18_X,
+      environment: {
+        BUCKET_NAME: contentBucket.bucketName,
+      },
+    });
+       
+    contentBucket.grantReadWrite(textractAggregatorFn); // Let Lambda read OCR and write results
+    
+    const textractApi = new apigateway.LambdaRestApi(this, "TextractAggregatorAPI", {
+      handler: textractAggregatorFn,
+      proxy: false,
+    });
+    
+    const aggregate = textractApi.root.addResource("aggregate");
+    aggregate.addMethod("GET"); // call: GET /aggregate?prefix=folder-path
+
+    // Learning Module generator Lambda genAI
+    const moduleGeneratorFn = new NodejsFunction(this, "ClaudeModuleGeneratorLambda", {
+      entry: path.join(__dirname, "../lambda/claude-module-generator.ts"),
+      handler: "handler",
+      runtime: lambda.Runtime.NODEJS_18_X,
+      environment: {
+        BUCKET_NAME: contentBucket.bucketName,
+      },
+    });
+    
+    contentBucket.grantReadWrite(moduleGeneratorFn);
+    
+    // Trigger ONLY when chapterText.json is added
+    contentBucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new s3n.LambdaDestination(moduleGeneratorFn),
+      { prefix: "aggregated/", suffix: "chapterText.json" }
+    );     
 
     // 7. Outputs
     new CfnOutput(this, 'ApiUrl', {

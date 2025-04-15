@@ -8,7 +8,8 @@ import {
 } from '@aws-sdk/client-textract';
 import { 
   S3Client, 
-  GetObjectCommand 
+  GetObjectCommand,
+  PutObjectCommand  
 } from '@aws-sdk/client-s3';
 import { 
   DynamoDBClient, 
@@ -122,6 +123,12 @@ export const handler = async (event: S3Event) => {
       createdAt: new Date().toISOString()
     };
 
+    // Store in DynamoDB+s3
+    // Get page number from filename
+    const objectKey = record.s3.object.key;
+    const match = objectKey.match(/pg(\d+)\.jpg$/i);
+    const pageNum = match ? parseInt(match[1], 10) : 0;
+
     // Store in DynamoDB
     await dynamoClient.send(new PutItemCommand({
       TableName: process.env.TABLE_NAME,
@@ -129,13 +136,32 @@ export const handler = async (event: S3Event) => {
         id: { S: learningModule.id },
         sourceLanguage: { S: learningModule.sourceLanguage },
         content: { S: learningModule.content },
-        pageNumber: { N: learningModule.pageNumber.toString() },
+        pageNumber: { N: pageNum.toString() },
         learningModuleTitle: { S: learningModule.learningModuleTitle },
         paragraphs: { L: learningModule.paragraphs.map(p => ({ S: p })) },
         createdAt: { S: learningModule.createdAt },
-        type: { S: 'LEARNING_MODULE' } // To distinguish from other items in the table
+        type: { S: 'LEARNING_MODULE' }
       }
     }));
+
+    // Store formatted JSON copy in S3 for aggregator
+    await s3Client.send(new PutObjectCommand({
+      Bucket: process.env.BUCKET_NAME!,
+      Key: `${learningModule.learningModuleTitle}/pg${pageNum}.json`,
+      Body: JSON.stringify({
+        id: learningModule.id,
+        sourceLanguage: learningModule.sourceLanguage,
+        content: learningModule.content,
+        pageNumber: pageNum.toString(),
+        learningModuleTitle: learningModule.learningModuleTitle,
+        paragraphs: learningModule.paragraphs.map(p => ({ S: p })),
+        createdAt: learningModule.createdAt,
+        type: 'LEARNING_MODULE'
+      }),
+      ContentType: "application/json"
+    }));
+    
+
 
     return {
       statusCode: 200,
