@@ -18,6 +18,7 @@ export class VerifyModuleComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    console.log('✅ VerifyModuleComponent initialized');
     this.moduleTitle = this.route.snapshot.paramMap.get('title') || '6 Verb Prefixes Vaka';
 
     this.translationService.getModule(this.moduleTitle).subscribe({
@@ -32,4 +33,5 @@ export class VerifyModuleComponent implements OnInit {
       }
     });
   }
+
 }
