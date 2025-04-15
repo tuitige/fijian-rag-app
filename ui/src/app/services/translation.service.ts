@@ -28,4 +28,11 @@ export class TranslationService {
       verified
     });
   }
+
+  getModule(title: string): Observable<any> {
+    const encodedTitle = encodeURIComponent(title);
+    const path = `/assets/module-mock.json`; // 🔁 Replace this later with real S3 or API path if needed
+    return this.http.get<any>(path);
+  }
+
 }

@@ -8,11 +8,13 @@ import { AmplifyAuthenticatorModule } from '@aws-amplify/ui-angular';
 import { AppComponent } from './app.component';
 import { TrainingComponent } from './pages/training/training.component';
 import { TranslationService } from './services/translation.service';
+import { VerifyModuleComponent } from './pages/verify-module/verify-module.component';
 import { AppRoutingModule } from './app-routing.module';
 
 @NgModule({
   declarations: [
-    AppComponent
+    AppComponent,
+    VerifyModuleComponent
   ],
   imports: [
     BrowserModule,

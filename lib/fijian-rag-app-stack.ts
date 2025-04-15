@@ -167,7 +167,7 @@ export class FijianRagStack extends Stack {
     contentBucket.addEventNotification(
       s3.EventType.OBJECT_CREATED,
       new s3n.LambdaDestination(textractProcessor),
-      { prefix: 'modules/', suffix: '.jpg' }
+      { suffix: '.jpg' }
     );
 
     // 6. API Gateway
@@ -205,6 +205,7 @@ export class FijianRagStack extends Stack {
     const textractAggregatorFn = new NodejsFunction(this, "TextractAggregatorLambda", {
       entry: path.join(__dirname, "../lambda/textract-processor/src/textract-aggregator.ts"),
       handler: "handler",
+      role: lambdaRole,
       runtime: lambda.Runtime.NODEJS_18_X,
       environment: {
         BUCKET_NAME: contentBucket.bucketName,
@@ -223,9 +224,12 @@ export class FijianRagStack extends Stack {
 
     // Learning Module generator Lambda genAI
     const moduleGeneratorFn = new NodejsFunction(this, "ClaudeModuleGeneratorLambda", {
-      entry: path.join(__dirname, "../lambda/claude-module-generator.ts"),
+      entry: path.join(__dirname, "../lambda/textract-processor/src/claude-module-generator.ts"),
       handler: "handler",
       runtime: lambda.Runtime.NODEJS_18_X,
+      role: lambdaRole,
+      memorySize: 1024,
+      timeout: Duration.minutes(5),
       environment: {
         BUCKET_NAME: contentBucket.bucketName,
       },

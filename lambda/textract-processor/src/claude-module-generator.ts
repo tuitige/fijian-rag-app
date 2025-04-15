@@ -76,7 +76,9 @@ ${fullText}
   });
 
   const response = await bedrock.send(command);
-  const responseBody = await streamToString(Readable.from(response.body as Uint8Array));
+  const responseBody = Buffer.from(response.body as Uint8Array).toString("utf-8");
+  console.log("🧪 Claude raw:", responseBody.slice(0, 500));
+  
   const parsed = JSON.parse(responseBody);
   const message = parsed?.content?.[0]?.text ?? parsed?.content ?? parsed;
 
