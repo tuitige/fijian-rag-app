@@ -7,8 +7,18 @@ import { TranslationService } from '../../services/translation.service';
   //templateUrl: './verify-module.component.html',
   template: `
   <div style="padding: 40px; background: #e0ffe0;">
-    ✅ INLINE TEMPLATE WORKS
-    <div *ngIf="!loading"><pre>{{ modules }}</pre></div>
+    ✅ INLINE TEMPLATE WORKS<br />
+    Module Title: {{ moduleTitle }}<br />
+    Loading: {{ loading }}<br />
+    Modules array: {{ modules.length }}<br />
+
+    <div *ngIf="!loading">
+      <p>✅ Finished loading!</p>
+      <div *ngFor="let mod of modules">
+        <h3>{{ mod.title }}</h3>
+        <p>{{ mod.summary }}</p>
+      </div>
+    </div>
   </div>
 `,
   styleUrls: ['./verify-module.component.scss']
