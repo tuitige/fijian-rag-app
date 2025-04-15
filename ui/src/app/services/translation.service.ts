@@ -35,4 +35,9 @@ export class TranslationService {
     return this.http.get<any>(path);
   }
 
+  getModuleFromApi(title: string): Observable<any> {
+    const encoded = encodeURIComponent(title);
+    return this.http.get<any>(`${this.apiUrl}/module?title=${encoded}`);
+  }
+
 }

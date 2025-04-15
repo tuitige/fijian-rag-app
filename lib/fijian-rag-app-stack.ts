@@ -244,6 +244,27 @@ export class FijianRagStack extends Stack {
       { prefix: "aggregated/", suffix: "chapterText.json" }
     );     
 
+    // Get/Verify Learning Modules
+    const getModuleLambda = new NodejsFunction(this, 'GetModuleLambda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      entry: path.join(__dirname, '../lambda/fijian/src/get-module.ts'),
+      handler: 'handler',
+      environment: { CONTENT_BUCKET: contentBucket.bucketName },
+    });
+    contentBucket.grantRead(getModuleLambda);
+    
+    const verifyModuleLambda = new NodejsFunction(this, 'VerifyModuleLambda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      entry: path.join(__dirname, '../lambda/fijian/src/verify-module.ts'),
+      handler: 'handler',
+      environment: { TRANSLATIONS_TABLE: translationsTable.tableName },
+    });
+    translationsTable.grantWriteData(verifyModuleLambda);
+    
+    api.root.addResource('module').addMethod('GET', new apigateway.LambdaIntegration(getModuleLambda));
+    api.root.addResource('verify-module').addMethod('POST', new apigateway.LambdaIntegration(verifyModuleLambda));
+    
+
     // 7. Outputs
     new CfnOutput(this, 'ApiUrl', {
       value: api.url,

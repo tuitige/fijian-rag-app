@@ -1,18 +1,20 @@
-<div *ngIf="loading">Loading...</div>
+<div *ngIf="loading" class="text-center text-gray-500 p-4">Loading...</div>
 
-<div *ngIf="!loading">
-  <h2>Modules Loaded: {{ modules.length }}</h2>
+<div *ngIf="!loading" class="p-4 max-w-3xl mx-auto">
+  <h2 class="text-2xl font-bold mb-6">Modules Loaded: {{ modules.length }}</h2>
 
-  <div *ngFor="let mod of modules">
-    <h3>{{ mod.title }}</h3>
-    <p>{{ mod.summary }}</p>
+  <div *ngFor="let mod of modules" class="mb-8 p-4 border rounded shadow-sm bg-white">
+    <h3 class="text-xl font-semibold mb-2">{{ mod.title }}</h3>
+    <p class="text-gray-600 mb-4">{{ mod.summary }}</p>
 
-    <div *ngFor="let ex of mod.examples">
-      <p><strong>Fijian:</strong> {{ ex.fijian }}</p>
-      <p><strong>English:</strong> {{ ex.english }}</p>
-      <p><strong>Notes:</strong> {{ ex.notes }}</p>
-      <hr />
+    <div *ngFor="let ex of mod.examples" class="mb-4 p-3 bg-gray-50 rounded">
+      <p><strong>🗣 Fijian:</strong> {{ ex.fijian }}</p>
+      <p><strong>💬 English:</strong> {{ ex.english }}</p>
+      <p class="text-sm text-gray-500"><strong>📚 Notes:</strong> {{ ex.notes }}</p>
     </div>
-    <hr />
+
+    <button class="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+      ✅ Mark Module as Verified
+    </button>
   </div>
 </div>
