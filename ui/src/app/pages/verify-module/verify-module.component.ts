@@ -1,26 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { CommonModule } from '@angular/common';
 import { TranslationService } from '../../services/translation.service';
 
 @Component({
+  standalone: true,
   selector: 'app-verify-module',
-  //templateUrl: './verify-module.component.html',
-  template: `
-  <div *ngIf="!loading">
-  <p>✅ Finished loading!</p>
-
-  <div *ngFor="let mod of modules" style="margin: 1em; padding: 1em; border: 1px solid black;">
-    <h3>📘 Title: {{ mod.title }}</h3>
-    <p>📝 Summary: {{ mod.summary }}</p>
-
-    <div *ngFor="let ex of mod.examples" style="margin-top: 0.5em;">
-      <p>🗣 Fijian: {{ ex.fijian }}</p>
-      <p>💬 English: {{ ex.english }}</p>
-      <p>📚 Notes: {{ ex.notes }}</p>
-    </div>
-  </div>
-</div>
-`,
+  templateUrl: './verify-module.component.html',
+  imports: [CommonModule],
   styleUrls: ['./verify-module.component.scss']
 })
 export class VerifyModuleComponent implements OnInit {
