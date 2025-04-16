@@ -11,7 +11,6 @@ import { TrainingComponent } from './pages/training/training.component';
 import { TranslationService } from './services/translation.service';
 import { VerifyModuleComponent } from './pages/verify-module/verify-module.component';
 import { PagesComponent } from './pages/pages/pages.component';
-import { AppRoutingModule } from './app-routing.module';
 
 @NgModule({
   declarations: [
@@ -22,7 +21,6 @@ import { AppRoutingModule } from './app-routing.module';
   imports: [
     BrowserModule,
     HttpClientModule,
-    AppRoutingModule,
     AmplifyAuthenticatorModule,
     TrainingComponent,
     FormsModule
