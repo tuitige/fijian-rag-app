@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
 const s3 = new S3Client({ region: process.env.AWS_REGION });
@@ -55,11 +55,18 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // 3. Call Claude generator Lambda with aggregated content
     const payload = JSON.stringify({ title: prefix, fullText });
+    await s3.send(new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: `${prefix}/module-raw-aggregated.json`,
+        Body: payload,
+        ContentType: 'application/json'
+      }));
+      
     await lambda.send(new InvokeCommand({
-      FunctionName: CLAUDE_MODULE_GENERATOR_FN,
-      InvocationType: 'Event', // async
-      Payload: Buffer.from(payload)
-    }));
+        FunctionName: CLAUDE_MODULE_GENERATOR_FN,
+        InvocationType: 'Event', // async
+        Payload: Buffer.from(payload)
+      }));
 
     return {
       statusCode: 200,

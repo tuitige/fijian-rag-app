@@ -91,15 +91,17 @@ Source text:
   };
 
   // Save to DynamoDB
-  await ddb.send(new PutItemCommand({ TableName: TABLE_NAME, Item: item }));
-
+  const ddbResponse = await ddb.send(new PutItemCommand({ TableName: TABLE_NAME, Item: item }));
+  console.log('✅ Saved Claude Generated Module to DynamoDB:', ddbResponse);
+  
   // Save to S3 for audit/archive
-  await s3.send(new PutObjectCommand({
+  const s3Response = await s3.send(new PutObjectCommand({
     Bucket: BUCKET_NAME,
-    Key: `${title}/module.json`,
+    Key: `${title}/module-claude-generated.json`,
     Body: JSON.stringify(parsedModule, null, 2),
     ContentType: 'application/json'
   }));
+  console.log('✅ Saved Claude Generated Module to S3:', s3Response);
 
   return {
     statusCode: 200,

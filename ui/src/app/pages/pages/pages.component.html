@@ -1,0 +1,18 @@
+<div class="p-4">
+    <h2 class="text-xl font-bold mb-4">Module: {{ moduleTitle }}</h2>
+  
+    <div *ngIf="loading">Loading pages...</div>
+  
+    <div *ngIf="!loading && pages.length === 0">
+      <p>No pages found.</p>
+    </div>
+  
+    <div *ngIf="!loading">
+      <div *ngFor="let page of pages" class="mb-6 p-4 bg-white rounded shadow">
+        <h3 class="font-semibold text-lg mb-2">Page {{ page.pageNumber }}</h3>
+        <ul class="list-disc pl-5">
+          <li *ngFor="let para of page.paragraphs">{{ para }}</li>
+        </ul>
+      </div>
+    </div>
+  </div>

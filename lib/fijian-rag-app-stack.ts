@@ -181,6 +181,19 @@ export class FijianRagAppStack extends Stack {
       principal: new iam.ServicePrincipal('s3.amazonaws.com'),
       sourceArn: contentBucket.bucketArn
     });
+
+    const getPagesFn = new NodejsFunction(this, 'GetPagesLambda', {
+      entry: path.join(__dirname, '../lambda/fijian-agent/src/routes/get-pages.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_18_X,
+      environment: {
+        BUCKET_NAME: contentBucket.bucketName
+      },
+      timeout: Duration.seconds(30),
+      role: lambdaRole
+    });
+    
+
     // -------------------------------------------------------------------------
     // 5. API Gateway
     // -------------------------------------------------------------------------
@@ -208,6 +221,13 @@ export class FijianRagAppStack extends Stack {
 
     const verifyModuleResource = api.root.addResource('verify-module');
     verifyModuleResource.addMethod('POST', new apigateway.LambdaIntegration(fijianLambda));
+
+    const getPagesResource = api.root.addResource('pages');
+    getPagesResource.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(getPagesFn)
+    );
+    
 
     // Separate API for textract aggregation
     const textractApi = new apigateway.RestApi(this, 'TextractAggregatorAPI', {
