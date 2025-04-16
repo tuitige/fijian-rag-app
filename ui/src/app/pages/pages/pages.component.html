@@ -10,8 +10,9 @@
       <p>No pages found.</p>
     </div>
 
-    <div *ngIf="!loading">
-      <pre>we are loaded</pre>
+    <div *ngIf="!loading; else stillLoading">
+      <pre>✅ we are loaded (loading = {{ loading }})</pre>
+    
       <div *ngFor="let page of pages; let i = index" class="mb-6 p-4 border rounded bg-gray-100">
         <h3>📄 Page #{{ i + 1 }} (pageNumber = {{ page.pageNumber }})</h3>
     
@@ -24,6 +25,11 @@
         </ul>
       </div>
     </div>
+    
+    <ng-template #stillLoading>
+      <pre>⏳ Still loading... (loading = {{ loading }})</pre>
+    </ng-template>
+    
         
 <!---
     <div *ngIf="!loading">
