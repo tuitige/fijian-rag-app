@@ -1,7 +1,9 @@
 <div class="p-4">
     <h2 class="text-xl font-bold mb-4">Module: {{ moduleTitle }}</h2>
-    <pre *ngIf="!loading">{{ pages | json }}</pre>
-    
+
+    <p>Debug: loading = {{ loading }}</p>
+    <p>Pages loaded: {{ pages.length }}</p>
+
     <div *ngIf="loading">Loading pages...</div>
   
     <div *ngIf="!loading && pages.length === 0">
