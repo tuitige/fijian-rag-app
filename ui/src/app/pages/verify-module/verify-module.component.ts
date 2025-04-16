@@ -39,6 +39,7 @@ export class VerifyModuleComponent implements OnInit {
   }
 
     // verifyModule
+    verified = false;
     verifyCurrentModule(): void {
         console.log('🧪 verifyCurrentModule called');
     
@@ -53,6 +54,7 @@ export class VerifyModuleComponent implements OnInit {
         this.translationService.verifyModule(payload).subscribe({
         next: (res: any) => {
             console.log('✅ Verified module saved:', res);
+            this.verified = true;
             alert('Module saved as verified!');
         },
         error: (err: any) => {
@@ -61,5 +63,12 @@ export class VerifyModuleComponent implements OnInit {
         }
         });
     }
+
+    // inline editing and toggle
+    isEditing = false;
+    toggleEditing(): void {
+    this.isEditing = !this.isEditing;
+    }
+
 
 }

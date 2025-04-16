@@ -4,6 +4,7 @@ import { BrowserModule } from '@angular/platform-browser';
 import { HttpClientModule } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
 import { AmplifyAuthenticatorModule } from '@aws-amplify/ui-angular';
+import { FormsModule } from '@angular/forms';
 
 import { AppComponent } from './app.component';
 import { TrainingComponent } from './pages/training/training.component';
@@ -21,7 +22,8 @@ import { AppRoutingModule } from './app-routing.module';
     HttpClientModule,
     AppRoutingModule,
     AmplifyAuthenticatorModule,
-    TrainingComponent  // Import standalone component here
+    TrainingComponent,
+    FormsModule
   ],
   providers: [TranslationService],
   bootstrap: [AppComponent]
