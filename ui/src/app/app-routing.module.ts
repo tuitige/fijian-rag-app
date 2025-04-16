@@ -6,7 +6,7 @@ import { PagesComponent } from './pages/pages/pages.component';
 
 const routes: Routes = [
   { path: '', redirectTo: '/training', pathMatch: 'full' },
-  { path: 'training', component: TrainingComponent },
+  { path: 'training', component: PagesComponent },
   { path: 'verify-module/:title', component: VerifyModuleComponent },
   { path: 'pages', component: PagesComponent },
   { path: '**', component: PagesComponent }
