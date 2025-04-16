@@ -38,18 +38,10 @@ export class FijianRagStack extends Stack {
       projectionType: dynamodb.ProjectionType.ALL
     });
 
-    // DDB learningModulesTable
-    const learningModulesTable = new dynamodb.Table(this, 'LearningModules', {
-      partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: RemovalPolicy.DESTROY,
-    });
-
-    // Add GSIs for querying
-    learningModulesTable.addGlobalSecondaryIndex({
-      indexName: 'byLearningModule',
+    translationsTable.addGlobalSecondaryIndex({
+      indexName: 'learningModuleIndex',
       partitionKey: { name: 'learningModuleTitle', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'pageNumber', type: dynamodb.AttributeType.NUMBER }
+      projectionType: dynamodb.ProjectionType.ALL
     });
 
     // 3. Cognito Setup
@@ -113,13 +105,12 @@ export class FijianRagStack extends Stack {
     // 5. Lambda Functions
     const fijianLambda = new nodejsLambda.NodejsFunction(this, 'FijianHandler', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      entry: path.join(__dirname, '../lambda/fijian/src/handler.ts'),
+      entry: path.join(__dirname, '../lambda/fijian-agent/src/handler.ts'),
       handler: 'handler',
       role: lambdaRole,
       timeout: Duration.minutes(5),
       environment: {
-        TABLE_NAME: translationsTable.tableName,
-        LEARNING_TABLE_NAME: learningModulesTable.tableName
+        TRANSLATIONS_TABLE: translationsTable.tableName,
       },
       bundling: {
         minify: true,
@@ -127,7 +118,7 @@ export class FijianRagStack extends Stack {
       }
     });
 
-    learningModulesTable.grantReadWriteData(fijianLambda);
+    translationsTable.grantReadWriteData(fijianLambda);
 
     const textractProcessor = new nodejsLambda.NodejsFunction(this, 'TextractProcessor', {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -138,7 +129,7 @@ export class FijianRagStack extends Stack {
       memorySize: 1024,
       environment: {
         BUCKET_NAME: contentBucket.bucketName,
-        TABLE_NAME: learningModulesTable.tableName,
+        TABLE_NAME: translationsTable.tableName,
       },
       bundling: {
         minify: true,
@@ -146,7 +137,7 @@ export class FijianRagStack extends Stack {
       }
     });
 
-    learningModulesTable.grantWriteData(textractProcessor);
+    translationsTable.grantWriteData(textractProcessor);
 
     // Add Textract permissions
     textractProcessor.addToRolePolicy(new iam.PolicyStatement({
@@ -247,7 +238,7 @@ export class FijianRagStack extends Stack {
     // Get/Verify Learning Modules
     const getModuleLambda = new NodejsFunction(this, 'GetModuleLambda', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      entry: path.join(__dirname, '../lambda/fijian/src/get-module.ts'),
+      entry: path.join(__dirname, '../lambda/fijian-agent/src/get-module.ts'),
       handler: 'handler',
       environment: { CONTENT_BUCKET: contentBucket.bucketName },
     });
@@ -255,7 +246,7 @@ export class FijianRagStack extends Stack {
     
     const verifyModuleLambda = new NodejsFunction(this, 'VerifyModuleLambda', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      entry: path.join(__dirname, '../lambda/fijian/src/verify-module.ts'),
+      entry: path.join(__dirname, '../lambda/fijian-agent/src/verify-module.ts'),
       handler: 'handler',
       environment: { TRANSLATIONS_TABLE: translationsTable.tableName },
     });
@@ -263,7 +254,6 @@ export class FijianRagStack extends Stack {
     
     api.root.addResource('module').addMethod('GET', new apigateway.LambdaIntegration(getModuleLambda));
     api.root.addResource('verify-module').addMethod('POST', new apigateway.LambdaIntegration(verifyModuleLambda));
-    
 
     // 7. Outputs
     new CfnOutput(this, 'ApiUrl', {
