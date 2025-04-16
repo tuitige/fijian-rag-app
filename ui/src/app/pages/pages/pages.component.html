@@ -11,6 +11,7 @@
     </div>
 
     <div *ngIf="!loading">
+      <pre>we are loaded</pre>
       <div *ngFor="let page of pages; let i = index" class="mb-6 p-4 border rounded bg-gray-100">
         <h3>📄 Page #{{ i + 1 }} (pageNumber = {{ page.pageNumber }})</h3>
     
