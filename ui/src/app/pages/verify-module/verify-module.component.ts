@@ -8,9 +8,8 @@ import { TranslationService } from '../../services/translation.service';
   standalone: true,
   selector: 'app-verify-module',
   templateUrl: './verify-module.component.html',
-  imports: [CommonModule],
+  imports: [CommonModule,FormsModule],
   styleUrls: ['./verify-module.component.scss'],
-  imports: [CommonModule, FormsModule]
 })
 export class VerifyModuleComponent implements OnInit {
   moduleTitle: string = '';
