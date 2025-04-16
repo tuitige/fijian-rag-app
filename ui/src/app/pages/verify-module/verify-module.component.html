@@ -13,8 +13,8 @@
       <p class="text-sm text-gray-500"><strong>📚 Notes:</strong> {{ ex.notes }}</p>
     </div>
 
-    <button class="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-      ✅ Mark Module as Verified
-    </button>
+    <button (click)="verifyCurrentModule()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+        ✅ Mark This Module As Verified
+    </button>      
   </div>
 </div>
