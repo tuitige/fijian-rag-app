@@ -5,7 +5,8 @@ import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-pages',
-  templateUrl: './pages.component.html'
+  templateUrl: './pages.component.html',
+  styleUrls: ['./pages.component.scss']
 })
 export class PagesComponent implements OnInit {
   moduleTitle = '';
