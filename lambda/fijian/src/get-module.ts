@@ -20,7 +20,21 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }));
 
     const body = await response.Body!.transformToString();
-    const cleaned = body.startsWith('```json') ? body.split('```json')[1].split('```')[0].trim() : body;
+    console.log('body', body);
+    
+    const cleaned = (() => {
+      const jsonBlock = body.match(/```json\s*({[\s\S]*?})\s*```/);
+      if (jsonBlock && jsonBlock[1]) return jsonBlock[1].trim();
+    
+      try {
+        // fallback: maybe it's already valid JSON
+        JSON.parse(body);
+        return body;
+      } catch {
+        return '';
+      }
+    })();
+    
     return {
       statusCode: 200,
       body: cleaned,
