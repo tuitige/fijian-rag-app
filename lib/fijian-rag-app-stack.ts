@@ -223,10 +223,16 @@ export class FijianRagAppStack extends Stack {
     verifyModuleResource.addMethod('POST', new apigateway.LambdaIntegration(fijianLambda));
 
     const getPagesResource = api.root.addResource('pages');
-    getPagesResource.addMethod(
-      'GET',
-      new apigateway.LambdaIntegration(getPagesFn)
-    );
+    getPagesResource.addMethod('GET', new apigateway.LambdaIntegration(getPagesFn), {
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': true
+          }
+        }
+      ]
+    });
     
 
     // Separate API for textract aggregation

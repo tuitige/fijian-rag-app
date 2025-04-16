@@ -55,8 +55,12 @@ export const handler = async (
     pages.sort((a, b) => a.pageNumber - b.pageNumber);
 
     return {
-      statusCode: 200,
-      body: JSON.stringify({ pages })
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ pages: pages })
     };
   } catch (err) {
     console.error('get-pages error:', err);
