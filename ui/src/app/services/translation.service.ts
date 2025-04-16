@@ -40,4 +40,8 @@ export class TranslationService {
     return this.http.get<any>(`${this.apiUrl}/module?title=${encoded}`);
   }
 
+  verifyModule(module: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/verify-module`, module);
+  }  
+
 }
