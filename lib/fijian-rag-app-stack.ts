@@ -2,6 +2,7 @@ import { Stack, StackProps, Duration, RemovalPolicy, Fn } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -55,13 +56,7 @@ export class FijianRagAppStack extends Stack {
     );
     
     contentBucket.grantReadWrite(lambdaRole);
-    translationsTable.grantReadWriteData(lambdaRole);
-    
-    // Allow invocation of Claude generator lambda (without creating circular dependency)
-    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
-      actions: ['lambda:InvokeFunction'],
-      resources: [Fn.sub('arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:ClaudeModuleGeneratorLambda')]
-    }));
+    translationsTable.grantReadWriteData(lambdaRole);    
     
     // Allow future Bedrock agent interactions
     lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
@@ -69,6 +64,28 @@ export class FijianRagAppStack extends Stack {
       resources: ['*'] // refine to specific model ARN in prod if needed
     }));
     
+    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['lambda:InvokeFunction'],
+      resources: ['*'] // or ClaudeModuleGeneratorLambda.functionArn
+    }));
+
+    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['s3:GetObject', 's3:PutObject', 's3:ListBucket'],
+      resources: [contentBucket.bucketArn, `${contentBucket.bucketArn}/*`]
+    }));
+    
+    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:*'],
+      resources: [translationsTable.tableArn]
+    }));
+
+    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: [
+        'textract:StartDocumentAnalysis',
+        'textract:GetDocumentAnalysis'
+      ],
+      resources: ['*'] // Or restrict to specific bucket
+    }));    
 
     // -------------------------------------------------------------------------
     // 4. Lambdas (organized for modular, agent-ready architecture)
@@ -80,6 +97,7 @@ export class FijianRagAppStack extends Stack {
       environment: {
         TRANSLATIONS_TABLE: translationsTable.tableName
       },
+      timeout: Duration.minutes(3),
       role: lambdaRole
     });
 
@@ -91,21 +109,35 @@ export class FijianRagAppStack extends Stack {
         TABLE_NAME: translationsTable.tableName,
         S3_BUCKET: contentBucket.bucketName
       },
+      timeout: Duration.minutes(3),
       role: lambdaRole
     });
+
+    textractProcessor.addPermission('AllowS3Invoke', {
+      principal: new iam.ServicePrincipal('s3.amazonaws.com'),
+      sourceArn: contentBucket.bucketArn
+    });
+
+    contentBucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new s3n.LambdaDestination(textractProcessor),
+      { suffix: '.jpg' }
+    );
+    
 
     const textractAggregatorFn = new NodejsFunction(this, 'TextractAggregatorLambda', {
       entry: path.join(__dirname, '../lambda/textract-agent/src/textract-aggregator.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_18_X,
       environment: {
-        BUCKET_NAME: contentBucket.bucketName,
-        CLAUDE_MODULE_GENERATOR_FN: 'ClaudeModuleGeneratorLambda'
+        BUCKET_NAME: contentBucket.bucketName
       },
+      timeout: Duration.minutes(3),
       role: lambdaRole
     });
 
     const moduleGeneratorFn = new NodejsFunction(this, 'ClaudeModuleGeneratorLambda', {
+      functionName: 'ClaudeModuleGeneratorLambda',
       entry: path.join(__dirname, '../lambda/textract-agent/src/claude-module-generator.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -113,9 +145,42 @@ export class FijianRagAppStack extends Stack {
         TABLE_NAME: translationsTable.tableName,
         BUCKET_NAME: contentBucket.bucketName
       },
+      timeout: Duration.minutes(3),
       role: lambdaRole
     });
 
+/*    
+    textractAggregatorFn.addEnvironment(
+      'CLAUDE_MODULE_GENERATOR_FN',
+      moduleGeneratorFn.functionName
+    );
+*/
+
+/*
+    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['lambda:InvokeFunction'],
+      resources: [moduleGeneratorFn.functionArn]
+    }));
+*/
+
+    textractAggregatorFn.addEnvironment(
+      'CLAUDE_MODULE_GENERATOR_FN',
+      'ClaudeModuleGeneratorLambda'
+    );
+
+    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['lambda:InvokeFunction'],
+      resources: [
+        `arn:aws:lambda:${this.region}:${this.account}:function:ClaudeModuleGeneratorLambda`
+      ]
+    }));
+
+
+    contentBucket.grantReadWrite(moduleGeneratorFn);
+    moduleGeneratorFn.addPermission('AllowS3Invoke', {
+      principal: new iam.ServicePrincipal('s3.amazonaws.com'),
+      sourceArn: contentBucket.bucketArn
+    });
     // -------------------------------------------------------------------------
     // 5. API Gateway
     // -------------------------------------------------------------------------
