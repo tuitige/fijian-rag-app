@@ -9,7 +9,22 @@
     <div *ngIf="!loading && pages.length === 0">
       <p>No pages found.</p>
     </div>
-  
+
+    <div *ngIf="!loading">
+      <div *ngFor="let page of pages; let i = index" class="mb-6 p-4 border rounded bg-gray-100">
+        <h3>📄 Page #{{ i + 1 }} (pageNumber = {{ page.pageNumber }})</h3>
+    
+        <p><strong>Paragraphs length:</strong> {{ page.paragraphs?.length || 0 }}</p>
+    
+        <ul>
+          <li *ngFor="let para of page.paragraphs">
+            📝 {{ para }}
+          </li>
+        </ul>
+      </div>
+    </div>
+        
+<!---
     <div *ngIf="!loading">
       <div *ngFor="let page of pages" class="mb-6 p-4 bg-white rounded shadow">
         <h3 class="font-semibold text-lg mb-2">Page {{ page.pageNumber }}</h3>
@@ -18,4 +33,5 @@
         </ul>
       </div>
     </div>
+---> 
   </div>
