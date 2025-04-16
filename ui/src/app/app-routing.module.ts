@@ -8,7 +8,7 @@ const routes: Routes = [
   { path: '', redirectTo: '/training', pathMatch: 'full' },
   { path: 'training', component: TrainingComponent },
   { path: 'verify-module/:title', component: VerifyModuleComponent },
-  { path: 'pages/:title', component: PagesComponent },
+  { path: 'pages/', component: PagesComponent },
   { path: '**', component: PagesComponent }
 ];
 
