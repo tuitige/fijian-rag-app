@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
-import { FijianRagStack } from '../lib/fijian-rag-app-stack';
+import { FijianRagAppStack } from '../lib/fijian-rag-app-stack';
 
 const app = new cdk.App();
-new FijianRagStack(app, 'FijianRagStack', {
+new FijianRagAppStack(app, 'FijianRagAppStack', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
    * but a single synthesized template can be deployed anywhere. */
