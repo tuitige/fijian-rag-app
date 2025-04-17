@@ -1,12 +1,20 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';
+import { HeaderComponent } from '../../components/header/header.component';
+//import { ModuleService } from '../../services/module.service';
 import { TranslationService } from '../../services/translation.service';
 
 @Component({
+  standalone: true,
   selector: 'app-verify-module',
   templateUrl: './verify-module.component.html',
-  styleUrls: ['./verify-module.component.scss']
+  styleUrls: ['./verify-module.component.scss'],
+  imports: [CommonModule, FormsModule, HttpClientModule, HeaderComponent]
 })
+
 export class VerifyModuleComponent implements OnInit {
   moduleTitle: string = '';
   modules: any[] = [];
