@@ -3,6 +3,7 @@ import { handler as translateHandler } from './routes/translate';
 import { handler as verifyHandler } from './routes/verify';
 import { handler as learnHandler } from './routes/learn';
 import { handler as similarHandler } from './routes/similar';
+import { handler as moduleHandler } from './routes/get-module';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   switch (event.resource) {
@@ -12,6 +13,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       return verifyHandler(event);
     case '/learn':
       return learnHandler(event);
+    case '/module':
+      return moduleHandler(event);
     case '/similar':
       return similarHandler(event);
     default:

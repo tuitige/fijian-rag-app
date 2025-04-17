@@ -44,6 +44,13 @@ export class FijianRagAppStack extends Stack {
       projectionType: dynamodb.ProjectionType.ALL
     });
 
+    translationsTable.addGlobalSecondaryIndex({
+      indexName: 'typeIndex',
+      partitionKey: { name: 'type', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'learningModuleTitle', type: dynamodb.AttributeType.STRING }, // optional
+      projectionType: dynamodb.ProjectionType.ALL
+    });
+
     // -------------------------------------------------------------------------
     // 3. IAM Role shared by Lambdas
     // -------------------------------------------------------------------------
@@ -217,7 +224,16 @@ export class FijianRagAppStack extends Stack {
     learnResource.addMethod('POST', new apigateway.LambdaIntegration(fijianLambda));
 
     const moduleResource = api.root.addResource('module');
-    moduleResource.addMethod('GET', new apigateway.LambdaIntegration(fijianLambda));
+    moduleResource.addMethod('GET', new apigateway.LambdaIntegration(fijianLambda), {
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': true
+          }
+        }
+      ]
+    });
 
     const verifyModuleResource = api.root.addResource('verify-module');
     verifyModuleResource.addMethod('POST', new apigateway.LambdaIntegration(fijianLambda));

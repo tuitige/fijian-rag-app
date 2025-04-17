@@ -1,4 +1,4 @@
-/*
+
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { TrainingComponent } from './pages/training/training.component';
@@ -18,4 +18,3 @@ const routes: Routes = [
   exports: [RouterModule]
 })
 export class AppRoutingModule { }
-*/
