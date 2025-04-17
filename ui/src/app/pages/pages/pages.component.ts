@@ -1,21 +1,22 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { CommonModule } from '@angular/common';
+import { HeaderComponent } from '../../components/header/header.component';
 import { PageService } from '../../services/page.service';
-import { ChangeDetectorRef } from '@angular/core';
 
 @Component({
+  standalone: true,
   selector: 'app-pages',
   templateUrl: './pages.component.html',
-  styleUrls: ['./pages.component.scss']
+  styleUrls: ['./pages.component.scss'],
+  imports: [CommonModule, HeaderComponent]
 })
 export class PagesComponent implements OnInit {
   moduleTitle = '';
   pages: { pageNumber: number; paragraphs: string[] }[] = [];
   loading = true;
 
-  constructor(private route: ActivatedRoute, private pageService: PageService, private cdr: ChangeDetectorRef) {}
+  constructor(private route: ActivatedRoute, private pageService: PageService) {}
 
   ngOnInit(): void {
     this.moduleTitle = this.route.snapshot.paramMap.get('title') || '';
@@ -31,13 +32,11 @@ export class PagesComponent implements OnInit {
         console.log('✅ Pages loaded:', data);
         this.pages = data.pages ?? []; // Use nullish coalescing
         this.loading = false;
-        this.cdr.markForCheck(); // Alternative to detectChanges() for better performance
       },
       error: (err) => {
         console.error('❌ Failed to load pages:', err);
         this.pages = [];
         this.loading = false;
-        this.cdr.markForCheck();
       }
     });
   }
