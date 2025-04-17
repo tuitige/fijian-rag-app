@@ -10,7 +10,7 @@
       <p>No pages found.</p>
     </div>
 
-    <div *ngIf="!loading; else stillLoading">
+    <div *ngIf="pages.length>0; else stillLoading">
       <pre>✅ we are loaded (loading = {{ loading }})</pre>
     
       <div *ngFor="let page of pages; let i = index" class="mb-6 p-4 border rounded bg-gray-100">
