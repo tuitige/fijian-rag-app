@@ -20,7 +20,7 @@ export class VerifyModuleComponent implements OnInit {
   ngOnInit(): void {
     this.moduleTitle = this.route.snapshot.paramMap.get('title') || '6 Verb Prefixes Vaka';
 
-    this.translationService.getModule(this.moduleTitle).subscribe({
+    this.translationService.getModuleFromApi(this.moduleTitle).subscribe({
       next: (data) => {
         console.log('✅ Loaded module:', data);
         this.modules = data.modules;
