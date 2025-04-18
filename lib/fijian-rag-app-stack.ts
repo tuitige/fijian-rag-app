@@ -1,266 +1,182 @@
-import { Stack, StackProps, Duration, RemovalPolicy, Fn } from 'aws-cdk-lib';
+import { Stack, StackProps, Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import * as path from 'path';
-import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as iam from 'aws-cdk-lib/aws-iam';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as opensearch from 'aws-cdk-lib/aws-opensearchserverless';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as path from 'path';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
 export class FijianRagAppStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    // -------------------------------------------------------------------------
-    // 1. S3 Bucket for scanned pages and Claude-generated modules
-    // -------------------------------------------------------------------------
+    const COLLECTION_NAME = 'fijian-rag-collection';
+
+    // 🔹 S3 Bucket
     const contentBucket = new s3.Bucket(this, 'ContentBucket', {
       bucketName: 'fijian-rag-app-content',
       removalPolicy: RemovalPolicy.DESTROY,
-      autoDeleteObjects: true
+      autoDeleteObjects: true,
     });
 
-    // -------------------------------------------------------------------------
-    // 2. Unified DynamoDB Table for translations and learning modules
-    // -------------------------------------------------------------------------
+    // 🔹 DynamoDB
     const translationsTable = new dynamodb.Table(this, 'TranslationsTable', {
-      tableName: 'TranslationsTable',
       partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: RemovalPolicy.DESTROY
-    });
-
-    translationsTable.addGlobalSecondaryIndex({
-      indexName: 'SourceLanguageIndex',
-      partitionKey: { name: 'sourceLanguage', type: dynamodb.AttributeType.STRING },
-      projectionType: dynamodb.ProjectionType.ALL
+      removalPolicy: RemovalPolicy.DESTROY,
     });
 
     translationsTable.addGlobalSecondaryIndex({
       indexName: 'learningModuleIndex',
       partitionKey: { name: 'learningModuleTitle', type: dynamodb.AttributeType.STRING },
-      projectionType: dynamodb.ProjectionType.ALL
+      projectionType: dynamodb.ProjectionType.ALL,
     });
 
-    translationsTable.addGlobalSecondaryIndex({
-      indexName: 'typeIndex',
-      partitionKey: { name: 'type', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'learningModuleTitle', type: dynamodb.AttributeType.STRING }, // optional
-      projectionType: dynamodb.ProjectionType.ALL
+    // 🔹 OpenSearch Serverless (AOSS) Policies and Collection
+    const encryptionPolicy = new opensearch.CfnSecurityPolicy(this, 'AossEncryptionPolicy', {
+      name: 'fijian-rag-encryption',
+      type: 'encryption',
+      policy: JSON.stringify({
+        Rules: [
+          {
+            ResourceType: 'collection',
+            Resource: [`collection/${COLLECTION_NAME}`]
+          },
+        ],
+        AWSOwnedKey: true,
+      }),
     });
 
-    // -------------------------------------------------------------------------
-    // 3. IAM Role shared by Lambdas
-    // -------------------------------------------------------------------------
+    const aossCollection = new opensearch.CfnCollection(this, 'AossCollection', {
+      name: COLLECTION_NAME,
+      type: 'VECTORSEARCH',
+    });
+    aossCollection.addDependency(encryptionPolicy);
+
+    // 🔹 IAM Role
     const lambdaRole = new iam.Role(this, 'SharedLambdaRole', {
-      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com')
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonS3FullAccess'),
+        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonDynamoDBFullAccess'),
+        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonTextractFullAccess'),
+        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonBedrockFullAccess')
+      ]
     });
-    
-    lambdaRole.addManagedPolicy(
-      iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole')
-    );
-    
-    contentBucket.grantReadWrite(lambdaRole);
-    translationsTable.grantReadWriteData(lambdaRole);    
-    
-    // Allow future Bedrock agent interactions
-    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
-      actions: ['bedrock:InvokeModel'],
-      resources: ['*'] // refine to specific model ARN in prod if needed
-    }));
-    
-    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
-      actions: ['lambda:InvokeFunction'],
-      resources: ['*'] // or ClaudeModuleGeneratorLambda.functionArn
-    }));
 
-    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
-      actions: ['s3:GetObject', 's3:PutObject', 's3:ListBucket'],
-      resources: [contentBucket.bucketArn, `${contentBucket.bucketArn}/*`]
-    }));
-    
-    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
-      actions: ['dynamodb:*'],
-      resources: [translationsTable.tableArn]
-    }));
-
-    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
+    lambdaRole.addToPolicy(new iam.PolicyStatement({
       actions: [
-        'textract:StartDocumentAnalysis',
-        'textract:GetDocumentAnalysis'
+        "aoss:CreateIndex",
+        "aoss:UpdateIndex",
+        "aoss:DeleteIndex",
+        "aoss:ReadDocument",
+        "aoss:WriteDocument",
+        "aoss:DescribeIndex",
+        "aoss:DescribeCollection"
       ],
-      resources: ['*'] // Or restrict to specific bucket
-    }));    
+      resources: [aossCollection.attrArn],
+    }));
 
-    // -------------------------------------------------------------------------
-    // 4. Lambdas (organized for modular, agent-ready architecture)
-    // -------------------------------------------------------------------------
-    const fijianLambda = new NodejsFunction(this, 'FijianHandler', {
-      entry: path.join(__dirname, '../lambda/fijian-agent/src/handler.ts'),
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_18_X,
-      environment: {
-        TRANSLATIONS_TABLE: translationsTable.tableName
-      },
-      timeout: Duration.minutes(3),
-      role: lambdaRole
+    const principals = [
+      lambdaRole.roleArn,
+      `arn:aws:iam::${Stack.of(this).account}:user/tigeyoung`
+    ].filter(Boolean); 
+
+    const accessPolicy = new opensearch.CfnAccessPolicy(this, 'AossAccessPolicy', {
+      name: 'fijian-rag-access',
+      type: 'data',
+      policy: JSON.stringify([
+        {
+          Rules: [
+            {
+              ResourceType: 'index',
+              Resource: [`index/${COLLECTION_NAME}/*`],
+              Permission: [
+                'aoss:DescribeIndex',
+                'aoss:ReadDocument',
+                'aoss:WriteDocument'
+              ]
+            },
+          ],
+          Principal: principals
+        }
+      ])
     });
 
-    const textractProcessor = new NodejsFunction(this, 'TextractProcessor', {
-      entry: path.join(__dirname, '../lambda/textract-agent/src/textract-processor.ts'),
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_18_X,
-      environment: {
-        TABLE_NAME: translationsTable.tableName,
-        S3_BUCKET: contentBucket.bucketName
-      },
-      timeout: Duration.minutes(3),
-      role: lambdaRole
+    const networkPolicy = new opensearch.CfnSecurityPolicy(this, 'AossNetworkPolicy', {
+      name: 'fijian-rag-network',
+      type: 'network',
+      policy: JSON.stringify([
+        {
+          Rules: [
+            {
+              ResourceType: 'collection',
+              Resource: [`collection/${COLLECTION_NAME}`]
+            }            
+          ],
+          AllowFromPublic: true
+        }
+      ])
     });
 
-    textractProcessor.addPermission('AllowS3Invoke', {
-      principal: new iam.ServicePrincipal('s3.amazonaws.com'),
-      sourceArn: contentBucket.bucketArn
-    });
-
-    contentBucket.addEventNotification(
-      s3.EventType.OBJECT_CREATED,
-      new s3n.LambdaDestination(textractProcessor),
-      { suffix: '.jpg' }
-    );
-    
-
-    const textractAggregatorFn = new NodejsFunction(this, 'TextractAggregatorLambda', {
-      entry: path.join(__dirname, '../lambda/textract-agent/src/textract-aggregator.ts'),
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_18_X,
-      environment: {
-        BUCKET_NAME: contentBucket.bucketName
-      },
-      timeout: Duration.minutes(3),
-      role: lambdaRole
-    });
-
-    const moduleGeneratorFn = new NodejsFunction(this, 'ClaudeModuleGeneratorLambda', {
-      functionName: 'ClaudeModuleGeneratorLambda',
-      entry: path.join(__dirname, '../lambda/textract-agent/src/claude-module-generator.ts'),
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_18_X,
-      environment: {
-        TABLE_NAME: translationsTable.tableName,
-        BUCKET_NAME: contentBucket.bucketName
-      },
-      timeout: Duration.minutes(3),
-      role: lambdaRole
-    });
+    accessPolicy.addDependency(aossCollection);
+    networkPolicy.addDependency(aossCollection);
 
 /*    
-    textractAggregatorFn.addEnvironment(
-      'CLAUDE_MODULE_GENERATOR_FN',
-      moduleGeneratorFn.functionName
-    );
-*/
-
-/*
-    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
-      actions: ['lambda:InvokeFunction'],
-      resources: [moduleGeneratorFn.functionArn]
-    }));
-*/
-
-    textractAggregatorFn.addEnvironment(
-      'CLAUDE_MODULE_GENERATOR_FN',
-      'ClaudeModuleGeneratorLambda'
-    );
-
-    lambdaRole.addToPrincipalPolicy(new iam.PolicyStatement({
-      actions: ['lambda:InvokeFunction'],
-      resources: [
-        `arn:aws:lambda:${this.region}:${this.account}:function:ClaudeModuleGeneratorLambda`
-      ]
-    }));
-
-
-    contentBucket.grantReadWrite(moduleGeneratorFn);
-    moduleGeneratorFn.addPermission('AllowS3Invoke', {
-      principal: new iam.ServicePrincipal('s3.amazonaws.com'),
-      sourceArn: contentBucket.bucketArn
+    const dashboardAccessPolicy = new opensearch.CfnAccessPolicy(this, 'AossDashboardAccessPolicy', {
+      name: 'fijian-rag-dashboard-access',
+      type: 'data',
+      policy: JSON.stringify([
+        {
+          Rules: [
+            {
+              ResourceType: 'dashboard',
+              Resource: [`collection/${COLLECTION_NAME}`],
+              Permission: ['aoss:DashboardsAccessAll']
+            }
+          ],
+          Principal: [
+            `arn:aws:iam::${Stack.of(this).account}:user/tigeyoung`
+          ]
+        }
+      ])
     });
+    dashboardAccessPolicy.addDependency(aossCollection);    
+*/
 
-    const getPagesFn = new NodejsFunction(this, 'GetPagesLambda', {
-      entry: path.join(__dirname, '../lambda/fijian-agent/src/routes/get-pages.ts'),
+    const sharedEnv = {
+      BUCKET_NAME: contentBucket.bucketName,
+      TRANSLATIONS_TABLE: translationsTable.tableName,
+      AOSS_COLLECTION_ENDPOINT: `https://${aossCollection.attrCollectionEndpoint}`
+    };
+
+    // 🔹 Lambda Function
+    const lambdaFn = new NodejsFunction(this, 'FijianAgentLambda', {
+      entry: path.join(__dirname, '../lambda/aoss-rag/src/index.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_18_X,
-      environment: {
-        BUCKET_NAME: contentBucket.bucketName
-      },
-      timeout: Duration.seconds(30),
-      role: lambdaRole
+      timeout: Duration.minutes(2),
+      memorySize: 1024,
+      role: lambdaRole,
+      environment: sharedEnv
     });
-    
 
-    // -------------------------------------------------------------------------
-    // 5. API Gateway
-    // -------------------------------------------------------------------------
+    // 🔹 API Gateway
     const api = new apigateway.RestApi(this, 'FijianRagApi', {
-      restApiName: 'FijianLanguageService',
-      defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: ['POST', 'GET', 'OPTIONS'],
-        allowHeaders: ['Content-Type', 'Authorization', 'X-Api-Key', 'X-Amz-Date'],
-        allowCredentials: true
-      }
+      restApiName: 'Fijian RAG API',
+      deployOptions: { stageName: 'prod' }
     });
 
-    const endpoints = ['translate', 'verify', 'similar'];
-    endpoints.forEach(path => {
-      api.root.addResource(path).addMethod('POST', new apigateway.LambdaIntegration(fijianLambda));
+    ['translate', 'verify', 'summary'].forEach(path => {
+      api.root.addResource(path).addMethod('POST', new apigateway.LambdaIntegration(lambdaFn));
     });
 
-    const learnResource = api.root.addResource('learn');
-    learnResource.addMethod('GET', new apigateway.LambdaIntegration(fijianLambda));
-    learnResource.addMethod('POST', new apigateway.LambdaIntegration(fijianLambda));
-
-    const moduleResource = api.root.addResource('module');
-    moduleResource.addMethod('GET', new apigateway.LambdaIntegration(fijianLambda), {
-      methodResponses: [
-        {
-          statusCode: '200',
-          responseParameters: {
-            'method.response.header.Access-Control-Allow-Origin': true
-          }
-        }
-      ]
-    });
-
-    const verifyModuleResource = api.root.addResource('verify-module');
-    verifyModuleResource.addMethod('POST', new apigateway.LambdaIntegration(fijianLambda));
-
-    const getPagesResource = api.root.addResource('pages');
-    getPagesResource.addMethod('GET', new apigateway.LambdaIntegration(getPagesFn), {
-      methodResponses: [
-        {
-          statusCode: '200',
-          responseParameters: {
-            'method.response.header.Access-Control-Allow-Origin': true
-          }
-        }
-      ]
-    });
-    
-
-    // Separate API for textract aggregation
-    const textractApi = new apigateway.RestApi(this, 'TextractAggregatorAPI', {
-      restApiName: 'TextractAggregatorAPI',
-      defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: ['GET'],
-        allowHeaders: apigateway.Cors.DEFAULT_HEADERS
-      }
-    });
-
-    textractApi.root.addResource('aggregate').addMethod('GET', new apigateway.LambdaIntegration(textractAggregatorFn));
+    api.root.addResource('pages').addMethod('GET', new apigateway.LambdaIntegration(lambdaFn));
+    api.root.addResource('module').addMethod('GET', new apigateway.LambdaIntegration(lambdaFn));
+    api.root.addResource('verify-module').addMethod('POST', new apigateway.LambdaIntegration(lambdaFn));
   }
 }
