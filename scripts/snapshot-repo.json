@@ -1,0 +1,9 @@
+{
+    "type": "s3",
+    "settings": {
+      "bucket": "fijian-rag-app-snapshots",
+      "region": "us-west-2",
+      "role_arn": "arn:aws:iam::934889091214:role/FijianRag-Opensearch-Snapshots-Role"
+    }
+  }
+  

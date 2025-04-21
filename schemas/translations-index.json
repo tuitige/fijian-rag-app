@@ -1,0 +1,24 @@
+{
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0
+    },
+    "mappings": {
+      "properties": {
+        "id": { "type": "keyword" },
+        "sourceText": { "type": "text" },
+        "translatedText": { "type": "text" },
+        "srcLanguage": { "type": "keyword" },
+        "translatedLanguage": { "type": "keyword" },
+        "verified": { "type": "boolean" },
+        "source": { "type": "keyword" },
+        "embedding": {
+          "type": "dense_vector",
+          "dims": 1536, 
+          "index": true,
+          "similarity": "cosine"
+        },
+        "timestamp": { "type": "date" }
+      }
+    }
+  }

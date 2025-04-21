@@ -1,0 +1,27 @@
+{
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0
+    },
+    "mappings": {
+      "properties": {
+        "id": { "type": "keyword" },
+        "learningModuleTitle": { "type": "text" },
+        "summary": { "type": "text" },
+        "pageRefs": { "type": "keyword" },
+        "phrases": {
+          "type": "nested",
+          "properties": {
+            "sourceText": { "type": "text" },
+            "translatedText": { "type": "text" },
+            "notes": { "type": "text" },
+            "verified": { "type": "boolean" }
+          }
+        },
+        "verified": { "type": "boolean" },
+        "source": { "type": "keyword" },
+        "timestamp": { "type": "date" }
+      }
+    }
+  }
+  

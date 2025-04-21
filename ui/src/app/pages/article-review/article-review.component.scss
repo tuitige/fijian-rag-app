@@ -1,0 +1,41 @@
+.page-title {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+  }
+  
+  .loading {
+    font-style: italic;
+    padding: 1rem;
+  }
+  
+  .paragraph-card {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .fj, .en {
+    margin-bottom: 0.5rem;
+  }
+  
+  .controls {
+    margin-top: 0.5rem;
+  }
+  
+  .verify-btn {
+    background-color: #34a853;
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .verified-badge {
+    font-size: 0.9rem;
+    color: #2e7d32;
+    font-weight: bold;
+  }
+  

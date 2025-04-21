@@ -44,4 +44,13 @@ export class TranslationService {
     return this.http.post(`${this.apiUrl}/verify-module`, module);
   }  
 
+  getParagraphsByTitle(title: string) {
+    return this.http.get<any[]>(`/api/paragraphs?title=${encodeURIComponent(title)}`);
+  }
+  
+  verifyParagraph(id: string) {
+    return this.http.post(`/api/verify-paragraph`, { id });
+  }
+  
+
 }

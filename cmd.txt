@@ -1,4 +1,17 @@
-npm run build:lambdas
-cdk deploy
+## AOSS Pause/Resume ##
+aws opensearchserverless batch-delete-collection --ids your-collection-id
+aws opensearchserverless create-snapshot --collection-name fijian-rag-collection --snapshot-name snapshot-20250418
 
-s3://fijian-rag-app-content/modules/fijian_book_page_001.jpg
+aws opensearchserverless create-collection --name fijian-rag-collection --type VECTORSEARCH
+aws opensearchserverless restore-snapshot --collection-name fijian-rag-collection --snapshot-name snapshot-20250418
+
+curl -X POST https://search-fijian-rag-domain-6kcghedmfseqphh6e4frhaodvu.us-west-2.es.amazonaws.com/langdata/_doc/1 \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "id": "1",
+    "sourceText": "vinaka vakalevu",
+    "translatedText": "thank you very much",
+    "verified": true,
+    "sourceLanguage": "fj",
+    "translatedLanguage": "en"
+  }'

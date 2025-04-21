@@ -1,0 +1,19 @@
+<h2 class="page-title">📰 Nai Lalakai Article Review</h2>
+
+<div *ngIf="loading" class="loading">Loading paragraphs...</div>
+
+<div *ngFor="let p of paragraphs" class="paragraph-card">
+  <div class="fj">
+    <strong>Fijian:</strong>
+    <p>{{ p.originalParagraph }}</p>
+  </div>
+  <div class="en">
+    <strong>English:</strong>
+    <p>{{ p.translatedParagraph }}</p>
+  </div>
+
+  <div class="controls">
+    <button *ngIf="!p.verified" class="verify-btn" (click)="verifyParagraph(p)">✅ Mark Verified</button>
+    <span *ngIf="p.verified" class="verified-badge">✔️ Verified</span>
+  </div>
+</div>

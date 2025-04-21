@@ -11,11 +11,14 @@ import { TrainingComponent } from './pages/training/training.component';
 import { TranslationService } from './services/translation.service';
 import { VerifyModuleComponent } from './pages/verify-module/verify-module.component';
 import { PagesComponent } from './pages/pages/pages.component';
+import { ArticleReviewComponent } from './pages/article-review/article-review.component';
+
 
 @NgModule({
   declarations: [
     AppComponent,
     VerifyModuleComponent,
+    ArticleReviewComponent,
     PagesComponent
   ],
   imports: [
