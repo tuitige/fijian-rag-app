@@ -20,7 +20,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     const updatePayload = {
       doc: {
-        verified: true
+        verified: true,
+        translatedParagraph: body.translatedParagraph  // <- store edits
       }
     };
 

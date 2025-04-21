@@ -40,7 +40,7 @@ export class ArticleReviewComponent implements OnInit {
   }
 
   verifyParagraph(p: any) {
-    this.translationService.verifyParagraph(p.id).subscribe(() => {
+    this.translationService.verifyParagraph(p.id, p.translatedParagraph).subscribe(() => {
       p.verified = true;
     });
   }
