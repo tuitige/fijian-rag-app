@@ -3,6 +3,13 @@
 <h2>📰 Review Page Active</h2>
 <p>Total paragraphs: {{ paragraphs.length }}</p>
 
+<div *ngFor="let p of paragraphs">
+  <p><strong>FJ:</strong> {{ p.originalParagraph }}</p>
+  <p><strong>EN:</strong> {{ p.translatedParagraph }}</p>
+  <hr />
+</div>
+
+<!--
 <div *ngIf="loading" class="loading">Loading paragraphs...</div>
 
 <div *ngFor="let p of paragraphs" class="paragraph-card">
@@ -19,4 +26,6 @@
     <button *ngIf="!p.verified" class="verify-btn" (click)="verifyParagraph(p)">✅ Mark Verified</button>
     <span *ngIf="p.verified" class="verified-badge">✔️ Verified</span>
   </div>
+
+-->
 </div>
