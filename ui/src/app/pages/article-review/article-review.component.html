@@ -1,5 +1,8 @@
 <h2 class="page-title">📰 Nai Lalakai Article Review</h2>
 
+<h2>📰 Review Page Active</h2>
+<p>Total paragraphs: {{ paragraphs.length }}</p>
+
 <div *ngIf="loading" class="loading">Loading paragraphs...</div>
 
 <div *ngFor="let p of paragraphs" class="paragraph-card">
