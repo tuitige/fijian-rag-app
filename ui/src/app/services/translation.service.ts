@@ -48,7 +48,7 @@ export class TranslationService {
   }
   
   verifyParagraph(id: string, translatedParagraph: string) {
-    return this.http.post(`/api/verify-paragraph`, {
+    return this.http.post(`${this.apiUrl}/api/verify-paragraph`, {
       id,
       translatedParagraph
     });
