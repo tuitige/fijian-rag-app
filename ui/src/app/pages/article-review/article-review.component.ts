@@ -21,6 +21,7 @@ export class ArticleReviewComponent implements OnInit {
     this.loading = true;
     this.translationService.getParagraphsByTitle(this.selectedArticleTitle).subscribe({
       next: (data) => {
+        console.log('📦 Paragraphs loaded:', data);
         this.paragraphs = data;
         this.loading = false;
       },
