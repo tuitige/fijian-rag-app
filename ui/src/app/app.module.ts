@@ -18,13 +18,13 @@ import { ArticleReviewComponent } from './pages/article-review/article-review.co
   declarations: [
     AppComponent,
     VerifyModuleComponent,
-    ArticleReviewComponent,
     PagesComponent
   ],
   imports: [
     BrowserModule,
     HttpClientModule,
     AmplifyAuthenticatorModule,
+    ArticleReviewComponent,
     TrainingComponent,
     FormsModule
   ],
