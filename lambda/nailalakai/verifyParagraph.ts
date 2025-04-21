@@ -51,11 +51,18 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true
-      },      
+      },
       body: JSON.stringify({ message: 'Paragraph marked verified', id })
     };
   } catch (err) {
     console.error('❌ verifyParagraph error:', err);
-    return { statusCode: 500, body: 'Failed to verify paragraph' };
+    return {
+      statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true
+      },
+      body: 'Failed to verify paragraph'
+    };
   }
 };
