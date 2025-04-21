@@ -1,10 +1,18 @@
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';
+import { HeaderComponent } from '../../components/header/header.component';
+//import { ModuleService } from '../../services/module.service';
 import { TranslationService } from '../../services/translation.service';
 
 @Component({
+  standalone: true,
   selector: 'app-article-review',
   templateUrl: './article-review.component.html',
-  styleUrls: ['./article-review.component.scss']
+  styleUrls: ['./article-review.component.scss'],
+  imports: [CommonModule, FormsModule, HttpClientModule, HeaderComponent]
 })
 export class ArticleReviewComponent implements OnInit {
   paragraphs: any[] = [];
