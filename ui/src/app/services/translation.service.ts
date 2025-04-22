@@ -49,7 +49,7 @@ export class TranslationService {
   }
 
   getParagraphsById(articleId: string) {
-    return this.http.get<any[]>(`${this.apiUrl}/paragraphs?id=${encodeURIComponent(articleId)}`);
+    return this.http.get<any[]>(`${this.apiUrl}/get-paragraphs?id=${encodeURIComponent(articleId)}`);
   }
 
   verifyParagraph(paragraph: any) {
