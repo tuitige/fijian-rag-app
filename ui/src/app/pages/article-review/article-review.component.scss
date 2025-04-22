@@ -48,6 +48,25 @@
     width: 100%;
     max-width: 100%;
   }
+
+  englishLabelTextArea {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+
+  button.save-verify {
+    background-color: #16a34a; // Tailwind's green-600
+    color: white;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    transition: background-color 0.2s ease-in-out;
+  
+    &:hover {
+      background-color: #15803d; // Tailwind's green-700
+    }
+  }
   
   
   

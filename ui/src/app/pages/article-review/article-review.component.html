@@ -13,13 +13,16 @@
     <span *ngIf="!p.verified" class="ml-2 text-red-500">⏳ Needs Review</span>
   </div>
   <p><strong>FJ:</strong> {{ p.originalParagraph }}</p>
-  <label class="block mt-2"><strong>EN:</strong>
+  <label class="englishLabelTextArea block mt-2"><strong>EN:</strong>
     <textarea [(ngModel)]="p.translatedParagraph" rows="3" class="w-full p-2 border rounded mt-1"></textarea>
   </label>
-  <button (click)="saveAndVerify(p)" class="save-verify">
-    Save & Verify ✅
-  </button>
-  <button (click)="recordFijianSpeakerAudio(p)" class="mt-1 text-blue-500 underline text-sm">
-    🎙️ Record Fiji Speaker Audio
-  </button>
+  <div class="flex flex-wrap gap-2 mt-2">
+    <button (click)="saveAndVerify(p)" class="save-verify">
+      Save & Verify ✅
+    </button>
+    <button (click)="recordFijianSpeakerAudio(p)" class="mt-1 text-blue-500 underline text-sm">
+      🎙️ Record Fiji Speaker Audio
+    </button>
+  </div>
+
 </div>
