@@ -63,5 +63,16 @@
     }
   }
   
+  button.record-audio {
+    background-color: #3b82f6; // Tailwind's blue-500
+    color: white;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    transition: background-color 0.2s ease-in-out;
   
+    &:hover {
+      background-color: #2563eb; // Tailwind's blue-600
+    }
+  }
   
