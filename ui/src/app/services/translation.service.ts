@@ -2,12 +2,13 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TranslationService {
-  private apiUrl = 'https://bv4a86k87j.execute-api.us-west-2.amazonaws.com/prod';
+  private apiUrl = environment.apiUrl;
   constructor(private http: HttpClient) {}
 
   translate(text: string, sourceLanguage: 'en' | 'fj'): Observable<any> {
@@ -44,7 +45,7 @@ export class TranslationService {
   }  
 
   getParagraphsByTitle(title: string) {
-    return this.http.get<any[]>(`${this.apiUrl}/paragraphs?title=${encodeURIComponent(title)}`);
+    return this.http.get<any[]>(`${this.apiUrl}/get-paragraphs?title=${encodeURIComponent(title)}`);
   }
   
   verifyParagraph(paragraph: any) {
