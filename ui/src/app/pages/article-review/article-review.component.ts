@@ -17,6 +17,7 @@ import { TranslationService } from '../../services/translation.service';
 export class ArticleReviewComponent implements OnInit {
   paragraphs: any[] = [];
   title = 'Nai Lalakai - Development';
+  articleId='43289bae-09f2-4c5e-bfa4-fd5433f10cd8';
   showOnlyUnverified = false;
   loading = true;
   newFijian = '';
@@ -25,7 +26,7 @@ export class ArticleReviewComponent implements OnInit {
   constructor(private translationService: TranslationService) {}
 
   ngOnInit(): void {
-    this.translationService.getParagraphsByTitle(this.title).subscribe(data => {
+    this.translationService.getParagraphsById(this.articleId).subscribe(data => {
       this.paragraphs = data;
       this.loading = false;
     });

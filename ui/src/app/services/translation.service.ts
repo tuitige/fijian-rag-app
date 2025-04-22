@@ -47,7 +47,11 @@ export class TranslationService {
   getParagraphsByTitle(title: string) {
     return this.http.get<any[]>(`${this.apiUrl}/get-paragraphs?title=${encodeURIComponent(title)}`);
   }
-  
+
+  getParagraphsById(articleId: string) {
+    return this.http.get<any[]>(`${this.apiUrl}/paragraphs?id=${encodeURIComponent(articleId)}`);
+  }
+
   verifyParagraph(paragraph: any) {
     return this.http.post(`${this.apiUrl}/verify-paragraph`, {
       id: paragraph.articleId,

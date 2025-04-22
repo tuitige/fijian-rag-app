@@ -145,7 +145,7 @@ export class FijianRagAppStack extends Stack {
     });
 
     const getParagraphsLambda  = new NodejsFunction(this, 'getParagraphsLambda', {
-      entry: path.join(__dirname, '../lambda/nailalakai/getParagraphsByTitle.ts'),
+      entry: path.join(__dirname, '../lambda/nailalakai/getParagraphsById.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_18_X,
       timeout: Duration.minutes(5),
