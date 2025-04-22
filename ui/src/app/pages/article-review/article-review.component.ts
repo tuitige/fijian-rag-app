@@ -75,7 +75,8 @@ export class ArticleReviewComponent implements OnInit {
     );
   }
 
-  recordAudio(paragraph: any) {
-    alert(`🎤 [Placeholder] Would start recording for: ${paragraph.originalParagraph.slice(0, 40)}...`);
+  recordFijianSpeakerAudio(paragraph: any) {
+    alert(`🎙️ [Placeholder] Record Fiji Speaker Audio for: ${paragraph.originalParagraph.slice(0, 40)}...`);
   }
+
 }
