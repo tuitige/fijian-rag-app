@@ -1,26 +1,22 @@
-<h2>📰 Nai Lalakai Article Review</h2>
-<p>Total paragraphs loaded: {{ paragraphs.length }}</p>
+<h2 class="text-xl font-bold mb-4">📰 Article Review: {{ title }}</h2>
+<button (click)="toggleFilter()" class="mb-4 px-4 py-2 rounded bg-blue-100 hover:bg-blue-200">
+  Show: {{ showOnlyUnverified ? 'All' : 'Unverified Only' }}
+</button>
+<p>Total loaded: {{ filteredParagraphs.length }}</p>
 
-<div *ngFor="let p of paragraphs" class="paragraph-card" style="border: 1px solid #ccc; padding: 1rem; margin-bottom: 1.5rem;">
-  <div class="fj">
-    <strong>Fijian:</strong>
-    <p>{{ p.originalParagraph }}</p>
-  </div>
+<div *ngIf="loading" class="text-gray-500">Loading...</div>
 
-  <div class="en">
-    <strong>English:</strong>
-    <textarea
-      [(ngModel)]="p.translatedParagraph"
-      [readonly]="p.verified"
-      rows="3"
-      style="width: 100%; padding: 0.5rem; font-family: sans-serif;"
-    ></textarea>
+<div *ngFor="let p of filteredParagraphs; let i = index" class="border p-4 mb-3 rounded shadow">
+  <div class="text-sm text-gray-500 mb-1">
+    Paragraph {{ i + 1 }} | Confidence: {{ p.confidence || 'N/A' }}
+    <span *ngIf="p.verified" class="ml-2 text-green-600">✅ Verified</span>
+    <span *ngIf="!p.verified" class="ml-2 text-red-500">⏳ Needs Review</span>
   </div>
-
-  <div class="controls" style="margin-top: 0.5rem;">
-    <button *ngIf="!p.verified" (click)="verifyParagraph(p)" style="background-color: #34a853; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;">
-      ✅ Save & Verify
-    </button>
-    <span *ngIf="p.verified" class="verified-badge" style="color: green; font-weight: bold;">✔ Verified</span>
-  </div>
+  <p><strong>FJ:</strong> {{ p.originalParagraph }}</p>
+  <label class="block mt-2"><strong>EN:</strong>
+    <textarea [(ngModel)]="p.translatedParagraph" rows="3" class="w-full p-2 border rounded mt-1"></textarea>
+  </label>
+  <button (click)="saveAndVerify(p)" class="mt-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+    Save & Verify ✅
+  </button>
 </div>

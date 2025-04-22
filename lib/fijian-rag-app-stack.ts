@@ -3,7 +3,7 @@ import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
-//import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 //import * as opensearch from 'aws-cdk-lib/aws-opensearchserverless';
 import * as opensearch from 'aws-cdk-lib/aws-opensearchservice';
@@ -68,7 +68,8 @@ export class FijianRagAppStack extends Stack {
         iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonS3FullAccess'),
         iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonTextractFullAccess'),
         iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonOpenSearchServiceFullAccess'),
-        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonBedrockFullAccess')
+        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonBedrockFullAccess'),
+        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonDynamoDBFullAccess')
       ]
     });
 
@@ -77,7 +78,7 @@ export class FijianRagAppStack extends Stack {
       `arn:aws:iam::${Stack.of(this).account}:user/tigeyoung`
     ].filter(Boolean); 
 
-    const sharedEnv = {
+    const sharedEnv: { [key: string]: string } = {
       BUCKET_NAME: contentBucket.bucketName
     };
 
@@ -265,16 +266,46 @@ export class FijianRagAppStack extends Stack {
       ]
     });
 
+    sharedEnv['OPENSEARCH_ENDPOINT'] = osDomain.domainEndpoint;
+
+
     agentRouterLambda.addEnvironment('OPENSEARCH_ENDPOINT', osDomain.domainEndpoint);
     textractLambda.addEnvironment('OPENSEARCH_ENDPOINT', osDomain.domainEndpoint);
     aggregatorLambda.addEnvironment('OPENSEARCH_ENDPOINT', osDomain.domainEndpoint);
     ingestArticleLambda.addEnvironment('OPENSEARCH_ENDPOINT', osDomain.domainEndpoint);
     getParagraphsLambda.addEnvironment('OPENSEARCH_ENDPOINT', osDomain.domainEndpoint);
     verifyParagraphLambda.addEnvironment('OPENSEARCH_ENDPOINT', osDomain.domainEndpoint);
+
+    const articleTable = new dynamodb.Table(this, 'ArticleVerificationTable', {
+      tableName: 'ArticleVerificationTable',
+      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.RETAIN
+    });
     
+    // Optional: add GSI for verified = false
+    articleTable.addGlobalSecondaryIndex({
+      indexName: 'UnverifiedIndex',
+      partitionKey: { name: 'verified', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL
+    });
+
+    sharedEnv.DDB_TABLE_NAME  = articleTable.tableName;
+    articleTable.grantReadWriteData(ingestArticleLambda);
+    articleTable.grantReadWriteData(getParagraphsLambda);
+    articleTable.grantReadWriteData(verifyParagraphLambda);
+    articleTable.grantReadWriteData(aggregatorLambda);
+    articleTable.grantReadWriteData(agentRouterLambda);
+    articleTable.grantReadWriteData(textractLambda);
     // 🔹 API Gateway
     const api = new apigateway.RestApi(this, 'FijianRagApi', {
       restApiName: 'Fijian RAG API',
+      defaultCorsPreflightOptions: {
+        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowMethods: apigateway.Cors.ALL_METHODS
+      },
       deployOptions: { stageName: 'prod' }
     });
 

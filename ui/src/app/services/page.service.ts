@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class PageService {
-  private apiUrl = 'https://y3en1uves8.execute-api.us-west-2.amazonaws.com/prod';
+  private apiUrl = 'https://bv4a86k87j.execute-api.us-west-2.amazonaws.com/prod';
 
   constructor(private http: HttpClient) {}
 

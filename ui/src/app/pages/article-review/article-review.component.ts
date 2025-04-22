@@ -16,32 +16,65 @@ import { TranslationService } from '../../services/translation.service';
 })
 export class ArticleReviewComponent implements OnInit {
   paragraphs: any[] = [];
-  loading = false;
-  selectedArticleTitle = 'Nai Lalakai - Development';
+  title = 'Nai Lalakai - Development';
+  showOnlyUnverified = false;
+  loading = true;
+  newFijian = '';
+  newEnglish = '';
 
   constructor(private translationService: TranslationService) {}
 
   ngOnInit(): void {
-    this.loadParagraphs();
+    this.translationService.getParagraphsByTitle(this.title).subscribe(data => {
+      this.paragraphs = data;
+      this.loading = false;
+    });
   }
 
-  loadParagraphs() {
-    this.loading = true;
-    this.translationService.getParagraphsByTitle(this.selectedArticleTitle).subscribe({
-      next: (data) => {
-        console.log('📦 Paragraphs loaded:', data);
-        this.paragraphs = data;
-        this.loading = false;
+  saveAndVerify(paragraph: any) {
+    this.translationService.verifyParagraph(paragraph).subscribe(
+      (res) => {
+        paragraph.verified = true;
+        alert('✔ Translation saved and verified');
       },
-      error: () => {
-        this.loading = false;
+      (err) => {
+        console.error(err);
+        alert('❌ Failed to verify');
       }
-    });
+    );
   }
 
-  verifyParagraph(p: any) {
-    this.translationService.verifyParagraph(p.id, p.translatedParagraph).subscribe(() => {
-      p.verified = true;
-    });
+  toggleFilter() {
+    this.showOnlyUnverified = !this.showOnlyUnverified;
+  }
+
+  get filteredParagraphs() {
+    return this.showOnlyUnverified
+      ? this.paragraphs.filter(p => !p.verified)
+      : this.paragraphs;
+  }
+
+  addNewTranslation() {
+    const newItem = {
+      articleId: this.title,
+      originalParagraph: this.newFijian,
+      translatedParagraph: this.newEnglish
+    };
+    this.translationService.verifyParagraph(newItem).subscribe(
+      (res) => {
+        alert('✔ New translation saved');
+        this.paragraphs.push({ ...newItem, verified: true });
+        this.newFijian = '';
+        this.newEnglish = '';
+      },
+      (err) => {
+        console.error(err);
+        alert('❌ Failed to add translation');
+      }
+    );
+  }
+
+  recordAudio(paragraph: any) {
+    alert(`🎤 [Placeholder] Would start recording for: ${paragraph.originalParagraph.slice(0, 40)}...`);
   }
 }

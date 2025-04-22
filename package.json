@@ -11,9 +11,6 @@
     "@aws-amplify/backend-auth": "^1.5.1",
     "@aws-cdk/aws-amplify-alpha": "^2.186.0-alpha.0",
     "@aws-cdk/aws-lambda-nodejs": "^1.203.0",
-    "aws-cdk-lib": "^2.190.0",
-    "constructs": "^10.4.2",
-
     "@aws-sdk/client-bedrock-runtime": "^3.787.0",
     "@aws-sdk/client-dynamodb": "^3.787.0",
     "@aws-sdk/client-opensearch": "^3.787.0",
@@ -22,13 +19,15 @@
     "@aws-sdk/client-textract": "^3.787.0",
     "@aws-sdk/credential-provider-node": "^3.787.0",
     "@aws-sdk/lib-dynamodb": "^3.787.0",
+    "@aws-sdk/node-http-handler": "^3.370.0",
     "@aws-sdk/protocol-http": "^3.370.0",
     "@aws-sdk/signature-v4": "^3.370.0",
-    "@aws-sdk/node-http-handler": "^3.370.0",
-
-    "@smithy/util-utf8": "^4.0.0",
     "@smithy/signature-v4": "^5.0.2",
-
+    "@smithy/util-utf8": "^4.0.0",
+    "aws-cdk-lib": "^2.190.0",
+    "axios": "^1.8.4",
+    "cheerio": "^1.0.0",
+    "constructs": "^10.4.2",
     "dotenv": "^16.4.7",
     "esbuild": "^0.25.2",
     "uuid": "^9.0.1"

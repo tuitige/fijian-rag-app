@@ -7,7 +7,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class TranslationService {
-  private apiUrl = 'https://y3en1uves8.execute-api.us-west-2.amazonaws.com/prod';
+  private apiUrl = 'https://bv4a86k87j.execute-api.us-west-2.amazonaws.com/prod';
   constructor(private http: HttpClient) {}
 
   translate(text: string, sourceLanguage: 'en' | 'fj'): Observable<any> {
@@ -44,13 +44,14 @@ export class TranslationService {
   }  
 
   getParagraphsByTitle(title: string) {
-    return this.http.get<any[]>(`${this.apiUrl}/get-paragraphs?title=${encodeURIComponent(title)}`);
+    return this.http.get<any[]>(`${this.apiUrl}/paragraphs?title=${encodeURIComponent(title)}`);
   }
   
-  verifyParagraph(id: string, translatedParagraph: string) {
+  verifyParagraph(paragraph: any) {
     return this.http.post(`${this.apiUrl}/verify-paragraph`, {
-      id,
-      translatedParagraph
+      id: paragraph.articleId,
+      originalParagraph: paragraph.originalParagraph,
+      translatedParagraph: paragraph.translatedParagraph
     });
   }
   
