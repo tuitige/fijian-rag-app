@@ -9,7 +9,7 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 
 const TABLE_NAME = process.env.DDB_TABLE_NAME! || 'articleVerificationTable';
 const OS_ENDPOINT = process.env.OPENSEARCH_ENDPOINT!;
-const REGION = process.env.AWS_REGION!;
+const REGION = process.env.AWS_REGION! || 'us-west-2';
 const OS_INDEX = 'translations';
 
 const ddb = new DynamoDBClient({ region: REGION });
