@@ -52,12 +52,13 @@ export class TranslationService {
     return this.http.get<any[]>(`${this.apiUrl}/get-paragraphs?id=${encodeURIComponent(articleId)}`);
   }
 
-  verifyParagraph(paragraph: any) {
-    return this.http.post(`${this.apiUrl}/verify-paragraph`, {
-      id: paragraph.articleId,
-      originalParagraph: paragraph.originalParagraph,
-      translatedParagraph: paragraph.translatedParagraph
-    });
+  verifyParagraph(payload: {
+    articleId: string;
+    index: number;
+    originalParagraph: string;
+    translatedParagraph: string;
+  }) {
+    return this.http.post(`${this.apiUrl}/verify-paragraph`, payload);
   }
   
 

@@ -18,6 +18,7 @@ export class ArticleReviewComponent implements OnInit {
   paragraphs: any[] = [];
   title = 'Nai Lalakai - Development';
   articleId='43289bae-09f2-4c5e-bfa4-fd5433f10cd8';
+  newIndex=0;
   showOnlyUnverified = false;
   loading = true;
   newFijian = '';
@@ -33,7 +34,14 @@ export class ArticleReviewComponent implements OnInit {
   }
 
   saveAndVerify(paragraph: any) {
-    this.translationService.verifyParagraph(paragraph).subscribe(
+    const payload = {
+      articleId: paragraph.articleId,
+      index: paragraph.index,
+      originalParagraph: paragraph.originalParagraph,
+      translatedParagraph: paragraph.translatedParagraph
+    };
+  
+    this.translationService.verifyParagraph(payload).subscribe(
       (res) => {
         paragraph.verified = true;
         alert('✔ Translation saved and verified');
@@ -58,6 +66,7 @@ export class ArticleReviewComponent implements OnInit {
   addNewTranslation() {
     const newItem = {
       articleId: this.title,
+      index: this.newIndex,
       originalParagraph: this.newFijian,
       translatedParagraph: this.newEnglish
     };

@@ -1,5 +1,5 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
-import { DynamoDBClient, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { UpdateItemCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { HttpRequest } from '@aws-sdk/protocol-http';
 import { NodeHttpHandler } from '@aws-sdk/node-http-handler';
 import { SignatureV4 } from '@aws-sdk/signature-v4';
@@ -7,52 +7,29 @@ import { defaultProvider } from '@aws-sdk/credential-provider-node';
 import { Sha256 } from '@aws-crypto/sha256-js';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
-const REGION = process.env.AWS_REGION!;
-const TABLE_NAME = process.env.DDB_TABLE_NAME!;
+const TABLE_NAME = process.env.DDB_TABLE_NAME! || 'articleVerificationTable';
 const OS_ENDPOINT = process.env.OPENSEARCH_ENDPOINT!;
-const INDEX = 'translations';
+const REGION = process.env.AWS_REGION!;
+const OS_INDEX = 'translations';
 
 const ddb = new DynamoDBClient({ region: REGION });
 const bedrock = new BedrockRuntimeClient({ region: REGION });
 
-const generateEmbedding = async (text: string): Promise<number[]> => {
-  const payload = {
-    inputText: text,
-    embeddingConfig: {},
-    modelId: 'amazon.titan-embed-text-v1'
-  };
-
-  const command = new InvokeModelCommand({
-    modelId: 'amazon.titan-embed-text-v1',
-    contentType: 'application/json',
-    accept: 'application/json',
-    body: JSON.stringify(payload)
-  });
-
-  const response = await bedrock.send(command);
-  const raw = new TextDecoder().decode(response.body);
-  const parsed = JSON.parse(raw);
-  return parsed.embedding;
-};
-
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}');
-    const { id, originalParagraph, translatedParagraph } = body;
+    const { articleId, index, originalParagraph, translatedParagraph } = body;
 
-    if (!id || !originalParagraph || !translatedParagraph) {
-      return {
-        statusCode: 400,
-        body: 'Missing required fields'
-      };
+    if (!articleId || index === undefined || !originalParagraph || !translatedParagraph) {
+      return { statusCode: 400, body: 'Missing required fields' };
     }
 
-    // Update DynamoDB entry
+    // 1. Update DDB
     await ddb.send(new UpdateItemCommand({
       TableName: TABLE_NAME,
       Key: {
-        PK: { S: `article#${id}` },
-        SK: { S: `paragraph#${id}` }
+        PK: { S: `article#${articleId}` },
+        SK: { S: `paragraph#${index}` }
       },
       UpdateExpression: 'SET verified = :v, translatedParagraph = :t',
       ExpressionAttributeValues: {
@@ -61,22 +38,39 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }
     }));
 
-    // Generate embedding and index to OpenSearch
-    const embedding = await generateEmbedding(originalParagraph);
+    // 2. Embed using Titan
+    const embedBody = JSON.stringify({
+      inputText: originalParagraph,
+      embeddingConfig: {},
+      modelId: 'amazon.titan-embed-text-v1'
+    });
 
-    const doc = {
+    const embedCommand = new InvokeModelCommand({
+      modelId: 'amazon.titan-embed-text-v1',
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: embedBody
+    });
+
+    const embedResponse = await bedrock.send(embedCommand);
+    const raw = new TextDecoder().decode(embedResponse.body);
+    const parsed = JSON.parse(raw);
+    const embedding = parsed.embedding;
+
+    // 3. Store in OpenSearch
+    const osDoc = {
       originalText: originalParagraph,
       translatedText: translatedParagraph,
       verified: true,
-      source: 'Claude',
+      source: 'Makita',
       embedding
     };
 
     const request = new HttpRequest({
       method: 'POST',
       hostname: OS_ENDPOINT.replace(/^https?:\/\//, ''),
-      path: `/${INDEX}/_doc`,
-      body: JSON.stringify(doc),
+      path: `/${OS_INDEX}/_doc`,
+      body: JSON.stringify(osDoc),
       headers: {
         host: OS_ENDPOINT,
         'Content-Type': 'application/json'
@@ -97,15 +91,24 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       statusCode: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Credentials': true
+        'Access-Control-Allow-Credentials': true,
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST,OPTIONS'
       },
-      body: JSON.stringify({ message: 'Verified and stored', id })
+      body: JSON.stringify({ message: 'Paragraph verified and indexed' })
     };
+
   } catch (err) {
-    console.error('❌ verify-paragraph error:', err);
+    console.error('❌ verifyParagraph error:', err);
     return {
       statusCode: 500,
-      body: 'Internal server error'
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST,OPTIONS'
+      },
+      body: 'Failed to verify paragraph'
     };
   }
 };
