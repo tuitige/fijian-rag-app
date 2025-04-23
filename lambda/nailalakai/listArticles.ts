@@ -1,7 +1,7 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { DynamoDBClient, ScanCommand } from '@aws-sdk/client-dynamodb';
 
-const TABLE_NAME = process.env.DDB_TABLE_NAME!;
+const TABLE_NAME = process.env.DDB_TABLE_NAME! || 'ArticleVerificationTable';
 const REGION = process.env.AWS_REGION!;
 const ddb = new DynamoDBClient({ region: REGION });
 
