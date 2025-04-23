@@ -60,6 +60,11 @@ export class TranslationService {
   }) {
     return this.http.post(`${this.apiUrl}/verify-paragraph`, payload);
   }
+
+  getAllArticles() {
+    return this.http.get<any[]>(`${this.apiUrl}/list-articles`);
+  }
+  
   
 
 }

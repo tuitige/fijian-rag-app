@@ -16,8 +16,8 @@ import { TranslationService } from '../../services/translation.service';
 })
 export class ArticleReviewComponent implements OnInit {
   paragraphs: any[] = [];
-  title = 'Nai Lalakai - Development';
-  articleId='43289bae-09f2-4c5e-bfa4-fd5433f10cd8';
+  title = '';
+  articleId='';
   newIndex=0;
   showOnlyUnverified = false;
   loading = true;
@@ -27,7 +27,13 @@ export class ArticleReviewComponent implements OnInit {
   constructor(private translationService: TranslationService) {}
 
   ngOnInit(): void {
+    // Try to get articleId from URL query param
+    const urlParams = new URLSearchParams(window.location.search);
+    this.title = urlParams.get('title') || 'Nai Lalakai - unspecified title';
+    this.articleId = urlParams.get('id') || '43289bae-09f2-4c5e-bfa4-fd5433f10cd8';
     this.translationService.getParagraphsById(this.articleId).subscribe(data => {
+      // Auto-assign index if not already present
+      this.paragraphs = data.map((p, i) => ({ ...p, index: i }));
       this.paragraphs = data;
       this.loading = false;
     });

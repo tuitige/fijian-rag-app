@@ -161,6 +161,20 @@ export class FijianRagAppStack extends Stack {
       },
     });
 
+    const listArticlesLambda = new NodejsFunction(this, 'ListArticlesLambda', {
+      entry: path.join(__dirname, '../lambda/nailalakai/listArticles.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_18_X,
+      timeout: Duration.minutes(1),
+      memorySize: 512,
+      role: lambdaRole,
+      bundling: {
+        externalModules: [],
+        nodeModules: ['@aws-sdk/client-dynamodb']
+      },
+      environment: sharedEnv
+    });
+    
     const verifyParagraphLambda  = new NodejsFunction(this, 'verifyParagraphLambda', {
       entry: path.join(__dirname, '../lambda/nailalakai/verifyParagraph.ts'),
       handler: 'handler',
@@ -299,6 +313,8 @@ export class FijianRagAppStack extends Stack {
     articleTable.grantReadWriteData(aggregatorLambda);
     articleTable.grantReadWriteData(agentRouterLambda);
     articleTable.grantReadWriteData(textractLambda);
+    articleTable.grantReadWriteData(listArticlesLambda);
+
     // 🔹 API Gateway
     const api = new apigateway.RestApi(this, 'FijianRagApi', {
       restApiName: 'Fijian RAG API',
@@ -321,6 +337,9 @@ export class FijianRagAppStack extends Stack {
 
     const aggregateResource = api.root.addResource('aggregate');
     aggregateResource.addMethod('GET', new apigateway.LambdaIntegration(aggregatorLambda));
+
+    const listArticlesResource = api.root.addResource('list-articles');
+    listArticlesResource.addMethod('GET', new apigateway.LambdaIntegration(listArticlesLambda));    
 
     api.root.addResource('translate').addMethod('POST', new apigateway.LambdaIntegration(agentRouterLambda));
     api.root.addResource('verify').addMethod('POST', new apigateway.LambdaIntegration(agentRouterLambda));

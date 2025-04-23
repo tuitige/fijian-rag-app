@@ -7,7 +7,7 @@ import { defaultProvider } from '@aws-sdk/credential-provider-node';
 import { Sha256 } from '@aws-crypto/sha256-js';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
-const TABLE_NAME = process.env.DDB_TABLE_NAME! || 'articleVerificationTable';
+const TABLE_NAME = process.env.DDB_TABLE_NAME! || 'ArticleVerificationTable';
 const OS_ENDPOINT = process.env.OPENSEARCH_ENDPOINT!;
 const REGION = process.env.AWS_REGION! || 'us-west-2';
 const OS_INDEX = 'translations';
@@ -24,8 +24,23 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       return { statusCode: 400, body: 'Missing required fields' };
     }
 
+const debugDDB = `{
+      TableName: ${TABLE_NAME},
+      Key: {
+        PK: { S: article#${articleId} },
+        SK: { S: paragraph#${index} }
+      },
+      UpdateExpression: 'SET verified = :v, translatedParagraph = :t',
+      ExpressionAttributeValues: {
+        ':v': { S: 'true' },
+        ':t': { S: ${translatedParagraph} }
+      }
+    }`;
+
+    console.log('🔍 verifyParagraph debugDDB:', debugDDB);
+
     // 1. Update DDB
-    await ddb.send(new UpdateItemCommand({
+    const ddbResponse = await ddb.send(new UpdateItemCommand({
       TableName: TABLE_NAME,
       Key: {
         PK: { S: `article#${articleId}` },
@@ -37,12 +52,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         ':t': { S: translatedParagraph }
       }
     }));
+    console.log('✅ DDB update response:', ddbResponse);
 
     // 2. Embed using Titan
     const embedBody = JSON.stringify({
-      inputText: originalParagraph,
-      embeddingConfig: {},
-      modelId: 'amazon.titan-embed-text-v1'
+      inputText: originalParagraph
     });
 
     const embedCommand = new InvokeModelCommand({
@@ -51,6 +65,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       accept: 'application/json',
       body: embedBody
     });
+
+    console.log('🔵 Bedrock embed payload:', JSON.stringify(embedBody));
 
     const embedResponse = await bedrock.send(embedCommand);
     const raw = new TextDecoder().decode(embedResponse.body);
