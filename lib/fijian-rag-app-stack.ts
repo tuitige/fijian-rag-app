@@ -12,53 +12,26 @@ import * as path from 'path';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { SecretValue } from 'aws-cdk-lib';
 
-
 export class FijianRagAppStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const COLLECTION_NAME = 'fijian-rag-collection';
+    const DDB_ARTICLE_VERIFICATION_TABLE = 'ArticleVerificationTable';
+    const CONTENT_BUCKET_NAME = 'fijian-rag-app-content';
+    const SNAPSHOTS_BUCKET_NAME = 'fijian-rag-app-snapshots';
+    const OS_TRANSLATIONS_INDEX = 'translations';
+    const OS_DOMAIN = 'fijian-rag-domain';
 
     // 🔹 S3 Bucket
 
     const contentBucket = new s3.Bucket(this, 'ContentBucket', {
-      bucketName: 'fijian-rag-app-content',
+      bucketName: CONTENT_BUCKET_NAME,
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
     });
 
     // 🔹 S3 Bucket for Snapshots
-    const snapshotBucket = s3.Bucket.fromBucketName(this, 'SnapshotsBucket', 'fijian-rag-app-snapshots');
-/*
-    const snapshotBucket = new s3.Bucket(this, 'SnapshotsBucket', {
-      bucketName: 'fijian-rag-app-snapshots',
-      removalPolicy: RemovalPolicy.RETAIN,
-      autoDeleteObjects: false
-    });
-*/
-
-    // 🔹 OpenSearch Serverless (AOSS) Policies and Collection
-/*    
-    const encryptionPolicy = new opensearch.CfnSecurityPolicy(this, 'AossEncryptionPolicy', {
-      name: 'fijian-rag-encryption',
-      type: 'encryption',
-      policy: JSON.stringify({
-        Rules: [
-          {
-            ResourceType: 'collection',
-            Resource: [`collection/${COLLECTION_NAME}`]
-          },
-        ],
-        AWSOwnedKey: true,
-      }),
-    });
-
-    const aossCollection = new opensearch.CfnCollection(this, 'AossCollection', {
-      name: COLLECTION_NAME,
-      type: 'VECTORSEARCH',
-    });
-    aossCollection.addDependency(encryptionPolicy);
-*/
+    const snapshotBucket = s3.Bucket.fromBucketName(this, 'SnapshotsBucket', SNAPSHOTS_BUCKET_NAME);
 
     // 🔹 IAM Role
     const lambdaRole = new iam.Role(this, 'SharedLambdaRole', {
@@ -78,36 +51,6 @@ export class FijianRagAppStack extends Stack {
       `arn:aws:iam::${Stack.of(this).account}:user/tigeyoung`
     ].filter(Boolean); 
 
-    const sharedEnv: { [key: string]: string } = {
-      BUCKET_NAME: contentBucket.bucketName
-    };
-
-    // 🔸 Translate Agent Lambda
-/*    const translateLambda = new NodejsFunction(this, 'TranslateLambda', {
-      entry: path.join(__dirname, '../lambda/agents/translate-agent.ts'),
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_18_X,
-      memorySize: 1024,
-      timeout: Duration.seconds(30),
-      role: lambdaRole,
-      environment: sharedEnv
-    });
-*/
-    // 🔸 Agent Router Lambda
-    const agentRouterLambda  = new NodejsFunction(this, 'AgentRouterLambda', {
-      entry: path.join(__dirname, '../lambda/index.ts'),
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_18_X,
-      memorySize: 1024,
-      timeout: Duration.seconds(30),
-      role: lambdaRole,
-      environment: sharedEnv,
-      bundling: {
-        externalModules: [], 
-        nodeModules: ['@smithy/util-utf8'], 
-      },
-    });
-
     // 🔸 Textract Processor Lambda
     const textractLambda = new NodejsFunction(this, 'TextractLambda', {
       entry: path.join(__dirname, '../lambda/textractProcessor/index.ts'),
@@ -116,10 +59,7 @@ export class FijianRagAppStack extends Stack {
       memorySize: 1024,
       timeout: Duration.minutes(2),
       role: lambdaRole,
-      environment: {
-        ...sharedEnv,
-        BUCKET_NAME: contentBucket.bucketName
-      },
+      environment: {},
       bundling: {
         externalModules: [], 
         nodeModules: ['@smithy/util-utf8'], 
@@ -134,14 +74,11 @@ export class FijianRagAppStack extends Stack {
       timeout: Duration.minutes(5),
       memorySize: 1024,
       role: lambdaRole,
+      environment: {},
       bundling: {
         externalModules: [], // bundle everything
         nodeModules: ['uuid', '@aws-sdk/client-s3', '@aws-sdk/client-bedrock-runtime', '@aws-sdk/protocol-http', '@aws-sdk/signature-v4', '@aws-sdk/credential-provider-node', '@aws-crypto/sha256-js']
       },      
-      environment: {
-        ...sharedEnv,
-        BUCKET_NAME: contentBucket.bucketName
-      },
     });
 
     const getParagraphsLambda  = new NodejsFunction(this, 'getParagraphsLambda', {
@@ -151,14 +88,11 @@ export class FijianRagAppStack extends Stack {
       timeout: Duration.minutes(5),
       memorySize: 1024,
       role: lambdaRole,
+      environment: {},
       bundling: {
         externalModules: [], // bundle everything
         nodeModules: ['uuid', '@aws-sdk/client-s3', '@aws-sdk/client-bedrock-runtime', '@aws-sdk/protocol-http', '@aws-sdk/signature-v4', '@aws-sdk/credential-provider-node', '@aws-crypto/sha256-js']
       },      
-      environment: {
-        ...sharedEnv,
-        BUCKET_NAME: contentBucket.bucketName
-      },
     });
 
     const listArticlesLambda = new NodejsFunction(this, 'ListArticlesLambda', {
@@ -168,11 +102,11 @@ export class FijianRagAppStack extends Stack {
       timeout: Duration.minutes(1),
       memorySize: 512,
       role: lambdaRole,
+      environment: {},
       bundling: {
         externalModules: [],
         nodeModules: ['@aws-sdk/client-dynamodb']
-      },
-      environment: sharedEnv
+      }
     });
     
     const verifyParagraphLambda  = new NodejsFunction(this, 'verifyParagraphLambda', {
@@ -182,14 +116,11 @@ export class FijianRagAppStack extends Stack {
       timeout: Duration.minutes(5),
       memorySize: 1024,
       role: lambdaRole,
+      environment: {},
       bundling: {
         externalModules: [], // bundle everything
         nodeModules: ['uuid', '@aws-sdk/client-s3', '@aws-sdk/client-bedrock-runtime', '@aws-sdk/protocol-http', '@aws-sdk/signature-v4', '@aws-sdk/credential-provider-node', '@aws-crypto/sha256-js']
       },      
-      environment: {
-        ...sharedEnv,
-        BUCKET_NAME: contentBucket.bucketName
-      },
     });
 
 
@@ -200,14 +131,11 @@ export class FijianRagAppStack extends Stack {
       timeout: Duration.minutes(5),
       memorySize: 1024,
       role: lambdaRole,
+      environment: {},
       bundling: {
         externalModules: [], // bundle everything
         nodeModules: ['uuid', '@aws-sdk/client-s3', '@aws-sdk/client-bedrock-runtime', '@aws-sdk/protocol-http', '@aws-sdk/signature-v4', '@aws-sdk/credential-provider-node', '@aws-crypto/sha256-js']
       },      
-      environment: {
-        ...sharedEnv,
-        BUCKET_NAME: contentBucket.bucketName
-      },
     });
 
     contentBucket.addEventNotification(
@@ -251,7 +179,7 @@ export class FijianRagAppStack extends Stack {
     // 🔹 Provisioned OpenSearch Domain
     const osDomain = new opensearch.Domain(this, 'FijianRagDomain', {
       version: opensearch.EngineVersion.OPENSEARCH_2_11,
-      domainName: 'fijian-rag-domain',
+      domainName: OS_DOMAIN,
       removalPolicy: RemovalPolicy.DESTROY,
       capacity: {
         dataNodeInstanceType: 't3.small.search',
@@ -280,18 +208,8 @@ export class FijianRagAppStack extends Stack {
       ]
     });
 
-    sharedEnv['OPENSEARCH_ENDPOINT'] = osDomain.domainEndpoint;
-
-
-    agentRouterLambda.addEnvironment('OPENSEARCH_ENDPOINT', osDomain.domainEndpoint);
-    textractLambda.addEnvironment('OPENSEARCH_ENDPOINT', osDomain.domainEndpoint);
-    aggregatorLambda.addEnvironment('OPENSEARCH_ENDPOINT', osDomain.domainEndpoint);
-    ingestArticleLambda.addEnvironment('OPENSEARCH_ENDPOINT', osDomain.domainEndpoint);
-    getParagraphsLambda.addEnvironment('OPENSEARCH_ENDPOINT', osDomain.domainEndpoint);
-    verifyParagraphLambda.addEnvironment('OPENSEARCH_ENDPOINT', osDomain.domainEndpoint);
-
-    const articleTable = new dynamodb.Table(this, 'ArticleVerificationTable', {
-      tableName: 'ArticleVerificationTable',
+    const articleTable = new dynamodb.Table(this, DDB_ARTICLE_VERIFICATION_TABLE, {
+      tableName: DDB_ARTICLE_VERIFICATION_TABLE,
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -306,14 +224,21 @@ export class FijianRagAppStack extends Stack {
       projectionType: dynamodb.ProjectionType.ALL
     });
 
-    sharedEnv.DDB_TABLE_NAME  = articleTable.tableName;
     articleTable.grantReadWriteData(ingestArticleLambda);
     articleTable.grantReadWriteData(getParagraphsLambda);
     articleTable.grantReadWriteData(verifyParagraphLambda);
     articleTable.grantReadWriteData(aggregatorLambda);
-    articleTable.grantReadWriteData(agentRouterLambda);
+    //articleTable.grantReadWriteData(agentRouterLambda);
     articleTable.grantReadWriteData(textractLambda);
     articleTable.grantReadWriteData(listArticlesLambda);
+
+    const LearningModulesTable = new dynamodb.Table(this, 'LearningModulesTable', {
+      tableName: 'LearningModulesTable',
+      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.RETAIN
+    });
 
     // 🔹 API Gateway
     const api = new apigateway.RestApi(this, 'FijianRagApi', {
@@ -341,14 +266,34 @@ export class FijianRagAppStack extends Stack {
     const listArticlesResource = api.root.addResource('list-articles');
     listArticlesResource.addMethod('GET', new apigateway.LambdaIntegration(listArticlesLambda));    
 
-    api.root.addResource('translate').addMethod('POST', new apigateway.LambdaIntegration(agentRouterLambda));
-    api.root.addResource('verify').addMethod('POST', new apigateway.LambdaIntegration(agentRouterLambda));
+//    api.root.addResource('translate').addMethod('POST', new apigateway.LambdaIntegration(agentRouterLambda));
+//    api.root.addResource('verify').addMethod('POST', new apigateway.LambdaIntegration(agentRouterLambda));
     api.root.addResource('textract').addMethod('POST', new apigateway.LambdaIntegration(textractLambda));
         
     lambdaRole.addToPolicy(new iam.PolicyStatement({
       actions: ['es:*', 's3:*'],
       resources: ['*']
     }));    
+
+    // Shared Environment Variables for Lambdas
+    const sharedEnv = {
+      DEFAULT_REGION: 'us-west-2',
+      DDB_TABLE_NAME: DDB_ARTICLE_VERIFICATION_TABLE,
+      DDB_LEARNING_MODULES_TABLE: 'LearningModulesTable',
+      BUCKET_NAME: contentBucket.bucketName,
+      SNAPSHOTS_BUCKET_NAME,
+      OPENSEARCH_ENDPOINT: osDomain.domainEndpoint,
+      OS_INDEX: OS_TRANSLATIONS_INDEX
+    };    
+
+    for (const [key, val] of Object.entries(sharedEnv)) {
+      ingestArticleLambda.addEnvironment(key, val);
+      verifyParagraphLambda.addEnvironment(key, val);
+      //agentRouterLambda.addEnvironment(key, val);
+      textractLambda.addEnvironment(key, val);
+      aggregatorLambda.addEnvironment(key, val);
+      getParagraphsLambda.addEnvironment(key, val);
+    }
 
     // Output: OpenSearch domain endpoint
     new CfnOutput(this, 'OpenSearchEndpoint', {

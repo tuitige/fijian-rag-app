@@ -9,8 +9,8 @@ import { Sha256 } from '@aws-crypto/sha256-js';
 import { v4 as uuidv4 } from 'uuid';
 
 const OS_ENDPOINT = process.env.OPENSEARCH_ENDPOINT!;
-const TABLE_NAME = process.env.DDB_TABLE_NAME!;
-const REGION = process.env.AWS_REGION!;
+const TABLE_NAME = process.env.DDB_ARTICLE_VERIFICATION_TABLE!;
+const REGION = process.env.DEFAULT_REGION!;
 const INDEX = 'article-paragraphs';
 
 export const handler: APIGatewayProxyHandler = async (event) => {

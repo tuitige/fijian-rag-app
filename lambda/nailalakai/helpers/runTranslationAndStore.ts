@@ -7,7 +7,7 @@ import { SignatureV4 } from '@aws-sdk/signature-v4';
 import { defaultProvider } from '@aws-sdk/credential-provider-node';
 import { Sha256 } from '@aws-crypto/sha256-js';
 
-const TABLE_NAME = process.env.DDB_TABLE_NAME! || 'ArticleVerificationTable';
+const TABLE_NAME = process.env.DDB_ARTICLE_VERIFICATION_TABLE! || 'ArticleVerificationTable';
 
 const ddb = new DynamoDBClient({ region: 'us-west-2' });
 

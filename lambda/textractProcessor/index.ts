@@ -8,18 +8,18 @@ import {
 } from '@aws-sdk/client-textract';
 import { v4 as uuidv4 } from 'uuid';
 import { extractShortPhrases } from './helpers/parseText';
-import { generateEmbedding } from './helpers/generateEmbedding';
-import { indexTranslation } from './helpers/indexOpenSearch';
-import { generateModuleFromText } from './helpers/callClaude';
+import { generateEmbedding } from '../shared/bedrock/generateEmbedding';
+import { indexTranslation } from '../shared/opensearch/indexOpenSearch';
+import { generateModuleFromText } from '../shared/bedrock/callClaude';
 import { HttpRequest } from '@aws-sdk/protocol-http';
 import { NodeHttpHandler } from '@aws-sdk/node-http-handler';
 import { SignatureV4 } from '@aws-sdk/signature-v4';
 import { Sha256 } from '@aws-crypto/sha256-js';
 import { defaultProvider } from '@aws-sdk/credential-provider-node';
 
-const textractClient = new TextractClient({ region: process.env.AWS_REGION });
+const textractClient = new TextractClient({ region: process.env.DEFAULT_REGION });
 
-const s3Client = new S3Client({ region: process.env.AWS_REGION });
+const s3Client = new S3Client({ region: process.env.DEFAULT_REGION });
 const BUCKET = process.env.BUCKET_NAME!;
 
 export const handler = async (event: S3Event) => {

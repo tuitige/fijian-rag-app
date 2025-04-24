@@ -7,9 +7,9 @@ import { defaultProvider } from '@aws-sdk/credential-provider-node';
 import { Sha256 } from '@aws-crypto/sha256-js';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
-const TABLE_NAME = process.env.DDB_TABLE_NAME! || 'ArticleVerificationTable';
+const TABLE_NAME = process.env.DDB_ARTICLE_VERIFICATION_TABLE! || 'ArticleVerificationTable';
 const OS_ENDPOINT = process.env.OPENSEARCH_ENDPOINT!;
-const REGION = process.env.AWS_REGION! || 'us-west-2';
+const REGION = process.env.DEFAULT_REGION! || 'us-west-2';
 const OS_INDEX = 'translations';
 
 const ddb = new DynamoDBClient({ region: REGION });

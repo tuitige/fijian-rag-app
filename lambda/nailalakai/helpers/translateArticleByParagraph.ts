@@ -1,6 +1,6 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
-const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION });
+const bedrock = new BedrockRuntimeClient({ region: process.env.DEFAULT_REGION });
 
 export const translateArticleByParagraph = async (paragraphs: string[]): Promise<any[]> => {
   const promptText = `You are a translator working on a Fijian language newspaper article.

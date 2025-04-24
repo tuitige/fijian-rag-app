@@ -12,10 +12,15 @@ export const CLAUDE_3_5_SONNET_V2 = {
     }
   };
 
-export const OS_REGION = 'us-west-2';
+export const FIJI_RAG_REGION = 'us-west-2';
+export const CONTENT_BUCKET_NAME = 'fijian-rag-app-content';
 
-export const OS_ENDPOINT = process.env.OPENSEARCH_ENDPOINT || 'https://search-fijian-rag-domain-xxxxxx.us-west-2.es.amazonaws.com';
+// DDB table names
+export const LEARNING_MODULES_TABLE = 'LearningModulesTable';
+export const ARTICLE_VERIFICATION_TABLE = 'ArticleVerificationTable';
+export const TRANSLATIONS_TABLE = 'TranslationsTable';
 
-// Index names
+// Opensearch constants
+export const OS_DOMAIN = 'fijian-rag-domain';
 export const TRANSLATIONS_INDEX = 'translations';
-export const MODULES_INDEX = 'learning-modules';
+export const LEARNING_MODULES_INDEX = 'learning-modules';

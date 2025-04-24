@@ -3,7 +3,7 @@ import {
     InvokeModelCommand
   } from '@aws-sdk/client-bedrock-runtime';
   
-  const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION });
+  const bedrock = new BedrockRuntimeClient({ region: process.env.DEFAULT_REGION });
   
   export const extractTranslationPairsFromText = async (
     paragraphs: string[]

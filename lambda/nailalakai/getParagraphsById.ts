@@ -1,8 +1,8 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { DynamoDBClient, QueryCommand, ScanCommand } from '@aws-sdk/client-dynamodb';
 
-const TABLE_NAME = process.env.DDB_TABLE_NAME! || 'ArticleVerificationTable';
-const REGION = process.env.AWS_REGION!;
+const TABLE_NAME = process.env.DDB_ARTICLE_VERIFICATION_TABLE! || 'ArticleVerificationTable';
+const REGION = process.env.DEFAULT_REGION!;
 const ddb = new DynamoDBClient({ region: REGION });
 
 export const handler: APIGatewayProxyHandler = async (event) => {
