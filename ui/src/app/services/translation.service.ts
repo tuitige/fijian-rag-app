@@ -65,6 +65,22 @@ export class TranslationService {
     return this.http.get<any[]>(`${this.apiUrl}/list-articles`);
   }
   
+  getModuleById(moduleId: string) {
+    return this.http.get<any>(`${this.apiUrl}/get-module?id=${moduleId}`);
+  }
   
+  getPhrasesByModuleId(moduleId: string) {
+    return this.http.get<any[]>(`${this.apiUrl}/module-phrases?moduleId=${moduleId}`);
+  }
+  
+  verifyPhraseFromModule(moduleId: string, phrase: any) {
+    return this.http.post(`${this.apiUrl}/verify-phrase`, {
+      moduleId,
+      phraseId: phrase.id,
+      originalText: phrase.originalText,
+      translatedText: phrase.translatedText
+    });
+  }
+    
 
 }

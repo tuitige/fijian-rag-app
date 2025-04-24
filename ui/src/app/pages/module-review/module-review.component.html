@@ -1,0 +1,33 @@
+<div class="module-review-container">
+    <h2 class="text-xl font-bold mb-2">📘 Module: {{ moduleTitle }}</h2>
+  
+    <div *ngIf="module" class="mb-6">
+      <h3 class="text-lg font-semibold">Module Topics</h3>
+      <ul class="list-disc ml-5">
+        <li *ngFor="let topic of module.topics">{{ topic.title }} - {{ topic.summary }}</li>
+      </ul>
+    </div>
+  
+    <h3 class="text-lg font-semibold mb-2">🔤 Phrases Extracted</h3>
+  
+    <div *ngIf="loading" class="text-gray-500 italic">Loading phrases...</div>
+  
+    <div *ngIf="!loading && phrases.length === 0" class="text-gray-400">No phrases found.</div>
+  
+    <div *ngIf="!loading && phrases.length > 0" class="space-y-4">
+      <div *ngFor="let phrase of phrases" class="border p-3 rounded shadow-sm">
+        <div><strong>FJ:</strong> {{ phrase.originalText }}</div>
+        <div>
+          <strong>EN:</strong>
+          <textarea [(ngModel)]="phrase.translatedText" rows="2" class="w-full border mt-1 p-2 rounded"></textarea>
+        </div>
+        <button *ngIf="!phrase.verified"
+                (click)="markAsVerified(phrase)"
+                class="mt-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+          ✅ Verify & Save
+        </button>
+        <span *ngIf="phrase.verified" class="text-green-600 font-semibold">Verified ✔</span>
+      </div>
+    </div>
+  </div>
+  

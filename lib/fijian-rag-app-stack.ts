@@ -138,6 +138,58 @@ export class FijianRagAppStack extends Stack {
       },      
     });
 
+    const getModuleByIdLambda = new NodejsFunction(this, 'GetModuleByIdLambda', {
+      entry: path.join(__dirname, '../lambda/learning-modules/getModuleById.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_18_X,
+      memorySize: 1024,
+      timeout: Duration.seconds(30),
+      role: lambdaRole,
+      environment: {},
+      bundling: {
+        externalModules: [], // bundle everything
+        nodeModules: ['uuid', '@aws-sdk/client-s3', '@aws-sdk/client-bedrock-runtime', '@aws-sdk/protocol-http', '@aws-sdk/signature-v4', '@aws-sdk/credential-provider-node', '@aws-crypto/sha256-js']
+      }, 
+    });
+    
+    // List Phrases for a Module
+    const getModulePhrasesLambda = new NodejsFunction(this, 'GetModulePhrasesLambda', {
+      entry: path.join(__dirname, '../lambda/learning-modules/getModulePhrases.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_18_X,
+      memorySize: 1024,
+      timeout: Duration.seconds(30),
+      role: lambdaRole,
+      environment: {},
+      bundling: {
+        externalModules: [], // bundle everything
+        nodeModules: ['uuid', '@aws-sdk/client-s3', '@aws-sdk/client-bedrock-runtime', '@aws-sdk/protocol-http', '@aws-sdk/signature-v4', '@aws-sdk/credential-provider-node', '@aws-crypto/sha256-js']
+      },
+    });
+    
+    // Verify Phrase from Module
+    const verifyPhraseLambda = new NodejsFunction(this, 'VerifyPhraseLambda', {
+      entry: path.join(__dirname, '../lambda/learning-modules/verifyPhrase.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_18_X,
+      memorySize: 1024,
+      timeout: Duration.seconds(30),
+      role: lambdaRole,
+      environment: {},
+      bundling: {
+        externalModules: [],
+        nodeModules: [
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/client-bedrock-runtime',
+          '@aws-sdk/protocol-http',
+          '@aws-sdk/signature-v4',
+          '@aws-sdk/credential-provider-node',
+          '@aws-crypto/sha256-js'
+        ]
+      }
+    });
+
+
     contentBucket.addEventNotification(
       s3.EventType.OBJECT_CREATED,
       new s3n.LambdaDestination(textractLambda),
@@ -269,7 +321,13 @@ export class FijianRagAppStack extends Stack {
 //    api.root.addResource('translate').addMethod('POST', new apigateway.LambdaIntegration(agentRouterLambda));
 //    api.root.addResource('verify').addMethod('POST', new apigateway.LambdaIntegration(agentRouterLambda));
     api.root.addResource('textract').addMethod('POST', new apigateway.LambdaIntegration(textractLambda));
-        
+
+    // learning-modules API Gateway
+    api.root.resourceForPath('get-module').addMethod('GET', new apigateway.LambdaIntegration(getModuleByIdLambda));
+    api.root.resourceForPath('module-phrases').addMethod('GET', new apigateway.LambdaIntegration(getModulePhrasesLambda));
+    api.root.resourceForPath('verify-phrase').addMethod('POST', new apigateway.LambdaIntegration(verifyPhraseLambda));
+       
+
     lambdaRole.addToPolicy(new iam.PolicyStatement({
       actions: ['es:*', 's3:*'],
       resources: ['*']
