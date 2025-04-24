@@ -4,30 +4,24 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION });
 
 export const extractPeaceCorpsPhrases = async (paragraphs: string[]): Promise<any[]> => {
-  const prompt = `You are a Fijian linguist. Extract all useful Fijian-English translation pairs from the following Peace Corps training material.
+  const prompt = `You are an expert in linguistics and Fijian language training.
 
-The material contains teaching examples, short dialogues, and crucial vocabulary sections like Commands or "Other words and phrases".
+From the input text (from a Peace Corps training manual), extract ONLY high-confidence Fijian-to-English phrase pairs.
 
-Your task:
-- Extract all Fijian phrases and their English meanings
-- Focus especially on vocabulary sections and example tables
-- Keep each pair atomic, real-world, and unambiguous
-- Add a note if it’s a politeness marker, command, or usage type
+Focus especially on:
+- Vocabulary sections
+- Commands
+- Dialogues
+- Any Fijian phrases clearly followed by their English equivalent
 
-Return result as an array like this:
+Output format:
 [
   {
-    "originalText": "kerekere",
-    "translatedText": "please",
-    "notes": "politeness marker"
-  },
-  ...
-]
-
-Fijian lesson input:
----
-${paragraphs.join('\n')}
----`;
+    "originalText": "Fijian phrase",
+    "translatedText": "English translation",
+    "notes": "optional clarifying info"
+  }
+]`;
 
   const payload = {
     anthropic_version: 'bedrock-2023-05-31',

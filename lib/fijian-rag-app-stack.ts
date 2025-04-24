@@ -362,6 +362,7 @@ export class FijianRagAppStack extends Stack {
       DEFAULT_REGION: 'us-west-2',
       DDB_TABLE_NAME: DDB_ARTICLE_VERIFICATION_TABLE,
       DDB_LEARNING_MODULES_TABLE: 'LearningModulesTable',
+      DDB_TRANSLATIONS_TABLE: 'TranslationsTable',
       BUCKET_NAME: contentBucket.bucketName,
       SNAPSHOTS_BUCKET_NAME,
       OPENSEARCH_ENDPOINT: osDomain.domainEndpoint,

@@ -45,4 +45,10 @@ export class ModuleReviewComponent implements OnInit {
       phrase.verified = true;
     });
   }
+
+  isVerified(value: any): boolean {
+    return value === true || value === 'true';
+  }
+  
+
 }

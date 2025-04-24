@@ -132,7 +132,7 @@ try {
 
     try {
       await ddb.send(new PutItemCommand({
-        TableName: TRANSLATIONS_TABLE!,
+        TableName: DDB_LEARNING_MODULES_TABLE!,
         Item: {
           PK: { S: `module#${moduleId}` },
           SK: { S: `phrase#${i}` },
