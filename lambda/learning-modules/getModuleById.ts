@@ -16,13 +16,39 @@ export const handler = async (event) => {
   }));
 
   const item = query.Items?.[0];
-  const parsed = item
-    ? Object.fromEntries(Object.entries(item).map(([k, v]) => [k, Object.values(v)[0]]))
-    : {};
 
+  if (!item) {
+    return {
+      statusCode: 404,
+      body: JSON.stringify({ error: 'Module not found' })
+    };
+  }
+  
+  const parsed = Object.fromEntries(Object.entries(item).map(
+    ([k, v]) => [k, Object.values(v)[0]]
+  ));
+  
+  // Properly parse the topics field and paragraphs
+  const topicsRaw = item.topics?.S || '[]';
+  let topics;
+  try {
+    topics = JSON.parse(topicsRaw);
+  } catch (err) {
+    console.warn('⚠️ Failed to parse topics JSON:', topicsRaw);
+    topics = [];
+  }
+  
+  const paragraphs = item.paragraphs?.L?.map(p => p.S) || [];
+  
   return {
     statusCode: 200,
     headers: { 'Access-Control-Allow-Origin': '*' },
-    body: JSON.stringify(parsed)
+    body: JSON.stringify({
+      learningModuleTitle: parsed.learningModuleTitle,
+      source: parsed.source,
+      createdAt: parsed.createdAt,
+      topics,
+      paragraphs
+    })
   };
 };
