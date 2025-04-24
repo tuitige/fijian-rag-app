@@ -5,6 +5,7 @@ import { VerifyModuleComponent } from './pages/verify-module/verify-module.compo
 import { PagesComponent } from './pages/pages/pages.component';
 import { ArticleReviewComponent } from './pages/article-review/article-review.component';
 import { ArticleListComponent } from './pages/article-list/article-list.component';
+import { ModuleReviewComponent } from './pages/module-review/module-review.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/training', pathMatch: 'full' },
