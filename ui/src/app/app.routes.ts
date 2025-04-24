@@ -11,6 +11,7 @@ export const routes: Routes = [
   { path: 'training', component: TrainingComponent },
   { path: 'article-review', component: ArticleReviewComponent },
   { path: 'article-list', component: ArticleListComponent },
+  { path: 'module-review', component: ModuleReviewComponent },
   { path: 'verify-module/:title', component: VerifyModuleComponent },
   { path: 'pages/:title', component: PagesComponent },
   { path: '**', redirectTo: '/training' } // optional fallback
