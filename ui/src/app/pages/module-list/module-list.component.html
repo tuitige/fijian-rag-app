@@ -1,0 +1,34 @@
+<div class="p-4">
+    <h2 class="text-xl font-bold mb-4">📚 Learning Modules</h2>
+  
+    <label class="block mb-2 text-sm font-medium">Filter by Source:</label>
+    <select [(ngModel)]="selectedSource" class="mb-4 p-2 border rounded">
+      <option value="All">All</option>
+      <option *ngFor="let src of modules.map(m => m.source).filter((v, i, a) => a.indexOf(v) === i)" [value]="src">
+        {{ src }}
+      </option>
+    </select>
+  
+    <table class="w-full table-auto border border-gray-300">
+      <thead class="bg-gray-100">
+        <tr>
+          <th class="px-3 py-2 text-left">Title</th>
+          <th class="px-3 py-2 text-left">Source</th>
+          <th class="px-3 py-2 text-left">Created</th>
+          <th class="px-3 py-2 text-left">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let module of filteredModules" class="border-t">
+          <td class="px-3 py-2">{{ module.learningModuleTitle }}</td>
+          <td class="px-3 py-2">{{ module.source }}</td>
+          <td class="px-3 py-2 text-sm text-gray-500">{{ module.createdAt | date:'short' }}</td>
+          <td class="px-3 py-2">
+            <button (click)="goToReview(module)" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded">
+              Review
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>

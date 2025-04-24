@@ -8,12 +8,13 @@ import { generateEmbedding } from '../shared/bedrock/generateEmbedding';
 import { indexTranslation } from '../shared/opensearch/indexOpenSearch';
 import { generateModuleFromText } from '../shared/bedrock/callClaude';
 import { extractTranslationPairsFromText } from './helpers/extractTranslationPairsFromText';
+import { extractPeaceCorpsPhrases } from './helpers/extractPeaceCorpsPhrases';
 import { indexToOpenSearch } from '../shared/opensearch/indexLearningModule';
 import { v4 as uuidv4 } from 'uuid';
 import { DynamoDBClient, QueryCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { 
   CONTENT_BUCKET_NAME, 
-  LEARNING_MODULES_TABLE, 
+  DDB_LEARNING_MODULES_TABLE, 
   TRANSLATIONS_TABLE, 
   FIJI_RAG_REGION 
 } from '../shared/constants.ts';
@@ -31,6 +32,9 @@ try {
 
   const prefix = `${moduleName}/`;
   console.log(`🔍 Aggregating module from folder: ${prefix}`);
+
+  const sourceParam = event.queryStringParameters?.source || 'FijiReferenceGrammar';
+  const source = sourceParam.trim();
 
   // List and load pg*.json files
   const listResp = await s3.send(new ListObjectsV2Command({ Bucket: CONTENT_BUCKET_NAME, Prefix: prefix }));
@@ -73,13 +77,13 @@ try {
 */
 
   const ddbResponse = await ddb.send(new PutItemCommand({
-    TableName: LEARNING_MODULES_TABLE!,
+    TableName: DDB_LEARNING_MODULES_TABLE!,
     Item: {
       PK: { S: `module#${moduleId}` },
       SK: { S: `meta#${learningModuleTitle}` },
       id: { S: moduleId },
       learningModuleTitle: { S: learningModuleTitle },
-      source: { S: 'Claude' },
+      source: { S: source },
       rawInputText: { S: allParagraphs.join('\n') },
       paragraphs: { L: allParagraphs.map(p => ({ S: p })) },
       topics: { S: JSON.stringify(claudeModule.topics) },
@@ -94,7 +98,13 @@ try {
   console.log(`📊 DDB Learning module index response: ${ddbResponse}`);
 
   // Claude Pass #2: Extract Fijian-English translation pairs
-  const extractedPhrases = await extractTranslationPairsFromText(allParagraphs);
+  let extractedPhrases: any[] = [];
+
+  if (source === 'PeaceCorps') {
+    extractedPhrases = await extractPeaceCorpsPhrases(allParagraphs);
+  } else {
+    extractedPhrases = await extractTranslationPairsFromText(allParagraphs);
+  }
   console.log(`🧠 Extracted ${extractedPhrases.length} phrase pairs from Claude.`);
 
 /*  
@@ -130,7 +140,7 @@ try {
           originalText: { S: phrase.originalText },
           translatedText: { S: phrase.translatedText },
           verified: { S: 'false' },
-          source: { S: 'Claude-extracted' },
+          source: { S: source + '-extracted'},
           moduleId: { S: moduleId },
           learningModuleTitle: { S: learningModuleTitle },
           createdAt: { S: new Date().toISOString() },

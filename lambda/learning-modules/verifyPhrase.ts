@@ -7,7 +7,7 @@ export const handler = async (event) => {
   const ddb = new DynamoDBClient({});
 
   await ddb.send(new UpdateItemCommand({
-    TableName: process.env.LEARNING_MODULES_TABLE!,
+    TableName: process.env.DDB_LEARNING_MODULES_TABLE!,
     Key: {
       PK: { S: `module#${moduleId}` },
       SK: { S: `phrase#${phraseId}` }

@@ -81,6 +81,11 @@ export class TranslationService {
       translatedText: phrase.translatedText
     });
   }
+
+  getAllModules() {
+    return this.http.get<any[]>(`${this.apiUrl}/list-modules`);
+  }
+  
     
 
 }

@@ -4,7 +4,7 @@ export const handler = async (event) => {
   const ddb = new DynamoDBClient({});
 
   const resp = await ddb.send(new QueryCommand({
-    TableName: process.env.LEARNING_MODULES_TABLE!,
+    TableName: process.env.DDB_LEARNING_MODULES_TABLE!,
     KeyConditionExpression: 'PK = :pk and begins_with(SK, :phrase)',
     ExpressionAttributeValues: {
       ':pk': { S: `module#${moduleId}` },

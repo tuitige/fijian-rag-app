@@ -16,7 +16,7 @@ export const FIJI_RAG_REGION = 'us-west-2';
 export const CONTENT_BUCKET_NAME = 'fijian-rag-app-content';
 
 // DDB table names
-export const LEARNING_MODULES_TABLE = 'LearningModulesTable';
+export const DDB_LEARNING_MODULES_TABLE = 'LearningModulesTable';
 export const ARTICLE_VERIFICATION_TABLE = 'ArticleVerificationTable';
 export const TRANSLATIONS_TABLE = 'TranslationsTable';
 

@@ -189,6 +189,27 @@ export class FijianRagAppStack extends Stack {
       }
     });
 
+    const listLearningModulesLambda = new NodejsFunction(this, 'listLearningModulesLambda', {
+      entry: path.join(__dirname, '../lambda/learning-modules/listLearningModules.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_18_X,
+      memorySize: 1024,
+      timeout: Duration.seconds(30),
+      role: lambdaRole,
+      environment: {},
+      bundling: {
+        externalModules: [],
+        nodeModules: [
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/client-bedrock-runtime',
+          '@aws-sdk/protocol-http',
+          '@aws-sdk/signature-v4',
+          '@aws-sdk/credential-provider-node',
+          '@aws-crypto/sha256-js'
+        ]
+      }
+    });
+
 
     contentBucket.addEventNotification(
       s3.EventType.OBJECT_CREATED,
@@ -292,6 +313,9 @@ export class FijianRagAppStack extends Stack {
       removalPolicy: RemovalPolicy.RETAIN
     });
 
+    LearningModulesTable.grantReadWriteData(getModuleByIdLambda);
+    LearningModulesTable.grantReadWriteData(getModulePhrasesLambda);
+
     // 🔹 API Gateway
     const api = new apigateway.RestApi(this, 'FijianRagApi', {
       restApiName: 'Fijian RAG API',
@@ -351,6 +375,11 @@ export class FijianRagAppStack extends Stack {
       textractLambda.addEnvironment(key, val);
       aggregatorLambda.addEnvironment(key, val);
       getParagraphsLambda.addEnvironment(key, val);
+      getModuleByIdLambda.addEnvironment(key, val);
+      getModulePhrasesLambda.addEnvironment(key, val);
+      verifyPhraseLambda.addEnvironment(key, val);
+      listArticlesLambda.addEnvironment(key, val);
+      listLearningModulesLambda.addEnvironment(key, val);
     }
 
     // Output: OpenSearch domain endpoint
