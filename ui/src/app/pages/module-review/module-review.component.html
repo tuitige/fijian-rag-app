@@ -23,36 +23,36 @@
   
     <div class="space-y-6">
       <div *ngFor="let phrase of filteredPhrases" class="bg-white p-5 rounded-lg shadow border border-gray-200">
+
         <div class="flex items-center mb-2">
           <strong class="mr-2">FJ:</strong> 
           <span>{{ phrase.originalText }}</span>
         </div>
-  
-        <div class="mb-4">
-          <strong class="text-gray-700">EN:</strong>
-          <textarea
-            [(ngModel)]="phrase.translatedText"
-            rows="2"
-            class="w-full border border-gray-300 mt-1 p-2 rounded focus:ring focus:ring-blue-200"
-          ></textarea>
+      
+        <div class="flex items-start mt-2">
+          <strong class="mr-2 mt-1">EN:</strong>
+          <textarea [(ngModel)]="phrase.translatedText" rows="2"
+                    class="w-full border p-2 rounded"></textarea>
         </div>
-  
-        <div class="flex items-center space-x-4">
-          <button
-            *ngIf="!phrase.verified || phrase.verified === 'false'"
-            (click)="markAsVerified(phrase)"
-            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
+      
+        <div class="flex flex-wrap items-center gap-4 mt-4">
+          <button *ngIf="!phrase.verified || phrase.verified === 'false'" 
+                  (click)="markAsVerified(phrase)"
+                  class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm shadow">
             ✅ Verify & Save
           </button>
-  
-          <span *ngIf="phrase.verified || phrase.verified === 'true'" class="text-green-600 font-semibold text-sm">✔ Verified</span>
-  
-          <button
-            (click)="recordFijianSpeakerAudio(phrase)"
-            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm mt-2">
+      
+          <span *ngIf="phrase.verified === true || phrase.verified === 'true'" 
+                class="text-green-600 font-semibold text-sm">
+            ✔ Verified
+          </span>
+      
+          <button (click)="recordFijianSpeakerAudio(phrase)"
+                  class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm shadow">
             🎙️ Record Audio
           </button>
         </div>
+
       </div>
     </div>
   </div>
