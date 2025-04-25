@@ -23,9 +23,9 @@
   
     <div class="space-y-6">
       <div *ngFor="let phrase of filteredPhrases" class="bg-white p-5 rounded-lg shadow border border-gray-200">
-        <div class="mb-3">
-          <strong class="text-gray-700">FJ:</strong> 
-          <p class="ml-2 inline text-gray-900">{{ phrase.originalText }}</p>
+        <div class="flex items-center mb-2">
+          <strong class="mr-2">FJ:</strong> 
+          <span>{{ phrase.originalText }}</span>
         </div>
   
         <div class="mb-4">
@@ -39,19 +39,17 @@
   
         <div class="flex items-center space-x-4">
           <button
-            *ngIf="!phrase.verified"
+            *ngIf="!phrase.verified || phrase.verified === 'false'"
             (click)="markAsVerified(phrase)"
-            class="bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded"
-          >
+            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
             ✅ Verify & Save
           </button>
   
-          <span *ngIf="phrase.verified" class="text-green-600 font-bold">✔ Verified</span>
+          <span *ngIf="phrase.verified || phrase.verified === 'true'" class="text-green-600 font-semibold text-sm">✔ Verified</span>
   
           <button
             (click)="recordFijianSpeakerAudio(phrase)"
-            class="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded"
-          >
+            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm mt-2">
             🎙️ Record Audio
           </button>
         </div>
