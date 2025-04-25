@@ -1,41 +1,61 @@
-<app-header></app-header>
-
-<div class="module-review-container">
-    <h2 class="text-xl font-bold mb-2">📘 Module: {{ moduleTitle }}</h2>
+<div class="p-6">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">📖 Review Learning Module</h2>
   
-    <div *ngIf="module" class="mb-6">
-      <h3 class="text-lg font-semibold">Module Topics</h3>
-      <ul class="list-disc ml-5">
-        <li *ngFor="let topic of module.topics">{{ topic.title }} - {{ topic.summary }}</li>
+    <div *ngIf="moduleTitle" class="mb-6">
+      <h3 class="text-xl font-semibold text-blue-700">{{ moduleTitle }}</h3>
+    </div>
+  
+    <div *ngIf="topics.length > 0" class="mb-10">
+      <h4 class="text-lg font-bold mb-2 text-gray-700">Module Topics</h4>
+      <ul class="list-disc pl-6 space-y-2">
+        <li *ngFor="let topic of topics">
+          <strong class="text-gray-800">{{ topic.title }}:</strong> {{ topic.summary }}
+        </li>
       </ul>
     </div>
   
-    <h3 class="text-lg font-semibold mb-2">🔤 Phrases Extracted</h3>
+    <div class="flex items-center justify-between mb-4">
+      <h4 class="text-lg font-semibold text-gray-700">Translation Phrases</h4>
+      <button (click)="toggleUnverifiedFilter()" class="bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-semibold px-3 py-1 rounded">
+        {{ showOnlyUnverified ? 'Show All' : 'Show Only Unverified' }}
+      </button>
+    </div>
   
-    <div *ngIf="loading" class="text-gray-500 italic">Loading phrases...</div>
+    <div class="space-y-6">
+      <div *ngFor="let phrase of filteredPhrases" class="bg-white p-5 rounded-lg shadow border border-gray-200">
+        <div class="mb-3">
+          <strong class="text-gray-700">FJ:</strong> 
+          <p class="ml-2 inline text-gray-900">{{ phrase.originalParagraph }}</p>
+        </div>
   
-    <div *ngIf="!loading && phrases.length === 0" class="text-gray-400">No phrases found.</div>
+        <div class="mb-4">
+          <strong class="text-gray-700">EN:</strong>
+          <textarea
+            [(ngModel)]="phrase.translatedParagraph"
+            rows="2"
+            class="w-full border border-gray-300 mt-1 p-2 rounded focus:ring focus:ring-blue-200"
+          ></textarea>
+        </div>
   
-    <div *ngIf="!loading && phrases.length > 0" class="space-y-4">
-        <div *ngFor="let phrase of phrases" class="phrase-card">
-            <div class="phrase-label">
-                <strong>FJ:</strong> {{ phrase.originalParagraph }}
-            </div>
-            
-            <div style="margin-top: 0.75rem;">
-                <strong>EN:</strong>
-                <textarea [(ngModel)]="phrase.translatedParagraph" rows="2" class="translation-textarea"></textarea>
-            </div>
-            
-            <button *ngIf="!isVerified(phrase.verified)"
-                    (click)="markAsVerified(phrase)"
-                    class="save-verify">
-                ✅ Verify & Save
-            </button>
-            
-            <span *ngIf="isVerified(phrase.verified)" class="text-green-600 font-semibold ml-4">Verified ✔</span>
-            </div>
-          
+        <div class="flex items-center space-x-4">
+          <button
+            *ngIf="!phrase.verified"
+            (click)="markAsVerified(phrase)"
+            class="bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded"
+          >
+            ✅ Verify & Save
+          </button>
+  
+          <span *ngIf="phrase.verified" class="text-green-600 font-bold">✔ Verified</span>
+  
+          <button
+            (click)="recordFijianSpeakerAudio(phrase)"
+            class="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded"
+          >
+            🎙️ Record Audio
+          </button>
+        </div>
+      </div>
     </div>
   </div>
   
