@@ -21,7 +21,7 @@
           <strong>EN:</strong>
           <textarea [(ngModel)]="phrase.translatedText" rows="2" class="w-full border mt-1 p-2 rounded"></textarea>
         </div>
-        <button *ngIf="!isVerified(phrase.verified)" (click)="markAsVerified(phrase)" class="mt-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">✅ Verify & Save</button>
+        <button *ngIf="!isVerified(phrase.verified)" (click)="markAsVerified(phrase)" class="save-verify">✅ Verify & Save</button>
         <span *ngIf="isVerified(phrase.verified)" class="text-green-600 font-semibold">Verified ✔</span>
       </div>
     </div>
