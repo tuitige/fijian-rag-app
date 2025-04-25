@@ -47,9 +47,9 @@ export class ModuleReviewComponent implements OnInit {
   }
 
   get filteredPhrases() {
-    return this.showOnlyUnverified
-      ? this.phrases.filter(p => !p.verified)
-      : this.phrases;
+    return this.showOnlyUnverified 
+    ? this.phrases.filter(p => p.verified !== true) 
+    : this.phrases;  
   }
 
   markAsVerified(phrase: any) {
