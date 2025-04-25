@@ -25,13 +25,13 @@
       <div *ngFor="let phrase of filteredPhrases" class="bg-white p-5 rounded-lg shadow border border-gray-200">
         <div class="mb-3">
           <strong class="text-gray-700">FJ:</strong> 
-          <p class="ml-2 inline text-gray-900">{{ phrase.originalParagraph }}</p>
+          <p class="ml-2 inline text-gray-900">{{ phrase.originalText }}</p>
         </div>
   
         <div class="mb-4">
           <strong class="text-gray-700">EN:</strong>
           <textarea
-            [(ngModel)]="phrase.translatedParagraph"
+            [(ngModel)]="phrase.translatedText"
             rows="2"
             class="w-full border border-gray-300 mt-1 p-2 rounded focus:ring focus:ring-blue-200"
           ></textarea>
