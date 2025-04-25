@@ -17,6 +17,7 @@ export class ModuleReviewComponent implements OnInit {
   moduleId: string = '';
   moduleTitle: string = '';
   module: any;
+  topics: any[] = [];
   phrases: any[] = [];
   showOnlyUnverified = false;
   loading = true;
