@@ -17,8 +17,8 @@
     <div *ngIf="!loading && phrases.length > 0" class="space-y-4">
       <div *ngFor="let phrase of phrases" class="border p-3 rounded shadow-sm">
         <div><strong>FJ:</strong> {{ phrase.originalText }}</div>
-        <div>
-          <strong>EN:</strong>
+        <div style="margin-top: 0.5rem;">
+          <strong  style="vertical-align:top;">EN:</strong>
           <textarea [(ngModel)]="phrase.translatedText" rows="2" class="w-full border mt-1 p-2 rounded"></textarea>
         </div>
         <button *ngIf="!isVerified(phrase.verified)" (click)="markAsVerified(phrase)" class="save-verify">✅ Verify & Save</button>
