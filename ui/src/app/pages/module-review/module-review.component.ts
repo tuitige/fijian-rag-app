@@ -18,6 +18,7 @@ export class ModuleReviewComponent implements OnInit {
   moduleTitle: string = '';
   module: any;
   phrases: any[] = [];
+  showOnlyUnverified = false;
   loading = true;
 
   constructor(private route: ActivatedRoute, private service: TranslationService) {}
@@ -40,6 +41,16 @@ export class ModuleReviewComponent implements OnInit {
     });
   }
 
+  toggleUnverifiedFilter() {
+    this.showOnlyUnverified = !this.showOnlyUnverified;
+  }
+
+  get filteredPhrases() {
+    return this.showOnlyUnverified
+      ? this.phrases.filter(p => !p.verified)
+      : this.phrases;
+  }
+
   markAsVerified(phrase: any) {
     this.service.verifyPhraseFromModule(this.moduleId, phrase).subscribe(() => {
       phrase.verified = true;
@@ -50,5 +61,8 @@ export class ModuleReviewComponent implements OnInit {
     return value === true || value === 'true';
   }
   
+  recordFijianSpeakerAudio(phrase: any) {
+    alert(`🎙️ [Placeholder] Recording audio for: ${phrase.originalParagraph.slice(0, 50)}...`);
+  }  
 
 }
