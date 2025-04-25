@@ -1,3 +1,5 @@
+<app-header></app-header>
+
 <div class="module-review-container">
     <h2 class="text-xl font-bold mb-2">📘 Module: {{ moduleTitle }}</h2>
   
@@ -15,15 +17,25 @@
     <div *ngIf="!loading && phrases.length === 0" class="text-gray-400">No phrases found.</div>
   
     <div *ngIf="!loading && phrases.length > 0" class="space-y-4">
-      <div *ngFor="let phrase of phrases" class="border p-3 rounded shadow-sm">
-        <div><strong>FJ:</strong> {{ phrase.originalText }}</div>
-        <div style="margin-top: 0.5rem;">
-          <strong  style="vertical-align:top;">EN:</strong>
-          <textarea [(ngModel)]="phrase.translatedText" rows="2" class="w-full border mt-1 p-2 rounded"></textarea>
-        </div>
-        <button *ngIf="!isVerified(phrase.verified)" (click)="markAsVerified(phrase)" class="save-verify">✅ Verify & Save</button>
-        <span *ngIf="isVerified(phrase.verified)" class="text-green-600 font-semibold">Verified ✔</span>
-      </div>
+        <div *ngFor="let phrase of phrases" class="phrase-card">
+            <div class="phrase-label">
+                <strong>FJ:</strong> {{ phrase.originalParagraph }}
+            </div>
+            
+            <div style="margin-top: 0.75rem;">
+                <strong>EN:</strong>
+                <textarea [(ngModel)]="phrase.translatedParagraph" rows="2" class="translation-textarea"></textarea>
+            </div>
+            
+            <button *ngIf="!isVerified(phrase.verified)"
+                    (click)="markAsVerified(phrase)"
+                    class="save-verify">
+                ✅ Verify & Save
+            </button>
+            
+            <span *ngIf="isVerified(phrase.verified)" class="text-green-600 font-semibold ml-4">Verified ✔</span>
+            </div>
+          
     </div>
   </div>
   
