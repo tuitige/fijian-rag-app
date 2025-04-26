@@ -6,14 +6,16 @@ import { PagesComponent } from './pages/pages/pages.component';
 import { ArticleReviewComponent } from './pages/article-review/article-review.component';
 import { ArticleListComponent } from './pages/article-list/article-list.component';
 import { ModuleReviewComponent } from './pages/module-review/module-review.component';
+import { ModuleListComponent } from './pages/module-list/module-list.component';
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/training', pathMatch: 'full' },
+  { path: '', redirectTo: '/home', pathMatch: 'full' },
   { path: 'training', component: TrainingComponent },
   { path: 'article-review', component: ArticleReviewComponent },
   { path: 'article-list', component: ArticleListComponent },
   { path: 'module-review', component: ModuleReviewComponent },
+  { path: 'module-list', component: ModuleListComponent },
   { path: 'verify-module/:title', component: VerifyModuleComponent },
   { path: 'pages/:title', component: PagesComponent },
-  { path: '**', redirectTo: '/training' } // optional fallback
+  { path: '**', redirectTo: '/home' } // optional fallback
 ];
