@@ -350,6 +350,7 @@ export class FijianRagAppStack extends Stack {
     api.root.resourceForPath('get-module').addMethod('GET', new apigateway.LambdaIntegration(getModuleByIdLambda));
     api.root.resourceForPath('module-phrases').addMethod('GET', new apigateway.LambdaIntegration(getModulePhrasesLambda));
     api.root.resourceForPath('verify-phrase').addMethod('POST', new apigateway.LambdaIntegration(verifyPhraseLambda));
+    api.root.resourceForPath('list-modules').addMethod('GET', new apigateway.LambdaIntegration(listLearningModulesLambda));
        
 
     lambdaRole.addToPolicy(new iam.PolicyStatement({

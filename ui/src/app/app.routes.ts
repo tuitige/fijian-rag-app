@@ -10,6 +10,7 @@ import { ModuleListComponent } from './pages/module-list/module-list.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/home', pathMatch: 'full' },
+  { path: 'home', component: HomeComponent },
   { path: 'training', component: TrainingComponent },
   { path: 'article-review', component: ArticleReviewComponent },
   { path: 'article-list', component: ArticleListComponent },
