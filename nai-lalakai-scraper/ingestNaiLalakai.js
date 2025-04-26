@@ -2,7 +2,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 
 const ARTICLE_URL = 'https://www.fijitimes.com.fj/yavu-ni-veiqaravi-o-keda-kei-na-iyaubula/';
-const INGEST_API = 'https://bv4a86k87j.execute-api.us-west-2.amazonaws.com/prod/ingest-article';
+const INGEST_API = 'https://dj00dl39fh.execute-api.us-west-2.amazonaws.com/prod';
 
 (async () => {
   try {
