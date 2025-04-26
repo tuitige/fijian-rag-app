@@ -1,6 +1,10 @@
 // src/app/learn/learn.component.ts
 import { Component } from '@angular/core';
 import { LearnService } from '../../services/learn.service';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+//import { TranslationService } from '../../services/translation.service';
+import { HeaderComponent } from '../../components/header/header.component';
 
 interface ChatMessage {
   sender: 'user' | 'system';
