@@ -1,12 +1,9 @@
-<!-- src/app/learn/learn.component.html -->
+<!-- src/app/pages/learn/learn.component.html -->
 <div class="flex flex-col h-screen p-4 bg-gray-100">
-    <!--
     <div class="flex-1 overflow-y-auto space-y-2">
       <div *ngFor="let message of messages" class="flex">
-        <div [ngClass]="{
-          'ml-auto bg-blue-500 text-white': message.sender === 'user',
-          'mr-auto bg-gray-300 text-black': message.sender === 'system'
-        }" class="rounded-lg p-2 max-w-xs">
+        <div [ngClass]="message.sender === 'user' ? 'ml-auto bg-blue-500 text-white' : 'mr-auto bg-gray-300 text-black'" 
+             class="rounded-lg p-2 max-w-xs">
           {{ message.text }}
         </div>
       </div>
@@ -23,6 +20,5 @@
         Send
       </button>
     </div>
-    --->
   </div>
   
