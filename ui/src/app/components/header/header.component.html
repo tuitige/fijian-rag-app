@@ -9,7 +9,17 @@
       </nav>
     </div>
     <div class="flex items-center space-x-4">
-      <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">Sign Out</button>
+      <div class="flex items-center space-x-2">
+        <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-semibold">
+          {{ user?.attributes?.given_name?.charAt(0) || 'U' }}
+        </div>
+        <span class="text-gray-700 text-sm hidden md:inline">
+          Bula vinaka, {{ user?.attributes?.given_name || user?.attributes?.email }}
+        </span>
+      </div>
+      <button (click)="signOut()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">
+        Sign Out
+      </button>
     </div>
   </div>
 </header>
