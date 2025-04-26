@@ -1,5 +1,8 @@
+// src/app/app.routes.ts
+
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
+
 import { HomeComponent } from './pages/home/home.component';
 import { TrainingComponent } from './pages/training/training.component';
 import { VerifyModuleComponent } from './pages/verify-module/verify-module.component';
