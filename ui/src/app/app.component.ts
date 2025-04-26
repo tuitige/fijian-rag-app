@@ -3,6 +3,7 @@ import { AuthenticatorService } from '@aws-amplify/ui-angular';
 import { AmplifyAuthenticatorModule } from '@aws-amplify/ui-angular';
 import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { HeaderComponent } from './components/header/header.component';
 
 @Component({
   selector: 'app-root',
@@ -12,7 +13,8 @@ import { CommonModule } from '@angular/common';
   imports: [
     AmplifyAuthenticatorModule, 
     RouterOutlet,
-    CommonModule
+    CommonModule,
+    HeaderComponent
   ]
 })
 export class AppComponent {
