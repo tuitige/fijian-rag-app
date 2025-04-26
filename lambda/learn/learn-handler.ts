@@ -1,8 +1,8 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 
-const ddb = new DynamoDBClient({ region: process.env.AWS_REGION });
-const TABLE_NAME = process.env.LEARNING_MODULES_TABLE || '';
+const ddb = new DynamoDBClient({ region: 'us-west-2' });
+const TABLE_NAME = process.env.DDB_LEARNING_MODULES_TABLE || '';
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {

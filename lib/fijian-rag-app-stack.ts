@@ -4,6 +4,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import { AttributeType, Table, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 //import * as opensearch from 'aws-cdk-lib/aws-opensearchserverless';
 import * as opensearch from 'aws-cdk-lib/aws-opensearchservice';
@@ -349,8 +350,7 @@ export class FijianRagAppStack extends Stack {
 
     const LearningModulesTable = new dynamodb.Table(this, 'LearningModulesTable', {
       tableName: 'LearningModulesTable',
-      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
+      partitionKey: { name: 'moduleId', type: AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.RETAIN
     });
