@@ -8,19 +8,10 @@
         <a routerLink="/module-list" routerLinkActive="text-blue-500" class="text-gray-700 hover:text-blue-500">Modules</a>
       </nav>
     </div>
-    <div class="flex items-center space-x-4">
-      <div class="flex items-center space-x-2">
-        <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-semibold">
-          {{ user?.attributes?.given_name?.charAt(0) || 'U' }}
-        </div>
-        <span class="text-gray-700 text-sm hidden md:inline">
-          Bula vinaka, {{ user?.attributes?.given_name || user?.attributes?.email }}
-        </span>
-      </div>
+    <div class="flex items-center">
       <button (click)="signOut()"
-      class="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-full transition-all duration-200 shadow hover:shadow-lg">
-      <span class="text-sm">Bula, {{ user?.attributes?.given_name || 'Guest' }}</span>
-      <img src="https://api.dicebear.com/7.x/initials/svg?seed={{ user?.attributes?.given_name || 'G' }}" class="w-8 h-8 rounded-full" alt="Avatar">
+        class="text-gray-700 hover:text-red-500 font-semibold text-sm transition duration-200">
+        Bula vinaka, {{ user?.attributes?.given_name || user?.attributes?.email }}
       </button>
     </div>
   </div>
