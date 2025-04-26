@@ -4,7 +4,7 @@
     <label class="block mb-2 text-sm font-medium">Filter by Source:</label>
     <select [(ngModel)]="selectedSource" class="mb-4 p-2 border rounded">
       <option value="All">All</option>
-      <option *ngFor="let src of modules.map(m => m.source).filter((v, i, a) => a.indexOf(v) === i)" [value]="src">
+      <option *ngFor="let src of getUniqueSources()" [value]="src">
         {{ src }}
       </option>
     </select>

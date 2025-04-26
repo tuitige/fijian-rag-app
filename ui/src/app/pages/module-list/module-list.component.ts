@@ -41,4 +41,9 @@ export class ModuleListComponent implements OnInit {
         }
       });
     }
+
+    getUniqueSources(): string[] {
+      return [...new Set(this.modules.map(m => m.source))];
+    }    
+
   }
