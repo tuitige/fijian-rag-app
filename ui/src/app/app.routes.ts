@@ -13,7 +13,7 @@ import { ModuleReviewComponent } from './pages/module-review/module-review.compo
 import { ModuleListComponent } from './pages/module-list/module-list.component';
 import { LearnComponent } from './pages/learn/learn.component';
 
-const routes: Routes = [
+export const routes: Routes = [
   { path: '', redirectTo: '/home', pathMatch: 'full' },
   { path: 'home', component: HomeComponent },
   { path: 'training', component: TrainingComponent },
