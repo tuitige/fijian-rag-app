@@ -15,7 +15,8 @@ interface ChatMessage {
   standalone: true,
   selector: 'app-learn',
   templateUrl: './learn.component.html',
-  styleUrls: ['./learn.component.scss']
+  styleUrls: ['./learn.component.scss'],
+  imports: [CommonModule, FormsModule]
 })
 export class LearnComponent {
   messages: ChatMessage[] = [
