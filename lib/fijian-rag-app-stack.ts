@@ -210,6 +210,48 @@ export class FijianRagAppStack extends Stack {
       }
     });
 
+    const learnLambda = new NodejsFunction(this, 'learnLambda', {
+      entry: path.join(__dirname, '../lambda/learn/learn-handler.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_18_X,
+      memorySize: 1024,
+      timeout: Duration.seconds(30),
+      role: lambdaRole,
+      environment: {},
+      bundling: {
+        externalModules: [],
+        nodeModules: [
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/client-bedrock-runtime',
+          '@aws-sdk/protocol-http',
+          '@aws-sdk/signature-v4',
+          '@aws-sdk/credential-provider-node',
+          '@aws-crypto/sha256-js'
+        ]
+      }
+    });    
+
+    const ingestModuleLambda = new NodejsFunction(this, 'ingestModuleLambda', {
+      entry: path.join(__dirname, '../lambda/ingest-module/ingest-module.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_18_X,
+      memorySize: 1024,
+      timeout: Duration.seconds(30),
+      role: lambdaRole,
+      environment: {},
+      bundling: {
+        externalModules: [],
+        nodeModules: [
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/client-bedrock-runtime',
+          '@aws-sdk/protocol-http',
+          '@aws-sdk/signature-v4',
+          '@aws-sdk/credential-provider-node',
+          '@aws-crypto/sha256-js'
+        ]
+      }
+    });    
+
 
     contentBucket.addEventNotification(
       s3.EventType.OBJECT_CREATED,
@@ -315,6 +357,8 @@ export class FijianRagAppStack extends Stack {
 
     LearningModulesTable.grantReadWriteData(getModuleByIdLambda);
     LearningModulesTable.grantReadWriteData(getModulePhrasesLambda);
+    LearningModulesTable.grantReadWriteData(learnLambda);
+    LearningModulesTable.grantReadWriteData(ingestArticleLambda);
 
     // 🔹 API Gateway
     const api = new apigateway.RestApi(this, 'FijianRagApi', {
@@ -351,7 +395,10 @@ export class FijianRagAppStack extends Stack {
     api.root.resourceForPath('module-phrases').addMethod('GET', new apigateway.LambdaIntegration(getModulePhrasesLambda));
     api.root.resourceForPath('verify-phrase').addMethod('POST', new apigateway.LambdaIntegration(verifyPhraseLambda));
     api.root.resourceForPath('list-modules').addMethod('GET', new apigateway.LambdaIntegration(listLearningModulesLambda));
-       
+
+    // app learning
+    api.root.addResource('learn').addMethod('POST', new apigateway.LambdaIntegration(learnLambda));    
+    api.root.addResource('ingest-module').addMethod('POST', new apigateway.LambdaIntegration(ingestModuleLambda));
 
     lambdaRole.addToPolicy(new iam.PolicyStatement({
       actions: ['es:*', 's3:*'],
@@ -382,6 +429,8 @@ export class FijianRagAppStack extends Stack {
       verifyPhraseLambda.addEnvironment(key, val);
       listArticlesLambda.addEnvironment(key, val);
       listLearningModulesLambda.addEnvironment(key, val);
+      learnLambda.addEnvironment(key, val);
+      ingestArticleLambda.addEnvironment(key, val);
     }
 
     // Output: OpenSearch domain endpoint
