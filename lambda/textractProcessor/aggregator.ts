@@ -15,161 +15,130 @@ import { DynamoDBClient, QueryCommand, PutItemCommand } from '@aws-sdk/client-dy
 import { 
   CONTENT_BUCKET_NAME, 
   DDB_LEARNING_MODULES_TABLE, 
-  TRANSLATIONS_TABLE, 
+  CLAUDE_3_5_SONNET_V2, 
   FIJI_RAG_REGION 
 } from '../shared/constants.ts';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
 
 const s3 = new S3Client({ region: FIJI_RAG_REGION });
 const ddb = new DynamoDBClient({ region: FIJI_RAG_REGION });
+const bedrock = new BedrockRuntimeClient({ region: FIJI_RAG_REGION });
 
-export const handler: APIGatewayProxyHandler = async (event) => {
-try {
-  const moduleName = event.queryStringParameters?.module || JSON.parse(event.body || '{}')?.module;
-  if (!moduleName) {
-    return { statusCode: 400, body: 'Missing module name.' };
-  }
+export const handler = async (event: any) => {
+  try {
+    const chapterText = JSON.parse(event.body || '{}').chapterText || '';
 
-  const prefix = `${moduleName}/`;
-  console.log(`🔍 Aggregating module from folder: ${prefix}`);
+    if (!chapterText) {
+      throw new Error('No chapterText provided.');
+    }
 
-  const sourceParam = event.queryStringParameters?.source || 'FijiReferenceGrammar';
-  const source = sourceParam.trim();
+    console.log('Received chapter text:', chapterText.substring(0, 200) + '...');
 
-  // List and load pg*.json files
-  const listResp = await s3.send(new ListObjectsV2Command({ Bucket: CONTENT_BUCKET_NAME, Prefix: prefix }));
-  const jsonFiles = (listResp.Contents || [])
-    .filter(obj => obj.Key?.endsWith('.json'))
-    .map(obj => obj.Key!) as string[];
+    // 1. Create the prompt
+    const prompt = createLessonPlanPrompt(chapterText);
 
-  const allParagraphs: string[] = [];
+    // 2. Send to Claude
+    const response = await bedrock.send(new InvokeModelCommand({
+      modelId: CLAUDE_3_5_SONNET_V2.modelId,
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify({
+        anthropic_version: "bedrock-2023-05-31", // required field
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_tokens: 4000,
+        temperature: 0.3,
+        top_k: 250,
+        top_p: 0.9,
+        stop_sequences: []
+      })
+    }));
 
-  for (const key of jsonFiles) {
-    const obj = await s3.send(new GetObjectCommand({ Bucket: CONTENT_BUCKET_NAME, Key: key }));
-    const body = await obj.Body?.transformToString();
-    if (body) {
-      const parsed = JSON.parse(body);
-      if (Array.isArray(parsed.paragraphs)) {
-        allParagraphs.push(...parsed.paragraphs);
+    const bedrockOutput = JSON.parse(Buffer.from(response.body).toString('utf8'));
+    const rawCompletion = bedrockOutput.completion.trim();
+
+    console.log('Claude raw response:', rawCompletion.substring(0, 200) + '...');
+
+    // 3. Parse Claude's JSON
+    const moduleData = JSON.parse(rawCompletion);
+
+    if (!moduleData.moduleId || !moduleData.steps) {
+      throw new Error('Claude output missing moduleId or steps.');
+    }
+
+    // 4. Store in DynamoDB
+    const command = new PutItemCommand({
+      TableName: DDB_LEARNING_MODULES_TABLE,
+      Item: {
+        moduleId: { S: moduleData.moduleId },
+        title: { S: moduleData.title },
+        description: { S: moduleData.description || '' },
+        steps: { S: JSON.stringify(moduleData.steps) }
       }
-    }
+    });
+
+    const ddbPutResp = await ddb.send(command);
+    console.log('DynamoDB response:', ddbPutResp);
+
+    console.log(`Module ${moduleData.moduleId} inserted successfully.`);
+
+    return {
+      statusCode: 200,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ message: `Module ${moduleData.moduleId} inserted.` })
+    };
+
+  } catch (error) {
+    console.error('Error in Aggregator Lambda:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ message: 'Error generating lesson module.', error: error.message })
+    };
   }
-
-  console.log(`📄 Total paragraphs: ${allParagraphs.length}`);
-
-  // Claude Pass #1: Generate structured module
-  const claudeModule = await generateModuleFromText(allParagraphs, moduleName);
-  const moduleId = uuidv4();
-  const learningModuleTitle = claudeModule.title || moduleName;
-
-  // Move learning modules to DDB
-  // OS only for verified, RAG uses
-/*  
-  await indexToOpenSearch(LEARNING_MODULE_INDEX, {
-    id: moduleId,
-    learningModuleTitle,
-    source: 'Claude',
-    rawInputText: allParagraphs.join('\n'),
-    paragraphs: allParagraphs,
-    createdAt: new Date().toISOString(),
-    ...claudeModule
-  });
-*/
-
-  const ddbResponse = await ddb.send(new PutItemCommand({
-    TableName: DDB_LEARNING_MODULES_TABLE!,
-    Item: {
-      PK: { S: `module#${moduleId}` },
-      SK: { S: `meta#${learningModuleTitle}` },
-      id: { S: moduleId },
-      learningModuleTitle: { S: learningModuleTitle },
-      source: { S: source },
-      rawInputText: { S: allParagraphs.join('\n') },
-      paragraphs: { L: allParagraphs.map(p => ({ S: p })) },
-      topics: { S: JSON.stringify(claudeModule.topics) },
-      verified: { S: 'false' },
-      type: { S: 'LEARNING_MODULE' },
-      createdAt: { S: new Date().toISOString() }
-    }
-  }));
-
-
-  console.log(`📘 Learning module index: ${learningModuleTitle}`);
-  console.log(`📊 DDB Learning module index response: ${ddbResponse}`);
-
-  // Claude Pass #2: Extract Fijian-English translation pairs
-  let extractedPhrases: any[] = [];
-
-  if (source === 'PeaceCorps') {
-    extractedPhrases = await extractPeaceCorpsPhrases(allParagraphs);
-  } else {
-    extractedPhrases = await extractTranslationPairsFromText(allParagraphs);
-  }
-  console.log(`🧠 Extracted ${extractedPhrases.length} phrase pairs from Claude.`);
-
-/*  
-  for (const phrase of extractedPhrases) {
-    try {
-      const embedding = await generateEmbedding(phrase.originalText);
-      await indexTranslation({
-        originalText: phrase.originalText,
-        translatedText: phrase.translatedText,
-        verified: false,
-        source: 'Claude-extracted',
-        embedding,
-        moduleId,
-        learningModuleTitle,
-      });
-    } catch (err) {
-      console.warn(`⚠️ Failed indexing phrase: "${phrase.originalText}"`, err);
-    }
-  }
-*/
-
-  for (let i = 0; i < extractedPhrases.length; i++) {
-    const phrase = extractedPhrases[i];
-    const phraseId = uuidv4();
-
-    try {
-      await ddb.send(new PutItemCommand({
-        TableName: DDB_LEARNING_MODULES_TABLE!,
-        Item: {
-          PK: { S: `module#${moduleId}` },
-          SK: { S: `phrase#${i}` },
-          id: { S: phraseId },
-          originalText: { S: phrase.originalText },
-          translatedText: { S: phrase.translatedText },
-          verified: { S: 'false' },
-          source: { S: source + '-extracted'},
-          moduleId: { S: moduleId },
-          learningModuleTitle: { S: learningModuleTitle },
-          createdAt: { S: new Date().toISOString() },
-          type: { S: 'PHRASE' }
-        }
-      }));
-    } catch (err) {
-      console.warn(`⚠️ Failed storing phrase to DDB: "${phrase.originalText}"`, err);
-    }
-  }
-
-
-
-
-  console.log('✅ Aggregator returning successful response...');
-
-  return {
-    statusCode: 200,
-    body: JSON.stringify({
-      message: 'Module aggregated and indexed',
-      moduleId,
-      phrases: extractedPhrases.length
-    })
-  };
-} catch (error) {
-  console.error('❌ AggregatorLambda error:', error);
-  return {
-    statusCode: 500,
-    body: 'Internal server error'
-  };
-}
 };
+
+// --- Helper function to create the Claude prompt
+function createLessonPlanPrompt(chapterText: string): string {
+  return `
+You are a Fijian language instructor designing lessons for an interactive learning app.
+
+Given the following textbook chapter content, generate a complete structured lesson plan.
+
+Follow this structure:
+
+- Friendly introduction
+- 3 to 6 teaching steps (explain key points, grammar, examples)
+- 2 to 4 guided practice questions (student must answer)
+- 2 to 3 short quiz questions
+- 2 to 3 anticipated freeform student questions
+
+Format the output as JSON using this schema:
+
+{
+  "moduleId": "string",
+  "title": "string",
+  "description": "string",
+  "steps": [...]
+}
+
+Rules:
+- Generate a clean, lowercase, hyphenated moduleId based on topic.
+- Steps must logically guide the student through learning.
+- Teaching steps should introduce vocabulary, grammar, and examples.
+- Practice questions must directly match the teaching points.
+- Return only the JSON, no commentary.
+
+Input Chapter:
+""" 
+${chapterText}
+"""
+---
+Return only the JSON.
+  `.trim();
+}
