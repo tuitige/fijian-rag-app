@@ -8,9 +8,10 @@ interface ChatMessage {
 }
 
 @Component({
+  standalone: true,
   selector: 'app-learn',
   templateUrl: './learn.component.html',
-  styleUrls: ['./learn.component.css']
+  styleUrls: ['./learn.component.scss']
 })
 export class LearnComponent {
   messages: ChatMessage[] = [

@@ -2,6 +2,7 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { HttpClientModule } from '@angular/common/http';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AmplifyAuthenticatorModule } from '@aws-amplify/ui-angular';
 import { FormsModule } from '@angular/forms';
@@ -12,13 +13,15 @@ import { TranslationService } from './services/translation.service';
 import { VerifyModuleComponent } from './pages/verify-module/verify-module.component';
 import { PagesComponent } from './pages/pages/pages.component';
 import { ArticleReviewComponent } from './pages/article-review/article-review.component';
+import { LearnComponent } from './pages/learn/learn.component';
 
 
 @NgModule({
   declarations: [
     AppComponent,
     VerifyModuleComponent,
-    PagesComponent
+    PagesComponent,
+    LearnComponent
   ],
   imports: [
     BrowserModule,
@@ -26,6 +29,7 @@ import { ArticleReviewComponent } from './pages/article-review/article-review.co
     AmplifyAuthenticatorModule,
     ArticleReviewComponent,
     TrainingComponent,
+    CommonModule,
     FormsModule
   ],
   providers: [TranslationService],
