@@ -36,9 +36,12 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       MessageBody: JSON.stringify(sqsPayload)
     });
 
-    await sqs.send(command);
+    console.log('SQS command:', command);
+
+    const sqsResponse = await sqs.send(command);
 
     console.log('Message sent to SQS.');
+    console.log('SQS Response:', sqsResponse);
 
     return response(200, 'Aggregation and dispatch complete.');
   } catch (error) {
