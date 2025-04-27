@@ -1,82 +1,85 @@
-# 🇫🇯 Fijian Language Learning App (AI-powered via AWS Bedrock)
+🇫🇯 Fijian Language Learning App (AI-powered via AWS Bedrock)
+🌺 About the Project
+This is an AI-powered language learning platform designed to help users learn Fijian (Standard Bauan) interactively, accurately, and respectfully.
 
-## 🌺 About the Project
+Despite its importance in Fiji's national identity, Fijian is underrepresented in global language resources.
+This project uses AI + Human-in-the-Loop validation to build a high-fidelity language learning experience for Fijian speakers, learners, and researchers.
 
-This is an AI-powered language learning platform designed to help users learn the **Fijian language** (also known as *Bauan* or *Standard Fijian*) in an interactive, accurate, and culturally respectful way.
+🤖 Why AI + Human-in-the-Loop?
+Because Fijian is a low-resource language, it suffers from:
 
-Fijian is the official language of Fiji and is spoken by over **350,000 native speakers**, with additional speakers across the Pacific diaspora. Despite its importance in Fiji's national identity, Fijian is **underrepresented in large language models**, educational platforms like Duolingo, and global language learning tools.
+❌ Inaccurate translations from mainstream LLMs
 
-### 🤖 Why AI + Human-in-the-Loop?
+❌ Limited grammar/syntax teaching resources
 
-Because Fijian is a **low-resource language**, it often suffers from:
+❌ Cultural nuance loss
 
-- Inaccurate translations from mainstream LLMs
-- Limited digital resources for grammar, syntax, and idioms
-- Cultural nuances being lost or distorted
+This platform solves that using:
 
-This system uses:
+Amazon Bedrock + Claude 3.5 Sonnet for AI translation and teaching
 
-- **Amazon Bedrock with Claude 3.5 Sonnet** for high-quality translation and conversational AI
-- **Human validation (by Makita, a native Fijian speaker)** to ensure accuracy and cultural relevance
-- **Retrieval-Augmented Generation (RAG)** architecture to deliver lessons and explanations based on validated phrases
+Native speaker validation (by Makita) for cultural fidelity
 
-The combination of machine learning and native speaker expertise allows us to build a **custom, high-fidelity language learning experience**, especially suited for low-resource languages like Fijian.
+RAG-based delivery using OpenSearch embeddings
 
-This app is especially valuable for:
+Human-verified datasets continually improving the AI's accuracy
 
-- Learners who want conversational or travel-ready Fijian
-- Heritage speakers reconnecting with their roots
-- Researchers or developers exploring RAG-based language learning systems
+✅ Machine + Human = Trustworthy, respectful Fijian AI learning.
 
----
+🧠 Core Features
+✅ Current System
+/translate
+➔ Translate Fijian phrases to English (via Claude 3.5)
 
-## 🧠 Features
+/verify
+➔ Accept human-verified translations ➔ Store embeddings in OpenSearch
 
-### ✅ Current Functionality
+/learn
+➔ Interactive chat-based learning sessions built from Peace Corps and grammar modules
 
-- **/translate**  
-  Accepts a Fijian phrase and uses Claude 3.5 Sonnet to translate it into English.
+/aggregate (new!)
+➔ Aggregate OCR'd pages into full lessons
 
-- **/verify**  
-  Accepts a Fijian phrase and its verified English translation (e.g., by Makita, a native Fijian speaker), generates an embedding, and stores it in OpenSearch Serverless.
+Automated Data Ingestion Pipeline:
 
-### 🧭 Future Roadmap
+OCR Peace Corps & Grammar book scans (Textract)
 
-- **Training UI**  
-  Native speakers (like Makita) can validate and approve translations via a friendly interface.
+Aggregation of OCR pages into chapters
 
-- **Learning UI**  
-  Learners can engage with Fijian lessons using RAG (Retrieval-Augmented Generation) with tracked progress.
+Claude module generation and phrase extraction
 
-- **User Accounts**  
-  Cognito integration will allow users to register, log in, and have personalized lesson tracking.
+DynamoDB staging for human verification
 
----
+🧭 Roadmap (Next Phases)
+🖥️ Training UI for Makita (Verify and correct translations easily)
 
-## 🏗️ Architecture
+📚 Learning UI for students (Chatbot-like structured lessons)
 
-![Architecture Diagram](/Fijian-RAG-App-diagram-v1.png)
+🧑‍🤝‍🧑 User accounts (AWS Cognito login and lesson tracking)
 
-### Key Components
+🎙️ Audio dataset creation (Makita reading verified phrases, for future TTS training)
 
-| Service | Role |
-|--------|------|
-| **Amazon API Gateway** | Provides `/translate` and `/verify` HTTP endpoints |
-| **AWS Lambda** | Core logic to call Bedrock and manage embeddings |
-| **Amazon Bedrock (Claude 3.5 Sonnet)** | Language model for translation and teaching |
-| **Amazon OpenSearch Serverless** | Stores embeddings and supports semantic search |
-| **Amazon S3** | (Optional) For PDF source or UI assets |
-| **Amazon Cognito** (Planned) | User authentication and identity management |
+📈 Dashboard (Track number of verified phrases, training volume, etc.)
 
----
+🏗️ Architecture Overview
+(Updated diagram to be inserted here)
 
-## 🛠️ Tech Stack
 
-- **AWS CDK (TypeScript)** – for infrastructure-as-code
-- **Node.js (TypeScript)** – used in Lambda functions
-- **Claude 3.5 Sonnet** – accessed via Bedrock for natural language understanding
-- **Amazon OpenSearch** – vector store for verified embeddings
-- **(Planned)** AWS Amplify + React or Angular – for user interface
-- **(Planned)** Amazon Cognito – for user identity and progress tracking
+Component	Role
+Amazon API Gateway	Entry points /translate, /verify, /learn, /aggregate
+AWS Lambda	Core application logic
+Amazon Bedrock (Claude 3.5 Sonnet)	Translation, module generation, phrase extraction
+Amazon OpenSearch Serverless	Verified embeddings storage and retrieval
+Amazon S3	Raw OCR storage, scanned documents
+Amazon DynamoDB	Verified and unverified translation staging, learning modules
+Amazon SQS	Queueing ingestion and aggregation steps (new!)
+AWS Textract	OCR of scanned textbook pages
+AWS Amplify + Angular (planned)	UI for students and verifiers
+Amazon Cognito (planned)	Authentication and lesson tracking
+📊 Data Ingestion Pipeline (New!)
+Overview
+We built a scalable, asynchronous ingestion system to handle scanned Fijian language materials at production-grade scale.
 
----
+✅ Handles Peace Corps, Fijian Reference Grammar, Nai Lalakai articles.
+✅ Fully async, no timeouts.
+✅ Modular Claude enrichment steps.
