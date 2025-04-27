@@ -3,12 +3,10 @@
 ---
 
 Despite its importance in Fiji's national identity, Fijian is underrepresented in global language resources.
-This project uses AI + Human-in-the-Loop validation to build a high-fidelity language learning experience for Fijian speakers, learners, and researchers.
+ 
+This project uses **AI + Human-in-the-Loop validation** to build a **high-fidelity language learning experience** for Fijian speakers, learners, and researchers.
 
 This is an AI-powered language learning platform designed to help users learn **Fijian** (Standard Bauan) interactively, accurately, and respectfully.
-
-Despite its importance in Fiji's national identity, Fijian is underrepresented in global language resources.  
-This project uses **AI + Human-in-the-Loop validation** to build a **high-fidelity language learning experience** for Fijian speakers, learners, and researchers.
 
 ---
 
