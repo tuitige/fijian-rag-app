@@ -63,6 +63,8 @@ This platform solves that using:
 
 ## 🏗️ Architecture Overview
 
+![Architecture Diagram](./Fijian-RAG-app-diagram-v2.png)
+
 | Component | Role |
 |:---|:---|
 | Amazon API Gateway | Entry points `/translate`, `/verify`, `/learn`, `/aggregate` |
@@ -73,8 +75,8 @@ This platform solves that using:
 | Amazon DynamoDB | Verified and unverified translation staging, learning modules |
 | Amazon SQS | Queueing ingestion and aggregation steps (async) |
 | AWS Textract | OCR of scanned textbook pages |
-| AWS Amplify + Angular (Planned) | UI for students and verifiers |
-| Amazon Cognito (Planned) | Authentication and progress tracking |
+| AWS Amplify + Angular | UI for students and verifiers |
+| Amazon Cognito | Authentication and progress tracking |
 
 ---
 
