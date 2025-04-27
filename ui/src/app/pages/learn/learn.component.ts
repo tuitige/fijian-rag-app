@@ -37,11 +37,22 @@ export class LearnComponent {
   
     try {
       const response = await this.learnService.sendMessage(userMessage, this.session);
-      this.session = response.session || {};
-      this.messages.push({ sender: 'system', text: response.reply });
+  
+      // ✅ Update session if backend sent a new one
+      if (response.session) {
+        this.session = response.session;
+      }
+  
+      // ✅ Push system reply
+      if (response.reply) {
+        this.messages.push({ sender: 'system', text: response.reply });
+      } else {
+        this.messages.push({ sender: 'system', text: 'No response received.' });
+      }
     } catch (error) {
       console.error(error);
       this.messages.push({ sender: 'system', text: 'Sorry, something went wrong. Please try again.' });
     }
   }
+  
 }
