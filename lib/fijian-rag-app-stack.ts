@@ -2,11 +2,11 @@ import { Stack, StackProps, Duration, RemovalPolicy, CfnOutput } from 'aws-cdk-l
 import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import { AttributeType, Table, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
-//import * as opensearch from 'aws-cdk-lib/aws-opensearchserverless';
 import * as opensearch from 'aws-cdk-lib/aws-opensearchservice';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as path from 'path';
@@ -34,6 +34,12 @@ export class FijianRagAppStack extends Stack {
     // 🔹 S3 Bucket for Snapshots
     const snapshotBucket = s3.Bucket.fromBucketName(this, 'SnapshotsBucket', SNAPSHOTS_BUCKET_NAME);
 
+    // SQS Queue for Ingestion
+    const ingestionQueue = new sqs.Queue(this, 'FijianDataIngestionQueue', {
+      queueName: 'FijianDataIngestionQueue',
+      visibilityTimeout: Duration.minutes(5) // long enough for Claude API calls later
+    });
+
     // 🔹 IAM Role
     const lambdaRole = new iam.Role(this, 'SharedLambdaRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
@@ -54,7 +60,7 @@ export class FijianRagAppStack extends Stack {
 
     // 🔸 Textract Processor Lambda
     const textractLambda = new NodejsFunction(this, 'TextractLambda', {
-      entry: path.join(__dirname, '../lambda/textractProcessor/index.ts'),
+      entry: path.join(__dirname, '../lambda/data-ingest-pipeline/textractProcessor/index.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_18_X,
       memorySize: 1024,
@@ -67,6 +73,15 @@ export class FijianRagAppStack extends Stack {
       }
     });
     contentBucket.grantReadWrite(textractLambda);
+
+    contentBucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new s3n.LambdaDestination(textractLambda),
+      {
+        prefix: 'peace-corps/chapters/',  // Only trigger under Peace Corps folder
+        suffix: '.jpg'                    // Only for JPG files
+      }
+    );
 
     const ingestArticleLambda = new NodejsFunction(this, 'ingestArticleLambda', {
       entry: path.join(__dirname, '../lambda/nailalakai/ingestArticle.ts'),
@@ -126,7 +141,7 @@ export class FijianRagAppStack extends Stack {
 
 
     const aggregatorLambda = new NodejsFunction(this, 'AggregatorLambda', {
-      entry: path.join(__dirname, '../lambda/textractProcessor/aggregator.ts'),
+      entry: path.join(__dirname, '../lambda/data-ingest-pipeline/aggregator/index.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_18_X,
       timeout: Duration.minutes(5),
@@ -253,7 +268,52 @@ export class FijianRagAppStack extends Stack {
       }
     });    
 
+    const s3ToSqsLambda = new NodejsFunction(this, 'S3ToSqsTriggerLambda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('lambda/data-ingest-pipeline/s3ToSqsTrigger'),
+      role: lambdaRole,
+      environment: {
+        SQS_QUEUE_URL: ingestionQueue.queueUrl
+      },
+      memorySize: 1024,      
+      bundling: {
+        externalModules: [],
+        nodeModules: [
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/client-bedrock-runtime',
+          '@aws-sdk/protocol-http',
+          '@aws-sdk/signature-v4',
+          '@aws-sdk/credential-provider-node',
+          '@aws-crypto/sha256-js'
+        ]
+      },      
+      timeout: Duration.seconds(30),
+    });
+    
+    // 3. Grant Lambda permission to send messages to SQS
+    ingestionQueue.grantSendMessages(s3ToSqsLambda);
+    
+    // 4. Grant S3 permission to invoke the Lambda
+    s3ToSqsLambda.addPermission('AllowS3Invoke', {
+      principal: new iam.ServicePrincipal('s3.amazonaws.com'),
+      sourceArn: contentBucket.bucketArn
+    });
 
+    contentBucket.grantRead(aggregatorLambda);
+    ingestionQueue.grantSendMessages(aggregatorLambda);    
+
+    // 5. Add S3 Event Notification (trigger Lambda on object created)
+    contentBucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new s3n.LambdaDestination(s3ToSqsLambda),
+      {
+        prefix: 'peace-corps/',  // Optional: only trigger on Peace Corps folder initially
+        suffix: '.txt'           // Optional: only .txt files (aggregated chapter text)
+      }
+    );
+
+/*    
     contentBucket.addEventNotification(
       s3.EventType.OBJECT_CREATED,
       new s3n.LambdaDestination(textractLambda),
@@ -262,7 +322,7 @@ export class FijianRagAppStack extends Stack {
         suffix: '.jpg'
       }
     );    
-
+*/
     // 🔹 IAM Role for OpenSearch to access S3 for snapshots
     const snapshotRole = new iam.Role(this, 'FijianRag-Opensearch-Snapshots-Role', {
       roleName: 'FijianRag-Opensearch-Snapshots-Role',
@@ -381,7 +441,7 @@ export class FijianRagAppStack extends Stack {
     verifyParagraphResource.addMethod('POST', new apigateway.LambdaIntegration(verifyParagraphLambda));
 
     const aggregateResource = api.root.addResource('aggregate');
-    aggregateResource.addMethod('GET', new apigateway.LambdaIntegration(aggregatorLambda));
+    aggregateResource.addMethod('POST', new apigateway.LambdaIntegration(aggregatorLambda));
 
     const listArticlesResource = api.root.addResource('list-articles');
     listArticlesResource.addMethod('GET', new apigateway.LambdaIntegration(listArticlesLambda));    

@@ -1,82 +1,138 @@
 # 🇫🇯 Fijian Language Learning App (AI-powered via AWS Bedrock)
 
+---
+
 ## 🌺 About the Project
 
-This is an AI-powered language learning platform designed to help users learn the **Fijian language** (also known as *Bauan* or *Standard Fijian*) in an interactive, accurate, and culturally respectful way.
+This is an AI-powered language learning platform designed to help users learn **Fijian** (Standard Bauan) interactively, accurately, and respectfully.
 
-Fijian is the official language of Fiji and is spoken by over **350,000 native speakers**, with additional speakers across the Pacific diaspora. Despite its importance in Fiji's national identity, Fijian is **underrepresented in large language models**, educational platforms like Duolingo, and global language learning tools.
-
-### 🤖 Why AI + Human-in-the-Loop?
-
-Because Fijian is a **low-resource language**, it often suffers from:
-
-- Inaccurate translations from mainstream LLMs
-- Limited digital resources for grammar, syntax, and idioms
-- Cultural nuances being lost or distorted
-
-This system uses:
-
-- **Amazon Bedrock with Claude 3.5 Sonnet** for high-quality translation and conversational AI
-- **Human validation (by Makita, a native Fijian speaker)** to ensure accuracy and cultural relevance
-- **Retrieval-Augmented Generation (RAG)** architecture to deliver lessons and explanations based on validated phrases
-
-The combination of machine learning and native speaker expertise allows us to build a **custom, high-fidelity language learning experience**, especially suited for low-resource languages like Fijian.
-
-This app is especially valuable for:
-
-- Learners who want conversational or travel-ready Fijian
-- Heritage speakers reconnecting with their roots
-- Researchers or developers exploring RAG-based language learning systems
+Despite its importance in Fiji's national identity, Fijian is underrepresented in global language resources.  
+This project uses **AI + Human-in-the-Loop validation** to build a **high-fidelity language learning experience** for Fijian speakers, learners, and researchers.
 
 ---
 
-## 🧠 Features
+## 🤖 Why AI + Human-in-the-Loop?
 
-### ✅ Current Functionality
+Because Fijian is a **low-resource language**, it suffers from:
+- ❌ Inaccurate translations from mainstream LLMs
+- ❌ Limited grammar/syntax teaching resources
+- ❌ Cultural nuance loss
 
-- **/translate**  
-  Accepts a Fijian phrase and uses Claude 3.5 Sonnet to translate it into English.
+This platform solves that using:
+- **Amazon Bedrock** + **Claude 3.5 Sonnet** for AI translation and teaching
+- **Native speaker validation** (by Makita) for cultural fidelity
+- **RAG-based delivery** using OpenSearch embeddings
+- **Human-verified datasets** continually improving the AI's accuracy
 
-- **/verify**  
-  Accepts a Fijian phrase and its verified English translation (e.g., by Makita, a native Fijian speaker), generates an embedding, and stores it in OpenSearch Serverless.
-
-### 🧭 Future Roadmap
-
-- **Training UI**  
-  Native speakers (like Makita) can validate and approve translations via a friendly interface.
-
-- **Learning UI**  
-  Learners can engage with Fijian lessons using RAG (Retrieval-Augmented Generation) with tracked progress.
-
-- **User Accounts**  
-  Cognito integration will allow users to register, log in, and have personalized lesson tracking.
+✅ Machine + Human = Trustworthy, respectful Fijian AI learning.
 
 ---
 
-## 🏗️ Architecture
+## 🧠 Core Features
 
-![Architecture Diagram](/Fijian-RAG-App-diagram-v1.png)
+### ✅ Current System
 
-### Key Components
+- `/translate`  
+  ➔ Translate Fijian phrases to English (via Claude 3.5)
 
-| Service | Role |
-|--------|------|
-| **Amazon API Gateway** | Provides `/translate` and `/verify` HTTP endpoints |
-| **AWS Lambda** | Core logic to call Bedrock and manage embeddings |
-| **Amazon Bedrock (Claude 3.5 Sonnet)** | Language model for translation and teaching |
-| **Amazon OpenSearch Serverless** | Stores embeddings and supports semantic search |
-| **Amazon S3** | (Optional) For PDF source or UI assets |
-| **Amazon Cognito** (Planned) | User authentication and identity management |
+- `/verify`  
+  ➔ Accept human-verified translations ➔ Store embeddings in OpenSearch
+
+- `/learn`  
+  ➔ Interactive chat-based learning sessions built from Peace Corps and Grammar modules
+
+- `/aggregate`  
+  ➔ Aggregate OCR'd pages into full chapter text for further processing
+
+- Automated Data Ingestion Pipeline:
+  - OCR Peace Corps & Grammar book scans (Textract)
+  - Aggregation of OCR pages into chapters
+  - Claude module generation and phrase extraction
+  - DynamoDB staging for human verification
 
 ---
 
-## 🛠️ Tech Stack
+### 🧭 Roadmap (Next Phases)
 
-- **AWS CDK (TypeScript)** – for infrastructure-as-code
-- **Node.js (TypeScript)** – used in Lambda functions
-- **Claude 3.5 Sonnet** – accessed via Bedrock for natural language understanding
-- **Amazon OpenSearch** – vector store for verified embeddings
-- **(Planned)** AWS Amplify + React or Angular – for user interface
-- **(Planned)** Amazon Cognito – for user identity and progress tracking
+- 🖥️ **Training UI** for Makita (verify and correct translations easily)
+- 📚 **Learning UI** for students (chatbot-like structured lessons)
+- 🧑‍🤝‍🧑 **User accounts** (AWS Cognito login and lesson tracking)
+- 🎙️ **Audio dataset creation** (Makita reading verified phrases, for future TTS training)
+- 📈 **Dashboard** (track number of verified phrases, training volume, ingestion stats)
+
+---
+
+## 🏗️ Architecture Overview
+
+| Component | Role |
+|:---|:---|
+| Amazon API Gateway | Entry points `/translate`, `/verify`, `/learn`, `/aggregate` |
+| AWS Lambda | Core application logic |
+| Amazon Bedrock (Claude 3.5 Sonnet) | Translation, module generation, phrase extraction |
+| Amazon OpenSearch Serverless | Verified embeddings storage and retrieval |
+| Amazon S3 | Raw OCR storage, scanned documents |
+| Amazon DynamoDB | Verified and unverified translation staging, learning modules |
+| Amazon SQS | Queueing ingestion and aggregation steps (async) |
+| AWS Textract | OCR of scanned textbook pages |
+| AWS Amplify + Angular (Planned) | UI for students and verifiers |
+| Amazon Cognito (Planned) | Authentication and progress tracking |
+
+---
+
+# 📊 Data Ingestion Pipeline
+
+## Overview
+
+A scalable, asynchronous ingestion system handling scanned Fijian language materials at production-grade scale.
+
+✅ Handles Peace Corps, Fijian Reference Grammar, and Nai Lalakai articles.  
+✅ Fully async, no API Gateway timeouts.  
+✅ Modular Claude enrichment steps.
+
+---
+
+## 📚 Ingestion Pipeline Flow
+
+```plaintext
+Upload .jpg pages to S3
+    ➔ S3 Event triggers Textract Processor Lambda
+        ➔ OCR output .json files saved to S3
+            ➔ Aggregator Lambda manually triggered (via API Gateway /aggregate)
+                ➔ Aggregates OCR JSONs into full chapter text
+                    ➔ Sends message into Worker SQS Queue
+                        ➔ Worker Lambda downloads text
+                            ➔ Calls Claude for:
+                               - Learning Module generation
+                               - Phrase extraction
+                               ➔ Saves results to DynamoDB:
+                                  - LearningModulesTable
+                                  - TranslationsTable (unverified)
+```
+
+✅ Clean modular pipeline
+✅ Expandable to even larger datasets later.
+
+---
+
+# 🛠️ Tech Stack
+
+| Tech | Purpose |
+|:---|:---|
+| AWS CDK (TypeScript) | Infrastructure-as-Code |
+| Node.js (TypeScript) | Lambda functions |
+| Amazon Bedrock (Claude 3.5 Sonnet) | AI translations and module generation |
+| Amazon OpenSearch | Vector search of verified embeddings |
+| Amazon S3 | Raw file storage |
+| Amazon DynamoDB | Data staging and storage |
+| AWS Textract | OCR of scanned textbooks |
+| AWS SQS | Async workflows for long ingestion |
+| AWS Amplify + Angular | Web UI |
+| AWS Cognito | Authentication and progress tracking |
+
+---
+
+# 📜 Usage
+
+> Full instructions for each endpoint, Lambda function, and Amplify UI integration coming soon.
 
 ---

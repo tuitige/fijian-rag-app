@@ -4,6 +4,13 @@ import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 const ddb = new DynamoDBClient({ region: 'us-west-2' });
 const TABLE_NAME = process.env.DDB_LEARNING_MODULES_TABLE || '';
 
+interface LearningStep {
+    type: 'teaching' | 'practice'; // Can add 'quiz' or other types later
+    text?: string;
+    question?: string;
+    answer?: string;
+  }
+
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}');
@@ -13,56 +20,74 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     if (!session.moduleId) {
       // Start a new session
       session = {
-        moduleId: 'greetings-001', // default for now
+        moduleId: 'greetings-001', // Default module
         stepIndex: 0,
         expectingAnswer: false
       };
     }
 
-    // Fetch module from DDB
+    // Fetch the learning module from DynamoDB
     const moduleData = await getModule(session.moduleId);
     if (!moduleData) {
       throw new Error('Module not found.');
     }
 
-    const steps = moduleData.steps || [];
+    console.log('Loaded module:', moduleData);
+
+    const steps: LearningStep[] = moduleData.steps || [];
+    console.log('Steps:', steps);
+
+    if (!Array.isArray(steps)) {
+      throw new Error('Steps is not an array.');
+    }
+
+    // Guard: if session is out of bounds
+    if (session.stepIndex >= steps.length) {
+      const reply = "Great job! You've completed the module. 🎉";
+      session = {}; // Clear session
+      return responseOk({ reply, session });
+    }
+
+    const currentStep = steps[session.stepIndex];
+    console.log('Current step:', currentStep);
+
     let reply = '';
 
     if (session.expectingAnswer) {
-      // Check the answer
-      const currentStep = steps[session.stepIndex];
       if (currentStep && currentStep.type === 'practice') {
-        const correct = isAnswerCorrect(userInput, currentStep.answer);
+        const correct = isAnswerCorrect(userInput, currentStep.answer || '');
         if (correct) {
           reply = "Correct! 🎉 Let's continue.";
+          session.expectingAnswer = false;
+          session.stepIndex += 1;
         } else {
           reply = `Not quite. Try again: ${currentStep.question}`;
           return responseOk({ reply, session });
         }
-        session.expectingAnswer = false;
+      }
+    } else {
+      if (currentStep.type === 'teaching') {
+        reply = currentStep.text || "Let's keep learning!";
+        session.stepIndex += 1;
+      } else if (currentStep.type === 'practice') {
+        reply = currentStep.question || "Ready for the next question!";
+        session.expectingAnswer = true;
+      } else {
+        reply = "Let's continue learning!";
         session.stepIndex += 1;
       }
     }
 
+    // Final boundary check after processing
     if (session.stepIndex >= steps.length) {
       reply = "Great job! You've completed the module. 🎉";
-      session = {}; // End session
-      return responseOk({ reply, session });
-    }
-
-    const nextStep = steps[session.stepIndex];
-    if (nextStep.type === 'teaching') {
-      reply = nextStep.text;
-      session.stepIndex += 1;
-    } else if (nextStep.type === 'practice') {
-      reply = nextStep.question;
-      session.expectingAnswer = true;
+      session = {};
     }
 
     return responseOk({ reply, session });
 
   } catch (error) {
-    console.error(error);
+    console.error('Learn Handler Error:', error);
     return {
       statusCode: 500,
       headers: { 'Access-Control-Allow-Origin': '*' },
@@ -71,27 +96,52 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   }
 };
 
+// Fetch a module cleanly, parsing steps properly
 async function getModule(moduleId: string) {
-  const command = new GetItemCommand({
-    TableName: TABLE_NAME,
-    Key: {
-      moduleId: { S: moduleId }
+    const command = new GetItemCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        moduleId: { S: moduleId }
+      }
+    });
+    const result = await ddb.send(command);
+    if (!result.Item) return null;
+  
+    const stepsRaw = result.Item.steps?.S || '[]';
+    let stepsParsed: any = [];
+  
+    try {
+      stepsParsed = JSON.parse(stepsRaw);
+  
+      // ✅ Defensive: if parsing still gives a string, parse again
+      if (typeof stepsParsed === 'string') {
+        console.log('Detected double stringified steps. Parsing again...');
+        stepsParsed = JSON.parse(stepsParsed);
+      }
+  
+      if (!Array.isArray(stepsParsed)) {
+        throw new Error('Parsed steps is not an array.');
+      }
+    } catch (e) {
+      console.error('Error parsing steps:', e);
+      stepsParsed = [];
     }
-  });
-  const result = await ddb.send(command);
-  if (!result.Item) return null;
+  
+    console.log('Parsed steps array:', stepsParsed);
+  
+    return {
+      title: result.Item.title.S,
+      description: result.Item.description.S,
+      steps: stepsParsed
+    };
+  }
 
-  return {
-    title: result.Item.title.S,
-    description: result.Item.description.S,
-    steps: JSON.parse(result.Item.steps.S || '[]')
-  };
-}
-
+// Simple answer comparison
 function isAnswerCorrect(userInput: string, expectedAnswer: string) {
   return userInput.trim().toLowerCase() === expectedAnswer.trim().toLowerCase();
 }
 
+// Build a 200 OK API response
 function responseOk(body: any) {
   return {
     statusCode: 200,
