@@ -31,6 +31,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     console.log('Sending message to Worker SQS...');
 
+    console.log('Queue URL:', WORKER_SQS_QUEUE_URL);
+    console.log('SQS Payload:', sqsPayload);
+
     const command = new SendMessageCommand({
       QueueUrl: WORKER_SQS_QUEUE_URL,
       MessageBody: JSON.stringify(sqsPayload)

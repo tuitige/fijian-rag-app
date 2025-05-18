@@ -6,14 +6,35 @@ import * as path from 'path';
 const bedrock = new BedrockRuntimeClient({ region: REGION });
 
 // Load prompts at startup
-const generateModulePrompt = readFileSync(
-  path.resolve(__dirname, '../prompts/generateModulePrompt.txt'), 'utf-8'
-);
-const extractTranslationsPrompt = readFileSync(
-  path.resolve(__dirname, '../prompts/extractTranslationsPrompt.txt'), 'utf-8'
-);
+const generateModulePrompt = `
+You are a skilled Fijian language teacher. Based on the provided chapter text, create a structured learning module in JSON format including:
+- Title
+- Short Description
+- Steps (sequence of teaching text, practice questions, and quizzes)
 
-const CLAUDE_MODEL_ID = 'anthropic.claude-3-sonnet-20240229'; // or whatever version you're using
+Steps should alternate between teaching explanations and student practice.
+All Fijian phrases must be accurate.
+Output only clean JSON, no extra commentary.
+`;
+
+const extractTranslationsPrompt = `
+You are a Fijian language assistant. Your task is to extract high-confidence Fijian-English phrase pairs from the provided input text.
+
+Return a JSON object structured like this:
+
+{
+  "phrases": [
+    { "fijian": "Bula!", "english": "Hello!" },
+    { "fijian": "Vacava tiko?", "english": "How are you?" }
+  ]
+}
+
+Focus only on short, useful phrases. Avoid overly complex sentences.
+Output only clean JSON.
+`;
+
+
+const CLAUDE_MODEL_ID = 'anthropic.claude-3-5-sonnet-20241022-v2:0'; // or whatever version you're using
 
 export class BedrockClaudeClient {
 
@@ -32,6 +53,8 @@ export class BedrockClaudeClient {
 
     console.log('Calling Claude for translation extraction...');
     const response = await sendClaudeRequest(prompt);
+
+    console.log('Claude response:', response);
 
     const parsed = JSON.parse(response);
     return parsed.phrases || []; // expecting { phrases: [ { fijian, english }, ... ] }
@@ -59,7 +82,10 @@ async function sendClaudeRequest(prompt: string): Promise<string> {
     body
   });
 
+  console.log('Sending request to Claude...', command);
+
   const response = await bedrock.send(command);
+  console.log('Received response from Bedrock.  ', response);
   const responseBody = JSON.parse(Buffer.from(response.body).toString('utf-8'));
 
   const completion = responseBody.content?.[0]?.text || '';

@@ -12,15 +12,18 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as path from 'path';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { SecretValue } from 'aws-cdk-lib';
+import * as event_sources from 'aws-cdk-lib/aws-lambda-event-sources';
 
 export class FijianRagAppStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
     const DDB_ARTICLE_VERIFICATION_TABLE = 'ArticleVerificationTable';
+    const DDB_TRANSLATIONS_TABLE = 'TranslationsTable';
     const CONTENT_BUCKET_NAME = 'fijian-rag-app-content';
     const SNAPSHOTS_BUCKET_NAME = 'fijian-rag-app-snapshots';
     const OS_TRANSLATIONS_INDEX = 'translations';
+    const WORKER_SQS_QUEUE_URL='FijianDataIngestionQueue';
     const OS_DOMAIN = 'fijian-rag-domain';
 
     // 🔹 S3 Bucket
@@ -35,8 +38,8 @@ export class FijianRagAppStack extends Stack {
     const snapshotBucket = s3.Bucket.fromBucketName(this, 'SnapshotsBucket', SNAPSHOTS_BUCKET_NAME);
 
     // SQS Queue for Ingestion
-    const ingestionQueue = new sqs.Queue(this, 'FijianDataIngestionQueue', {
-      queueName: 'FijianDataIngestionQueue',
+    const ingestionQueue = new sqs.Queue(this, WORKER_SQS_QUEUE_URL, {
+      queueName: WORKER_SQS_QUEUE_URL,
       visibilityTimeout: Duration.minutes(5) // long enough for Claude API calls later
     });
 
@@ -270,8 +273,8 @@ export class FijianRagAppStack extends Stack {
 
     const s3ToSqsLambda = new NodejsFunction(this, 'S3ToSqsTriggerLambda', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset('lambda/data-ingest-pipeline/s3ToSqsTrigger'),
+      handler: 'handler',
+      entry: path.join(__dirname, '../lambda/data-ingest-pipeline/s3ToSqsTrigger/index.ts'),
       role: lambdaRole,
       environment: {
         SQS_QUEUE_URL: ingestionQueue.queueUrl
@@ -312,6 +315,37 @@ export class FijianRagAppStack extends Stack {
         suffix: '.txt'           // Optional: only .txt files (aggregated chapter text)
       }
     );
+
+    const ingestWorkerLambda = new NodejsFunction(this, 'ingestWorkerLambda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'handler',
+      entry: path.join(__dirname, '../lambda/data-ingest-pipeline/ingestWorker/index.ts'),
+      role: lambdaRole,
+      environment: {
+        SQS_QUEUE_URL: ingestionQueue.queueUrl
+      },
+      memorySize: 1024,      
+      bundling: {
+        externalModules: [],
+        nodeModules: [
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/client-bedrock-runtime',
+          '@aws-sdk/protocol-http',
+          '@aws-sdk/signature-v4',
+          '@aws-sdk/credential-provider-node',
+          '@aws-crypto/sha256-js'
+        ]
+      },      
+      timeout: Duration.seconds(500),
+    });
+
+    // Connect Worker Lambda to Worker Queue
+    ingestWorkerLambda.addEventSource(new event_sources.SqsEventSource(ingestionQueue, {
+      batchSize: 1, // Process one message at a time
+    }));
+    
+    // If Worker needs to download from S3
+    contentBucket.grantRead(ingestWorkerLambda);
 
 /*    
     contentBucket.addEventNotification(
@@ -384,8 +418,8 @@ export class FijianRagAppStack extends Stack {
       ]
     });
 
-    const articleTable = new dynamodb.Table(this, DDB_ARTICLE_VERIFICATION_TABLE, {
-      tableName: DDB_ARTICLE_VERIFICATION_TABLE,
+    const TranslationTable = new dynamodb.Table(this, DDB_TRANSLATIONS_TABLE, {
+      tableName: DDB_TRANSLATIONS_TABLE,
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -393,20 +427,20 @@ export class FijianRagAppStack extends Stack {
     });
     
     // Optional: add GSI for verified = false
-    articleTable.addGlobalSecondaryIndex({
+    TranslationTable.addGlobalSecondaryIndex({
       indexName: 'UnverifiedIndex',
       partitionKey: { name: 'verified', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL
     });
 
-    articleTable.grantReadWriteData(ingestArticleLambda);
-    articleTable.grantReadWriteData(getParagraphsLambda);
-    articleTable.grantReadWriteData(verifyParagraphLambda);
-    articleTable.grantReadWriteData(aggregatorLambda);
-    //articleTable.grantReadWriteData(agentRouterLambda);
-    articleTable.grantReadWriteData(textractLambda);
-    articleTable.grantReadWriteData(listArticlesLambda);
+    TranslationTable.grantReadWriteData(ingestArticleLambda);
+    TranslationTable.grantReadWriteData(getParagraphsLambda);
+    TranslationTable.grantReadWriteData(verifyParagraphLambda);
+    TranslationTable.grantReadWriteData(aggregatorLambda);
+    //TranslationTable.grantReadWriteData(agentRouterLambda);
+    TranslationTable.grantReadWriteData(textractLambda);
+    TranslationTable.grantReadWriteData(listArticlesLambda);
 
     const LearningModulesTable = new dynamodb.Table(this, 'LearningModulesTable', {
       tableName: 'LearningModulesTable',
@@ -419,6 +453,10 @@ export class FijianRagAppStack extends Stack {
     LearningModulesTable.grantReadWriteData(getModulePhrasesLambda);
     LearningModulesTable.grantReadWriteData(learnLambda);
     LearningModulesTable.grantReadWriteData(ingestArticleLambda);
+
+    TranslationTable.grantReadWriteData(ingestWorkerLambda);
+    LearningModulesTable.grantReadWriteData(ingestWorkerLambda);
+
 
     // 🔹 API Gateway
     const api = new apigateway.RestApi(this, 'FijianRagApi', {
@@ -474,7 +512,9 @@ export class FijianRagAppStack extends Stack {
       BUCKET_NAME: contentBucket.bucketName,
       SNAPSHOTS_BUCKET_NAME,
       OPENSEARCH_ENDPOINT: osDomain.domainEndpoint,
-      OS_INDEX: OS_TRANSLATIONS_INDEX
+      OS_INDEX: OS_TRANSLATIONS_INDEX,
+      WORKER_SQS_QUEUE_URL: ingestionQueue.queueUrl,
+      INGESTION_QUEUE_URL: ingestionQueue.queueUrl,
     };    
 
     for (const [key, val] of Object.entries(sharedEnv)) {
