@@ -44,15 +44,15 @@ import { MatButtonModule } from '@angular/material/button';
     VerificationReviewComponent
   ],
   imports: [
+    BrowserModule,
     FormsModule,
     HttpClientModule,
+    AppRoutingModule,
+    CommonModule,
     MatTabsModule,
     MatTableModule,
     MatInputModule,
-    MatButtonModule,
-    BrowserModule,
-    AppRoutingModule, // <-- Needed for [(ngModel)]
-    CommonModule      // <-- Needed for [ngClass]
+    MatButtonModule
   ],
   providers: [],
   bootstrap: [AppComponent]
