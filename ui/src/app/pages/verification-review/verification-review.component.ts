@@ -14,6 +14,7 @@ export class VerificationReviewComponent implements OnInit {
   constructor(private verificationService: VerificationService) {}
 
   ngOnInit(): void {
+    console.log('VerificationReviewComponent initialized');
     this.loadItems();
   }
 
