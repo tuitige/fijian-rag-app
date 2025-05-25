@@ -114,8 +114,7 @@ export class FijianRagAppStack extends cdk.Stack {
         VERIFIED_TRANSLATIONS_TABLE: verifiedTranslationsTable.tableName,
         VERIFIED_VOCAB_TABLE: verifiedVocabTable.tableName,
         CONTENT_BUCKET: contentBucket.bucketName,
-        TRAINING_BUCKET: trainingDataBucket.bucketName,
-        ANTHROPIC_API_KEY: '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',
+        TRAINING_BUCKET: trainingDataBucket.bucketName
       },
     });
 
@@ -205,6 +204,14 @@ export class FijianRagAppStack extends cdk.Stack {
       secretStringValue: cdk.SecretValue.unsafePlainText(apiKeyValue),
     });
 
+    const anthropicApiKeySecret = new secretsmanager.Secret(this, 'AnthropicApiKey', {
+      secretName: 'AnthropicApiKey',
+      description: 'API key for direct Claude access via SDK',
+    });
+
+    anthropicApiKeySecret.grantRead(ingestLambda);
+    ingestLambda.addEnvironment('ANTHROPIC_SECRET_ARN', anthropicApiKeySecret.secretArn);
+    
     // === Attach /ingest endpoint ===
     const ingestResource = unifiedApi.root.addResource('ingest');
     ingestResource.addMethod('POST', new apigateway.LambdaIntegration(ingestLambda), {
