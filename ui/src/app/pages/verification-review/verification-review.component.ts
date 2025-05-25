@@ -1,10 +1,16 @@
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';
+import { HeaderComponent } from '../../components/header/header.component';
 import { Component, OnInit } from '@angular/core';
 import { VerificationService } from '../../services/verification.service';
 
 @Component({
+  standalone: true,
   selector: 'app-verification-review',
   templateUrl: './verification-review.component.html',
-  styleUrls: ['./verification-review.component.scss']
+  styleUrls: ['./verification-review.component.scss'],
+  imports: [CommonModule, FormsModule, HttpClientModule, HeaderComponent]
 })
 export class VerificationReviewComponent implements OnInit {
   dataType: 'phrase' | 'vocab' | 'paragraph' = 'phrase';
