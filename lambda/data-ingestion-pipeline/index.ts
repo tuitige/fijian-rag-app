@@ -14,7 +14,6 @@ const ddb = new DynamoDBClient({});
 
 const apiKey = await getAnthropicApiKey();
 const anthropic = new Anthropic({ apiKey });
-//const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
 const TRANSLATIONS_REVIEW_TABLE_NAME = process.env.TRANSLATIONS_REVIEW_TABLE_NAME || '';
 const VERIFIED_TRANSLATIONS_TABLE = process.env.VERIFIED_TRANSLATIONS_TABLE || '';
