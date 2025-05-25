@@ -5,7 +5,7 @@ import { Injectable } from '@angular/core';
   providedIn: 'root'
 })
 export class VerificationService {
-  private baseUrl = 'https://your-api-endpoint/verify'; // replace this
+  private baseUrl = 'https://qbfl8hrn0g.execute-api.us-west-2.amazonaws.com/prod/verify'; // replace this
 
   constructor(private http: HttpClient) {}
 
