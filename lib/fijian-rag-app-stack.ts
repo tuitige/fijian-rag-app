@@ -9,20 +9,12 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as opensearch from 'aws-cdk-lib/aws-opensearchservice';
 import * as path from 'path';
 
 export class FijianRagAppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
-
-    const agentNames = [
-      'scraper',
-      'translator',
-      'verifier',
-      'chunker',
-      'embedder',
-      'trainingDataGenerator'
-    ];
 
     // === S3 Buckets ===
     const contentBucket = new s3.Bucket(this, 'ContentBucket', {
@@ -35,51 +27,172 @@ export class FijianRagAppStack extends cdk.Stack {
       autoDeleteObjects: true,
     });
 
-    // === DynamoDB Table ===
-    const translationsTable = new dynamodb.Table(this, 'TranslationsTable', {
+    // === DynamoDB Tables ===
+    const translationsReviewTable = new dynamodb.Table(this, 'TranslationsReviewTable', {
       partitionKey: { name: 'dataType', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'dataKey', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    // === Lambdas ===
-    const lambdas: Record<string, lambdaNodejs.NodejsFunction> = {};
+    translationsReviewTable.addGlobalSecondaryIndex({
+      indexName: 'GSI_UnverifiedKey',
+      partitionKey: { name: 'dedupKey', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'dataType', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
 
-    for (const name of agentNames) {
-      lambdas[name] = new lambdaNodejs.NodejsFunction(this, `${name}Lambda`, {
-        entry: path.join(__dirname, `../lambda/${name}/index.ts`),
-        handler: 'handler',
-        runtime: lambda.Runtime.NODEJS_20_X,
-        memorySize: 1024,
-        timeout: cdk.Duration.seconds(60),
-        bundling: {
-          nodeModules: ['axios', 'cheerio', '@aws-sdk/client-secrets-manager', '@aws-sdk/client-dynamodb']
-        },
-        environment: {
-          TABLE_NAME: translationsTable.tableName,
-          CONTENT_BUCKET: contentBucket.bucketName,
-          TRAINING_BUCKET: trainingDataBucket.bucketName,
-        }
-      });
+    translationsReviewTable.addGlobalSecondaryIndex({
+      indexName: 'GSI_VerifiedIndex',
+      partitionKey: { name: 'verified', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'dataType', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
 
-      translationsTable.grantReadWriteData(lambdas[name]);
-      contentBucket.grantReadWrite(lambdas[name]);
-      trainingDataBucket.grantReadWrite(lambdas[name]);
-    }
 
-    // === Unified API Gateway ===
-    const unifiedApi = new apigateway.RestApi(this, 'UnifiedAgentApi', {
-      restApiName: 'AgentApi',
+    const verifiedTranslationsTable = new dynamodb.Table(this, 'VerifiedTranslationsTable', {
+      partitionKey: { name: 'fijian', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'english', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const verifiedVocabTable = new dynamodb.Table(this, 'VerifiedVocabTable', {
+      partitionKey: { name: 'word', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'meaning', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const verifiedParagraphsTable = new dynamodb.Table(this, 'VerifiedParagraphsTable', {
+      partitionKey: { name: 'articleId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'paragraphId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });    
+
+    // === OpenSearch Serverless Collection ===
+    const osDomain = new opensearch.Domain(this, 'FijianRagCollection', {
+      version: opensearch.EngineVersion.OPENSEARCH_2_11,
+      domainName: 'fijian-rag-app',
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      capacity: {
+        dataNodeInstanceType: 't3.small.search',
+        dataNodes: 1,
+        multiAzWithStandbyEnabled: false
+      },
+      zoneAwareness: {
+        enabled: false
+      },
+      enforceHttps: true,
+      nodeToNodeEncryption: true,
+      encryptionAtRest: {
+        enabled: true,
+      },
+      fineGrainedAccessControl: {
+        masterUserName: 'admin',
+        masterUserPassword: cdk.SecretValue.unsafePlainText('MitiBeka!2#4!')
+      }
+    });
+
+
+
+
+    // === Lambda: data-ingestion-pipeline ===
+    const ingestLambda = new lambdaNodejs.NodejsFunction(this, 'DataIngestionLambda', {
+      entry: path.join(__dirname, '../lambda/data-ingestion-pipeline/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(300),
+      bundling: {
+        nodeModules: ['axios', '@aws-sdk/client-bedrock-runtime', '@aws-sdk/client-dynamodb']
+      },
+      environment: {
+        TRANSLATIONS_REVIEW_TABLE_NAME: translationsReviewTable.tableName,
+        VERIFIED_PARAGRAPHS_TABLE: verifiedParagraphsTable.tableName,
+        VERIFIED_TRANSLATIONS_TABLE: verifiedTranslationsTable.tableName,
+        VERIFIED_VOCAB_TABLE: verifiedVocabTable.tableName,
+        CONTENT_BUCKET: contentBucket.bucketName,
+        TRAINING_BUCKET: trainingDataBucket.bucketName,
+        ANTHROPIC_API_KEY: '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',
+      },
+    });
+
+    translationsReviewTable.grantReadWriteData(ingestLambda);
+    verifiedTranslationsTable.grantReadWriteData(ingestLambda);
+    verifiedVocabTable.grantReadWriteData(ingestLambda);
+    contentBucket.grantReadWrite(ingestLambda);
+    trainingDataBucket.grantReadWrite(ingestLambda);
+    verifiedParagraphsTable.grantReadWriteData(ingestLambda);
+
+    ingestLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: ['arn:aws:bedrock:*::foundation-model/*']
+    }));
+
+    // === Lambda: verify-handler ===
+    const verifyHandler = new lambdaNodejs.NodejsFunction(this, 'VerifyHandlerLambda', {
+      entry: path.join(__dirname, '../lambda/verification-review/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(300),
+      bundling: {
+        nodeModules: [
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/util-dynamodb',
+          '@aws-sdk/client-opensearch',
+          '@aws-sdk/credential-provider-node',
+          '@smithy/protocol-http',
+          '@smithy/node-http-handler',
+          '@smithy/signature-v4',
+          '@smithy/util-utf8',
+          '@aws-crypto/sha256-js',          
+        ]
+      },
+      environment: {
+        TRANSLATIONS_REVIEW_TABLE_NAME: translationsReviewTable.tableName,
+        VERIFIED_PARAGRAPHS_TABLE: verifiedParagraphsTable.tableName,
+        VERIFIED_TRANSLATIONS_TABLE: verifiedTranslationsTable.tableName,
+        VERIFIED_VOCAB_TABLE: verifiedVocabTable.tableName,
+        OS_ENDPOINT: osDomain.domainEndpoint,
+        TRAINING_BUCKET: trainingDataBucket.bucketName,
+      },
+    });
+
+    // Permissions
+    translationsReviewTable.grantReadWriteData(verifyHandler);
+    verifiedTranslationsTable.grantReadWriteData(verifyHandler);
+    verifiedVocabTable.grantReadWriteData(verifyHandler);
+    verifiedParagraphsTable.grantReadWriteData(verifyHandler);
+    trainingDataBucket.grantReadWrite(verifyHandler);
+    //osDomain.grantReadWrite(verifyHandler);
+
+    verifyHandler.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'es:ESHttpPost',
+        'es:ESHttpPut',
+        'es:ESHttpDelete'
+      ],
+      resources: [`arn:aws:es:${this.region}:${this.account}:domain/${osDomain.domainName}/*`]
+    }));
+
+    verifyHandler.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: ['arn:aws:bedrock:*::foundation-model/*']
+    }));    
+
+    // === API Gateway ===
+    const unifiedApi = new apigateway.RestApi(this, 'fijian-ai-api', {
+      restApiName: 'Fijian AI API',
+      description: 'API for Fijian AI application',
       deployOptions: { stageName: 'prod' },
     });
 
-    // === API Key ===
-    const manualApiKeyValue = 'my-agent-key-123-xyz789'; // 24 characters
+    const apiKeyValue = 'replace-this-with-a-secure-key-1234567890';
 
-    const apiKey = unifiedApi.addApiKey('UnifiedAgentApiKey', {
-      value: manualApiKeyValue
-    });
+    const apiKey = unifiedApi.addApiKey('UnifiedAgentApiKey', { value: apiKeyValue });
 
     const usagePlan = unifiedApi.addUsagePlan('UnifiedAgentUsagePlan', {
       name: 'AgentUsagePlan',
@@ -87,69 +200,28 @@ export class FijianRagAppStack extends cdk.Stack {
     });
     usagePlan.addApiKey(apiKey);
 
-    // === Store API Key in Secrets Manager ===
-    const apiKeySecret = new secretsmanager.Secret(this, 'AgentApiKeySecret', {
+    new secretsmanager.Secret(this, 'AgentApiKeySecret', {
       secretName: 'AgentApiKey',
-      secretStringValue: cdk.SecretValue.unsafePlainText(manualApiKeyValue),
+      secretStringValue: cdk.SecretValue.unsafePlainText(apiKeyValue),
     });
 
-    // === Attach unified API to each agent ===
-    for (const name of agentNames) {
-      const fn = lambdas[name];
-      const resource = unifiedApi.root.addResource(name);
-      resource.addMethod('POST', new apigateway.LambdaIntegration(fn), {
-        apiKeyRequired: true,
-      });
-
-      // Grant Lambda permission to read secret
-      apiKeySecret.grantRead(fn);
-    }
-
-    if (lambdas['translator']) {
-      lambdas['translator'].addToRolePolicy(new iam.PolicyStatement({
-        actions: ['bedrock:InvokeModel'],
-        resources: ['arn:aws:bedrock:us-west-2::foundation-model/*'],
-      }));
-    }
-
-
-    // === Orchestrator Lambda ===
-    const orchestratorLambda = new lambdaNodejs.NodejsFunction(this, 'OrchestratorLambda', {
-      entry: path.join(__dirname, '../lambda/orchestrator/index.ts'),
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_20_X,
-      memorySize: 1024,
-      timeout: cdk.Duration.seconds(60),
-      bundling: {
-        nodeModules: [
-          'axios',
-          'uuid',
-          '@aws-sdk/client-lambda',
-          '@aws-sdk/client-dynamodb',
-          '@aws-sdk/client-secrets-manager'
-        ]
-      },
-      environment: {
-        TABLE_NAME: translationsTable.tableName,
-        CONTENT_BUCKET: contentBucket.bucketName,
-        TRAINING_BUCKET: trainingDataBucket.bucketName,
-        API_KEY_SECRET_NAME: apiKeySecret.secretName,
-        UNIFIED_API_BASE_URL: `https://${unifiedApi.restApiId}.execute-api.${cdk.Stack.of(this).region}.amazonaws.com/prod`
-      }
-    });
-
-    // Grant orchestrator access to invoke other Lambdas via API Gateway
-    apiKeySecret.grantRead(orchestratorLambda);
-    translationsTable.grantReadWriteData(orchestratorLambda);
-    contentBucket.grantReadWrite(orchestratorLambda);
-    trainingDataBucket.grantReadWrite(orchestratorLambda);
-
-    // Add orchestrator endpoint under unified API
-    const orchestratorResource = unifiedApi.root.addResource('orchestrator');
-    orchestratorResource.addMethod('POST', new apigateway.LambdaIntegration(orchestratorLambda), {
+    // === Attach /ingest endpoint ===
+    const ingestResource = unifiedApi.root.addResource('ingest');
+    ingestResource.addMethod('POST', new apigateway.LambdaIntegration(ingestLambda), {
       apiKeyRequired: true,
     });
 
+    // === Get Items to Verify endpoint ===
+    const verifyResource = unifiedApi.root.addResource('verify-items');
+    verifyResource.addMethod('GET', new apigateway.LambdaIntegration(verifyHandler), {
+      apiKeyRequired: true,
+    });
+
+    // === Verify Item endpoint ===
+    const submitVerifyResource = unifiedApi.root.addResource('verify-item');
+    submitVerifyResource.addMethod('POST', new apigateway.LambdaIntegration(verifyHandler), {
+      apiKeyRequired: true,
+    });
 
 
   }

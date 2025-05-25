@@ -4,12 +4,14 @@ import { RouterModule, Routes } from '@angular/router';
 import { TrainingComponent } from './pages/training/training.component';
 import { VerifyModuleComponent } from './pages/verify-module/verify-module.component';
 import { PagesComponent } from './pages/pages/pages.component';
+import { VerificationReviewComponent } from './pages/verification-review/verification-review.component';
 
 const routes: Routes = [
-  { path: '', redirectTo: '/training', pathMatch: 'full' },
+  { path: '', redirectTo: '/verify', pathMatch: 'full' },
   { path: 'training', component: PagesComponent },
   { path: 'verify-module/:title', component: VerifyModuleComponent },
   { path: 'pages', component: PagesComponent },
+  { path: 'verify', component: VerificationReviewComponent },
   { path: '**', component: PagesComponent }
 ];
 

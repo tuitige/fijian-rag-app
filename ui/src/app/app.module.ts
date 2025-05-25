@@ -19,6 +19,18 @@ import { ArticleListComponent } from './pages/article-list/article-list.componen
 import { ModuleReviewComponent } from './pages/module-review/module-review.component';
 import { VerifyModuleComponent } from './pages/verify-module/verify-module.component';
 
+import { VerificationReviewComponent } from './pages/verification-review/verification-review.component';
+
+
+import { FormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatTableModule } from '@angular/material/table';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+
+
+
 @NgModule({
   declarations: [
     AppComponent,
@@ -30,9 +42,16 @@ import { VerifyModuleComponent } from './pages/verify-module/verify-module.compo
     LearnComponent,
     ArticleListComponent,
     ModuleReviewComponent,
-    VerifyModuleComponent
+    VerifyModuleComponent,
+    VerificationReviewComponent
   ],
   imports: [
+    FormsModule,
+    HttpClientModule,
+    MatTabsModule,
+    MatTableModule,
+    MatInputModule,
+    MatButtonModule,
     BrowserModule,
     AppRoutingModule, // <-- Clean import here
     HttpClientModule,
