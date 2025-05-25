@@ -12,6 +12,7 @@ import { ArticleListComponent } from './pages/article-list/article-list.componen
 import { ModuleReviewComponent } from './pages/module-review/module-review.component';
 import { ModuleListComponent } from './pages/module-list/module-list.component';
 import { LearnComponent } from './pages/learn/learn.component';
+import { VerificationReviewComponent } from './pages/verification-review/verification-review.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/home', pathMatch: 'full' },
@@ -22,6 +23,7 @@ export const routes: Routes = [
   { path: 'article-list', component: ArticleListComponent },
   { path: 'module-review', component: ModuleReviewComponent },
   { path: 'module-list', component: ModuleListComponent },
+  { path: 'verify', component: VerificationReviewComponent },
   { path: 'verify-module/:title', component: VerifyModuleComponent },
   { path: 'pages/:title', component: PagesComponent },
   { path: '**', redirectTo: '/home' }
