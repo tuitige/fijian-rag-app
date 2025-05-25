@@ -3,7 +3,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { HomeComponent } from './pages/home/home.component';
 import { VerificationReviewComponent } from './pages/verification-review/verification-review.component';
 
-const routes: Routes = [
+export const routes: Routes = [
   { path: '', component: HomeComponent },
   { path: 'verify', component: VerificationReviewComponent },
   { path: '**', redirectTo: '' }

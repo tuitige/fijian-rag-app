@@ -2,7 +2,7 @@ import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { routes } from './app.routes';
+import { routes } from './app-routing.module';
 import { ApiService } from './services/api.service';
 
 export const appConfig: ApplicationConfig = {
