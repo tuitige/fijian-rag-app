@@ -1,6 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatTableModule } from '@angular/material/table';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
 import { VerificationService } from '../../services/verification.service';
 
 @Component({
@@ -8,7 +12,14 @@ import { VerificationService } from '../../services/verification.service';
   selector: 'app-verification-review',
   templateUrl: './verification-review.component.html',
   styleUrls: ['./verification-review.component.scss'],
-  imports: [FormsModule, CommonModule]
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatTabsModule,
+    MatTableModule,
+    MatInputModule,
+    MatButtonModule
+  ]
 })
 export class VerificationReviewComponent implements OnInit {
   dataType: 'phrase' | 'vocab' | 'paragraph' = 'phrase';
@@ -18,7 +29,6 @@ export class VerificationReviewComponent implements OnInit {
   constructor(private verificationService: VerificationService) {}
 
   ngOnInit(): void {
-    console.log('VerificationReviewComponent initialized');
     this.loadItems();
   }
 
