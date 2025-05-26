@@ -13,22 +13,22 @@
 
   <div *ngIf="stats" style="margin-top: 2rem;">
     <h2>Verification Stats</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Total</th>
-          <th>Verified</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let type of translationTypes">
-          <td>{{ type }}</td>
-          <td>{{ stats?.[type]?.total }}</td>
-          <td>{{ stats?.[type]?.verified }}</td>
-        </tr>
-      </tbody>
-    </table>
+      <table class="mat-elevation-z2" style="width: 100%; margin-top: 1rem;">
+        <thead style="background-color: #f5f5f5;">
+          <tr>
+            <th>Type</th>
+            <th>Total</th>
+            <th>Verified</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let type of translationTypes">
+            <td>{{ type }}</td>
+            <td>{{ stats?.[type]?.total }}</td>
+            <td>{{ stats?.[type]?.verified }}</td>
+          </tr>
+        </tbody>
+      </table>
   </div>
 
   <p style="font-size: 0.9rem; margin-top: 1rem; color: #555;">
