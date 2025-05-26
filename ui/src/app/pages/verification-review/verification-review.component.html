@@ -39,15 +39,18 @@
     <ng-container *ngIf="dataType === 'phrase' || dataType === 'paragraph'">
       <ng-container matColumnDef="originalText">
         <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">Fijian</th>
-        <td mat-cell *matCellDef="let item">
-          <input [(ngModel)]="item.originalText" style="width: 100%;" />
-        </td>
+        <td mat-cell *matCellDef="let item">{{ item.originalText }}</td>
       </ng-container>
 
       <ng-container matColumnDef="translatedText">
-        <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">English</th>
+        <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">AI Translation</th>
+        <td mat-cell *matCellDef="let item">{{ item.translatedText }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="finalTranslation">
+        <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">Your Translation</th>
         <td mat-cell *matCellDef="let item">
-          <input [(ngModel)]="item.translatedText" style="width: 100%;" />
+          <input [(ngModel)]="item.finalTranslation" style="width: 100%;" />
         </td>
       </ng-container>
     </ng-container>
