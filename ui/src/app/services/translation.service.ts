@@ -85,7 +85,12 @@ export class TranslationService {
   getAllModules() {
     return this.http.get<any[]>(`${this.apiUrl}/list-modules`);
   }
-  
+
+  getVerificationStats(): Promise<any> {
+    // You can pick any type; we just want the stats from the response
+    return this.http.get<any>(`${this.apiUrl}/verify-items?type=vocab`).toPromise();
+  }
+
     
 
 }

@@ -3,7 +3,8 @@ import {
   DynamoDBClient,
   QueryCommand,
   UpdateItemCommand,
-  PutItemCommand
+  PutItemCommand,
+  ScanCommand
 } from '@aws-sdk/client-dynamodb';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { marshall } from '@aws-sdk/util-dynamodb';
@@ -163,9 +164,34 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       Limit: 100 // adjustable for pagination
     }));
 
+    // Step 2: Fetch stats for all types
+    const dataTypes = ['paragraph', 'phrase', 'vocab'];
+    const stats: Record<string, { total: number, verified: number }> = {};
+
+    for (const dt of dataTypes) {
+      const scanResult = await ddb.send(new ScanCommand({
+        TableName: TRANSLATIONS_REVIEW_TABLE_NAME,
+        FilterExpression: 'dataType = :dt',
+        ExpressionAttributeValues: {
+          ':dt': { S: dt }
+        },
+        ProjectionExpression: 'verified'
+      }));
+
+      const allItems = scanResult.Items || [];
+      const verifiedCount = allItems.filter(i => i.verified?.BOOL === true).length;      
+
+      stats[dt] = {
+        total: allItems.length,
+        verified: verifiedCount
+      };
+    }
+
+
     return jsonResponse(200, {
       count: items.Items?.length || 0,
-      items: items.Items?.map(flattenItem)
+      items: items.Items?.map(flattenItem),
+      stats
     });
   }
 
