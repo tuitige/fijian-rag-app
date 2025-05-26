@@ -21,6 +21,7 @@
         <th style="text-align: left; padding: 8px;">Type</th>
         <th style="text-align: left; padding: 8px;">Total</th>
         <th style="text-align: left; padding: 8px;">Verified</th>
+        <th style="text-align: left; padding: 8px;">%</th>
       </tr>
     </thead>
     <tbody>
@@ -28,6 +29,13 @@
         <td style="padding: 8px;">{{ type }}</td>
         <td style="padding: 8px;">{{ s[type].total }}</td>
         <td style="padding: 8px;">{{ s[type].verified }}</td>
+        <td style="padding: 8px;">
+          {{
+            s[type].total > 0
+              ? (s[type].verified / s[type].total * 100) | number:'1.0-0'
+              : '0'
+          }}%
+        </td>
       </tr>
     </tbody>
   </table>
