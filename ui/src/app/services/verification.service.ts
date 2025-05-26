@@ -21,11 +21,11 @@ export class VerificationService {
     );
   }
 
-  getStats(): Promise<any> {
+  getStats() {
     return this.http.get<any>(
       `${this.baseUrl}-items?type=vocab`,
       { headers: this.headers }
-    ).toPromise();
+    );
   }
 
   verifyItem(dataType: string, item: any) {
