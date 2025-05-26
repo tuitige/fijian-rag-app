@@ -1,8 +1,14 @@
 import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';
+
 import { VerificationService } from '../../services/verification.service';
 
 @Component({
+  standalone: true,
   selector: 'app-verification-review',
+  imports: [CommonModule, FormsModule, HttpClientModule],
   templateUrl: './verification-review.component.html',
   styleUrls: ['./verification-review.component.scss']
 })
@@ -21,7 +27,7 @@ export class VerificationReviewComponent implements OnInit {
     this.loading = true;
     this.verificationService.getItemsToVerify(this.dataType).subscribe({
       next: (res) => {
-        this.items = res.items;
+        this.items = res.items || [];
         this.loading = false;
       },
       error: (err) => {
@@ -29,6 +35,12 @@ export class VerificationReviewComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  changeTab(type: 'phrase' | 'vocab' | 'paragraph') {
+    this.dataType = type;
+    this.items = [];
+    this.loadItems();
   }
 
   verifyItem(item: any) {
