@@ -23,6 +23,7 @@ export class VerificationReviewComponent implements OnInit {
   dataType: 'vocab' | 'phrase' | 'paragraph' = 'vocab';
   items: any[] = [];
   loading = false;
+  selectedTabIndex = 0;
 
   constructor(private verificationService: VerificationService) {}
 
@@ -30,11 +31,12 @@ export class VerificationReviewComponent implements OnInit {
     this.loadItems();
   }
 
-  selectTab(index: number): void {
-    const types: ('vocab' | 'phrase' | 'paragraph')[] = ['vocab', 'phrase', 'paragraph'];
-    this.dataType = types[index];
-    this.loadItems();
-  }
+
+selectTab(index: number): void {
+  const tabKeys = ['vocab', 'phrase', 'paragraph'];
+  this.selectedTabIndex = index;
+  this.dataType = tabKeys[index] as 'vocab' | 'phrase' | 'paragraph';
+}
 
   loadItems(): void {
     this.loading = true;

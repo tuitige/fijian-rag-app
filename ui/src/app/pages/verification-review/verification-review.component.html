@@ -6,7 +6,7 @@
     By validating each vocabulary word, phrase, or paragraph, we help build a high-quality training dataset that will be used in Retrieval-Augmented Generation (RAG) systems to teach and preserve the Fijian language.
   </p>
 
-  <mat-tab-group [(selectedIndex)]="['vocab', 'phrase', 'paragraph'].indexOf(dataType)" (selectedIndexChange)="selectTab($event)">
+  <mat-tab-group [selectedIndex]="selectedTabIndex" (selectedIndexChange)="selectTab($event)">
     <mat-tab label="Vocabulary"></mat-tab>
     <mat-tab label="Phrases"></mat-tab>
     <mat-tab label="Paragraphs"></mat-tab>
