@@ -179,7 +179,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }));
 
       const allItems = scanResult.Items || [];
-      const verifiedCount = allItems.filter(i => i.verified?.BOOL === true).length;      
+      //const verifiedCount = allItems.filter(i => i.verified?.BOOL === true).length;      
+      const verifiedCount = allItems.filter(i => i.verified?.S === 'true').length;
 
       stats[dt] = {
         total: allItems.length,

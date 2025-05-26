@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { VerificationService } from '../../services/verification.service';
 
 @Component({
@@ -14,6 +15,7 @@ import { VerificationService } from '../../services/verification.service';
     FormsModule,
     MatTabsModule,
     MatTableModule,
+    MatProgressSpinnerModule,
     MatButtonModule
   ],
   templateUrl: './verification-review.component.html',

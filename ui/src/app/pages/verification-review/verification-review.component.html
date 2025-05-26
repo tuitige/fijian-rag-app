@@ -56,10 +56,11 @@
     <ng-container matColumnDef="actions">
       <th mat-header-cell *matHeaderCellDef></th>
       <td mat-cell *matCellDef="let item">
-        <button mat-raised-button color="primary" (click)="verifyItem(item)" [disabled]="verifyingItemId === item.id">
-          <mat-spinner *ngIf="verifyingItemId === item.id" diameter="20"></mat-spinner>
-          <span *ngIf="verifyingItemId !== item.id">Verify</span>
-        </button>
+      <button mat-raised-button color="primary" (click)="verifyItem(item)" [disabled]="verifyingItemId === item.dataKey">
+        <mat-spinner *ngIf="verifyingItemId === item.dataKey" diameter="20"></mat-spinner>
+        <span *ngIf="verifyingItemId !== item.dataKey">Verify</span>
+      </button>
+
       </td>
     </ng-container>
 
