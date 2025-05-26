@@ -22,10 +22,10 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let type of ['vocab', 'phrase', 'paragraph']">
+        <tr *ngFor="let type of translationTypes">
           <td>{{ type }}</td>
-          <td>{{ stats[type]?.total }}</td>
-          <td>{{ stats[type]?.verified }}</td>
+          <td>{{ stats?.[type]?.total }}</td>
+          <td>{{ stats?.[type]?.verified }}</td>
         </tr>
       </tbody>
     </table>

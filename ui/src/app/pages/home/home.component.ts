@@ -11,12 +11,16 @@ import { VerificationService } from '../../services/verification.service';
 export class HomeComponent {
 
   stats: any;
+  translationTypes = ['vocab', 'phrase', 'paragraph'];
 
   constructor(private verificationService: VerificationService) {}
 
   ngOnInit() {
     this.verificationService.getStats()
-      .then(res => this.stats = res.stats)
+      .then(res => {
+        this.stats = res.stats;
+        console.log('Stats fetched successfully: ', this.stats);
+      })
       .catch(err => console.error('Failed to fetch stats', err));
   }
 
