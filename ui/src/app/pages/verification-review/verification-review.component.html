@@ -56,7 +56,10 @@
     <ng-container matColumnDef="actions">
       <th mat-header-cell *matHeaderCellDef></th>
       <td mat-cell *matCellDef="let item">
-        <button mat-raised-button color="primary" (click)="verifyItem(item)">Verify</button>
+        <button mat-raised-button color="primary" (click)="verifyItem(item)" [disabled]="verifyingItemId === item.id">
+          <mat-spinner *ngIf="verifyingItemId === item.id" diameter="20"></mat-spinner>
+          <span *ngIf="verifyingItemId !== item.id">Verify</span>
+        </button>
       </td>
     </ng-container>
 

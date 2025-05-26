@@ -24,6 +24,7 @@ export class VerificationReviewComponent implements OnInit {
   items: any[] = [];
   loading = false;
   selectedTabIndex = 0;
+  verifyingItemId: string | null = null;
 
   constructor(private verificationService: VerificationService) {}
 
@@ -52,16 +53,22 @@ selectTab(index: number): void {
     });
   }
 
-  verifyItem(item: any): void {
-    this.verificationService.verifyItem(this.dataType, item).subscribe({
-      next: () => {
-        this.items = this.items.filter(i => i.dataKey !== item.dataKey);
-      },
-      error: (err) => {
-        console.error('Error verifying item:', err);
-      }
-    });
-  }
+verifyItem(item: any): void {
+  this.verifyingItemId = item.dataKey;
+
+  this.verificationService.verifyItem(this.dataType, item).subscribe({
+    next: () => {
+      this.items = this.items.filter(i => i.dataKey !== item.dataKey);
+      this.verifyingItemId = null;
+      alert('✅ Verified successfully!');
+    },
+    error: (err) => {
+      console.error('Error verifying item:', err);
+      this.verifyingItemId = null;
+      alert('❌ Failed to verify item');
+    }
+  });
+}
 
   getDisplayedColumns(): string[] {
     if (this.dataType === 'vocab') {
