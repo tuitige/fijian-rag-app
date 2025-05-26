@@ -56,30 +56,29 @@ selectTab(index: number): void {
 
     const payload = {
       ...item,
-      translatedText: item.finalTranslation // use the editable field
+      translatedText: item.finalTranslation || item.translatedText || item.meaning // covers vocab too
     };
 
     this.verificationService.verifyItem(this.dataType, payload).subscribe({
       next: () => {
         this.items = this.items.filter(i => i.dataKey !== item.dataKey);
         this.verifyingItemId = null;
-        alert('✅ Verified with custom translation!');
       },
       error: (err) => {
         console.error('Error verifying item:', err);
         this.verifyingItemId = null;
-        alert('❌ Failed to verify');
       }
     });
   }
 
   getDisplayedColumns(): string[] {
     if (this.dataType === 'vocab') {
-      return ['partOfSpeech', 'word', 'meaning', 'actions'];
+      return ['partOfSpeech', 'word', 'meaning', 'finalTranslation', 'actions'];
     } else {
       return ['originalText', 'translatedText', 'finalTranslation', 'actions'];
     }
   }
+
 
   isEven(index: number): boolean {
     return index % 2 === 0;

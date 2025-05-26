@@ -17,23 +17,31 @@
   </div>
 
   <table mat-table [dataSource]="items" class="mat-elevation-z2" *ngIf="!loading && items.length > 0" style="width: 100%; margin-top: 2rem;">
-    <!-- Vocabulary Columns -->
-    <ng-container *ngIf="dataType === 'vocab'">
-      <ng-container matColumnDef="partOfSpeech">
-        <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">Part of Speech</th>
-        <td mat-cell *matCellDef="let item">{{ item.partOfSpeech }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="word">
-        <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">Fijian</th>
-        <td mat-cell *matCellDef="let item">{{ item.word }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="meaning">
-        <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">English (Meaning)</th>
-        <td mat-cell *matCellDef="let item">{{ item.meaning }}</td>
-      </ng-container>
+  <!-- Vocabulary Columns -->
+  <ng-container *ngIf="dataType === 'vocab'">
+    <ng-container matColumnDef="partOfSpeech">
+      <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">Part of Speech</th>
+      <td mat-cell *matCellDef="let item">{{ item.partOfSpeech }}</td>
     </ng-container>
+
+    <ng-container matColumnDef="word">
+      <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">Fijian</th>
+      <td mat-cell *matCellDef="let item">{{ item.word }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="meaning">
+      <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">AI Translation</th>
+      <td mat-cell *matCellDef="let item">{{ item.meaning }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="finalTranslation">
+      <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">Your Translation</th>
+      <td mat-cell *matCellDef="let item">
+        <input [(ngModel)]="item.finalTranslation" style="width: 100%;" />
+      </td>
+    </ng-container>
+  </ng-container>
+
 
     <!-- Phrase and Paragraph Columns -->
     <ng-container *ngIf="dataType === 'phrase' || dataType === 'paragraph'">
