@@ -91,6 +91,4 @@ export class TranslationService {
     return this.http.get<any>(`${this.apiUrl}/verify-items?type=vocab`).toPromise();
   }
 
-    
-
 }
