@@ -1,25 +1,10 @@
 import { Component, OnInit } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatTableModule } from '@angular/material/table';
-import { MatInputModule } from '@angular/material/input';
-import { MatButtonModule } from '@angular/material/button';
 import { VerificationService } from '../../services/verification.service';
 
 @Component({
-  standalone: true,
   selector: 'app-verification-review',
   templateUrl: './verification-review.component.html',
-  styleUrls: ['./verification-review.component.scss'],
-  imports: [
-    CommonModule,
-    FormsModule,
-    MatTabsModule,
-    MatTableModule,
-    MatInputModule,
-    MatButtonModule
-  ]
+  styleUrls: ['./verification-review.component.scss']
 })
 export class VerificationReviewComponent implements OnInit {
   dataType: 'phrase' | 'vocab' | 'paragraph' = 'phrase';
@@ -32,11 +17,17 @@ export class VerificationReviewComponent implements OnInit {
     this.loadItems();
   }
 
+  changeTab(type: 'phrase' | 'vocab' | 'paragraph') {
+    this.dataType = type;
+    this.items = [];
+    this.loadItems();
+  }
+
   loadItems(): void {
     this.loading = true;
     this.verificationService.getItemsToVerify(this.dataType).subscribe({
       next: (res) => {
-        this.items = res.items;
+        this.items = res.items || [];
         this.loading = false;
       },
       error: (err) => {
@@ -46,12 +37,6 @@ export class VerificationReviewComponent implements OnInit {
     });
   }
 
-  changeTab(type: 'phrase' | 'vocab' | 'paragraph') {
-    this.dataType = type;
-    this.items = [];
-    this.loadItems();
-  }
-
   verifyItem(item: any) {
     this.verificationService.verifyItem(this.dataType, item).subscribe({
       next: () => {
@@ -59,5 +44,11 @@ export class VerificationReviewComponent implements OnInit {
       },
       error: (err) => console.error('Verify failed:', err)
     });
+  }
+
+  getDisplayedColumns(): string[] {
+    if (this.dataType === 'phrase') return ['source', 'target', 'actions'];
+    if (this.dataType === 'vocab') return ['word', 'partOfSpeech', 'meaning', 'actions'];
+    return ['originalText', 'translatedText', 'actions']; // paragraph
   }
 }

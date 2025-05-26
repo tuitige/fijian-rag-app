@@ -1,70 +1,28 @@
-<div class="verification-container">
-  <mat-tab-group (selectedTabChange)="changeTab($event.index === 0 ? 'phrase' : $event.index === 1 ? 'vocab' : 'paragraph')">
-    <mat-tab label="Phrases"></mat-tab>
-    <mat-tab label="Vocabulary"></mat-tab>
-    <mat-tab label="Paragraphs"></mat-tab>
-  </mat-tab-group>
-
-  <div *ngIf="loading" class="loading">Loading...</div>
-
-  <div *ngIf="!loading">
-    <table mat-table [dataSource]="items" class="mat-elevation-z8">
-      <ng-container matColumnDef="fijian" *ngIf="dataType === 'phrase'">
-        <th mat-header-cell *matHeaderCellDef>Fijian</th>
-        <td mat-cell *matCellDef="let item">
-          <input [(ngModel)]="item.fijian" />
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="english" *ngIf="dataType === 'phrase'">
-        <th mat-header-cell *matHeaderCellDef>English</th>
-        <td mat-cell *matCellDef="let item">
-          <input [(ngModel)]="item.english" />
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="word" *ngIf="dataType === 'vocab'">
-        <th mat-header-cell *matHeaderCellDef>Word</th>
-        <td mat-cell *matCellDef="let item">
-          <input [(ngModel)]="item.word" />
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="partOfSpeech" *ngIf="dataType === 'vocab'">
-        <th mat-header-cell *matHeaderCellDef>POS</th>
-        <td mat-cell *matCellDef="let item">
-          <input [(ngModel)]="item.partOfSpeech" />
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="meaning" *ngIf="dataType === 'vocab'">
-        <th mat-header-cell *matHeaderCellDef>Meaning</th>
-        <td mat-cell *matCellDef="let item">
-          <input [(ngModel)]="item.meaning" />
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="originalText" *ngIf="dataType === 'paragraph'">
-        <th mat-header-cell *matHeaderCellDef>Original</th>
-        <td mat-cell *matCellDef="let item">{{ item.originalText }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="translatedText" *ngIf="dataType === 'paragraph'">
-        <th mat-header-cell *matHeaderCellDef>Translated</th>
-        <td mat-cell *matCellDef="let item">
-          <textarea [(ngModel)]="item.translatedText"></textarea>
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="action">
-        <th mat-header-cell *matHeaderCellDef></th>
-        <td mat-cell *matCellDef="let item">
-          <button mat-raised-button color="primary" (click)="verifyItem(item)">Verify</button>
-        </td>
-      </ng-container>
-
-      <tr mat-header-row *matHeaderRowDef="['fijian', 'english', 'word', 'partOfSpeech', 'meaning', 'originalText', 'translatedText', 'action']"></tr>
-      <tr mat-row *matRowDef="let row; columns: ['fijian', 'english', 'word', 'partOfSpeech', 'meaning', 'originalText', 'translatedText', 'action'];"></tr>
-    </table>
+<div class="p-4">
+  <div class="tabs mb-4">
+    <button (click)="changeTab('phrase')" [disabled]="dataType === 'phrase'">Phrases</button>
+    <button (click)="changeTab('vocab')" [disabled]="dataType === 'vocab'">Vocabulary</button>
+    <button (click)="changeTab('paragraph')" [disabled]="dataType === 'paragraph'">Paragraphs</button>
   </div>
+
+  <div *ngIf="loading">Loading...</div>
+
+  <table mat-table [dataSource]="items" *ngIf="!loading && items.length > 0">
+    <ng-container *ngFor="let col of getDisplayedColumns()" [matColumnDef]="col">
+      <th mat-header-cell *matHeaderCellDef>{{ col }}</th>
+      <td mat-cell *matCellDef="let item">
+        <ng-container [ngSwitch]="col">
+          <span *ngSwitchCase="'actions'">
+            <button mat-button (click)="verifyItem(item)">Verify</button>
+          </span>
+          <span *ngSwitchDefault>{{ item[col] }}</span>
+        </ng-container>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="getDisplayedColumns()"></tr>
+    <tr mat-row *matRowDef="let row; columns: getDisplayedColumns();"></tr>
+  </table>
+
+  <p *ngIf="!loading && items.length === 0">No items to review.</p>
 </div>
