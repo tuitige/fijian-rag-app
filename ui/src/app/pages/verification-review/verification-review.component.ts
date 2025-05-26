@@ -86,6 +86,7 @@ export class VerificationReviewComponent implements OnInit {
   }
 
 
+
   isEven(index: number): boolean {
     return index % 2 === 0;
   }
