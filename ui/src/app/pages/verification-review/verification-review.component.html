@@ -1,26 +1,34 @@
-<h2>Review Items</h2>
+<mat-tab-group [(selectedIndex)]="['phrase', 'vocab', 'paragraph'].indexOf(dataType)">
+  <mat-tab label="Phrases" (click)="changeTab('phrase')"></mat-tab>
+  <mat-tab label="Vocabulary" (click)="changeTab('vocab')"></mat-tab>
+  <mat-tab label="Paragraphs" (click)="changeTab('paragraph')"></mat-tab>
+</mat-tab-group>
 
 <div *ngIf="loading">Loading...</div>
 
-<table *ngIf="!loading && items.length > 0" border="1" cellpadding="6" cellspacing="0" style="width: 100%; border-collapse: collapse;">
-  <thead>
-    <tr>
-      <th>Fijian</th>
-      <th>English</th>
-      <th>Notes</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr *ngFor="let item of items">
-      <td><input [(ngModel)]="item.originalText" style="width: 100%;" /></td>
-      <td><input [(ngModel)]="item.translatedText" style="width: 100%;" /></td>
-      <td><input [(ngModel)]="item.notes" style="width: 100%;" /></td>
-      <td><button (click)="verifyItem(item)">✅ Verify</button></td>
-    </tr>
-  </tbody>
+<table mat-table [dataSource]="items" class="mat-elevation-z8" *ngIf="!loading && items.length">
+
+  <ng-container [matColumnDef]="col" *ngFor="let col of getDisplayedColumns()">
+    <th mat-header-cell *matHeaderCellDef>{{ col }}</th>
+    <td mat-cell *matCellDef="let item">
+      <ng-container [ngSwitch]="col">
+        <input *ngSwitchCase="'originalText'" [(ngModel)]="item.originalText" style="width: 100%" />
+        <input *ngSwitchCase="'translatedText'" [(ngModel)]="item.translatedText" style="width: 100%" />
+        <input *ngSwitchCase="'notes'" [(ngModel)]="item.notes" style="width: 100%" />
+
+        <input *ngSwitchCase="'word'" [(ngModel)]="item.word" style="width: 100%" />
+        <input *ngSwitchCase="'partOfSpeech'" [(ngModel)]="item.partOfSpeech" style="width: 100%" />
+        <input *ngSwitchCase="'meaning'" [(ngModel)]="item.meaning" style="width: 100%" />
+
+        <button *ngSwitchCase="'action'" mat-raised-button color="primary" (click)="verifyItem(item)">
+          Verify
+        </button>
+      </ng-container>
+    </td>
+  </ng-container>
+
+  <tr mat-header-row *matHeaderRowDef="getDisplayedColumns()"></tr>
+  <tr mat-row *matRowDef="let row; columns: getDisplayedColumns();"></tr>
 </table>
 
-<div *ngIf="!loading && items.length === 0">
-  No items to verify.
-</div>
+<p *ngIf="!loading && items.length === 0">✅ Nothing left to verify for {{ dataType }}.</p>
