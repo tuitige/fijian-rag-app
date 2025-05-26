@@ -15,6 +15,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';  // if you're using tabs
 import { MatFormFieldModule } from '@angular/material/form-field'; // recommended
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+
+import { NgSwitch, NgSwitchCase, NgSwitchDefault } from '@angular/common';
 
 @NgModule({
   declarations: [
@@ -30,6 +33,10 @@ import { MatFormFieldModule } from '@angular/material/form-field'; // recommende
     MatTableModule,
     MatInputModule,
     MatButtonModule,
+    MatProgressSpinnerModule,
+    NgSwitch,
+    NgSwitchCase,
+    NgSwitchDefault,
     MatTabsModule,
     MatFormFieldModule,
     AppRoutingModule
