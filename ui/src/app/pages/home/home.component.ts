@@ -1,11 +1,12 @@
 import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { HeaderComponent } from '../../components/header/header.component';
 import { VerificationService } from '../../services/verification.service';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [HeaderComponent],
+  imports: [HeaderComponent, CommonModule],
   templateUrl: './home.component.html'
 })
 export class HomeComponent implements OnInit {
