@@ -17,17 +17,11 @@ export class VerificationReviewComponent implements OnInit {
     this.loadItems();
   }
 
-  changeTab(type: 'phrase' | 'vocab' | 'paragraph') {
-    this.dataType = type;
-    this.items = [];
-    this.loadItems();
-  }
-
   loadItems(): void {
     this.loading = true;
     this.verificationService.getItemsToVerify(this.dataType).subscribe({
       next: (res) => {
-        this.items = res.items || [];
+        this.items = res.items;
         this.loading = false;
       },
       error: (err) => {
@@ -44,11 +38,5 @@ export class VerificationReviewComponent implements OnInit {
       },
       error: (err) => console.error('Verify failed:', err)
     });
-  }
-
-  getDisplayedColumns(): string[] {
-    if (this.dataType === 'phrase') return ['source', 'target', 'actions'];
-    if (this.dataType === 'vocab') return ['word', 'partOfSpeech', 'meaning', 'actions'];
-    return ['originalText', 'translatedText', 'actions']; // paragraph
   }
 }
