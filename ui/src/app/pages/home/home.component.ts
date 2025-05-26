@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { HeaderComponent } from '../../components/header/header.component';
-import { TranslationService } from '../../services/translation.service';
+import { VerificationService } from '../../services/verification.service';
 
 @Component({
   selector: 'app-home',
@@ -10,18 +10,14 @@ import { TranslationService } from '../../services/translation.service';
 })
 export class HomeComponent {
 
-stats: any;
+  stats: any;
 
-constructor(private translationService: TranslationService) {}
+  constructor(private verificationService: VerificationService) {}
 
   ngOnInit() {
-    this.translationService.getVerificationStats()
-      .then(res => {
-        this.stats = res.stats;
-      })
-      .catch(err => {
-        console.error('Failed to fetch stats', err);
-      });
+    this.verificationService.getStats()
+      .then(res => this.stats = res.stats)
+      .catch(err => console.error('Failed to fetch stats', err));
   }
 
 
