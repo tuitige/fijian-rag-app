@@ -7,6 +7,8 @@
 <div *ngIf="loading" style="margin-top: 1rem;">Loading...</div>
 
 <table mat-table [dataSource]="items" *ngIf="!loading && items.length > 0" class="mat-elevation-z8" style="width: 100%; margin-top: 1rem;">
+
+
   <!-- Vocabulary Columns -->
   <ng-container *ngIf="dataType === 'vocab'">
     <ng-container matColumnDef="partOfSpeech">
@@ -31,8 +33,25 @@
     </ng-container>
   </ng-container>
 
-  <!-- Phrase & Paragraph Columns -->
-  <ng-container *ngIf="dataType === 'phrase' || dataType === 'paragraph'">
+  <!-- Phrase Columns -->
+  <ng-container *ngIf="dataType === 'phrase'">
+    <ng-container matColumnDef="source">
+      <th mat-header-cell *matHeaderCellDef>Fijian</th>
+      <td mat-cell *matCellDef="let item">
+        <input [(ngModel)]="item.source" style="width: 100%;" />
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="target">
+      <th mat-header-cell *matHeaderCellDef>English</th>
+      <td mat-cell *matCellDef="let item">
+        <input [(ngModel)]="item.target" style="width: 100%;" />
+      </td>
+    </ng-container>
+  </ng-container>
+
+  <!-- Paragraph Columns -->
+  <ng-container *ngIf="dataType === 'paragraph'">
     <ng-container matColumnDef="originalText">
       <th mat-header-cell *matHeaderCellDef>Fijian</th>
       <td mat-cell *matCellDef="let item">
@@ -48,7 +67,7 @@
     </ng-container>
   </ng-container>
 
-  <!-- Action Column -->
+  <!-- Shared Action Column -->
   <ng-container matColumnDef="actions">
     <th mat-header-cell *matHeaderCellDef>Action</th>
     <td mat-cell *matCellDef="let item">
@@ -56,6 +75,8 @@
     </td>
   </ng-container>
 
-  <tr mat-header-row *matHeaderRowDef="dataType === 'vocab' ? ['partOfSpeech', 'word', 'meaning', 'actions'] : ['originalText', 'translatedText', 'actions']"></tr>
-  <tr mat-row *matRowDef="let row; columns: dataType === 'vocab' ? ['partOfSpeech', 'word', 'meaning', 'actions'] : ['originalText', 'translatedText', 'actions']"></tr>
+  <!-- Row Definitions -->
+  <tr mat-header-row *matHeaderRowDef="getDisplayedColumns()"></tr>
+  <tr mat-row *matRowDef="let row; columns: getDisplayedColumns()"></tr>
+
 </table>

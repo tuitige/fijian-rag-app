@@ -60,4 +60,16 @@ export class VerificationReviewComponent implements OnInit {
       }
     });
   }
+
+  getDisplayedColumns(): string[] {
+    if (this.dataType === 'vocab') {
+      return ['partOfSpeech', 'word', 'meaning', 'actions'];
+    }
+    if (this.dataType === 'phrase') {
+      return ['source', 'target', 'actions'];
+    }
+    return ['originalText', 'translatedText', 'actions']; // paragraph
+  }
+
+
 }
