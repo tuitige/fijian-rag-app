@@ -30,11 +30,7 @@
         <td style="padding: 8px;">{{ s[type].total }}</td>
         <td style="padding: 8px;">{{ s[type].verified }}</td>
         <td style="padding: 8px;">
-          {{
-            s[type].total > 0
-              ? (s[type].verified / s[type].total * 100) | number:'1.0-0'
-              : '0'
-          }}%
+          {{ (s[type].total > 0 ? (s[type].verified / s[type].total * 100) : 0) | number:'1.0-0' }}%
         </td>
       </tr>
     </tbody>
