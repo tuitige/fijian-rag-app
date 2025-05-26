@@ -43,43 +43,42 @@ selectTab(index: number): void {
 
   loadItems(): void {
     this.loading = true;
-    this.verificationService.getItemsToVerify(this.dataType).subscribe({
-      next: (res) => {
-        this.items = res.items || [];
-        this.loading = false;
+    this.verificationService.getItemsToVerify(this.dataType).subscribe(res => {
+      this.items = res.items.map(item => ({
+        ...item,
+        finalTranslation: item.translatedText  // new editable field
+      }));
+    });
+  }
+
+  verifyItem(item: any): void {
+    this.verifyingItemId = item.dataKey;
+
+    const payload = {
+      ...item,
+      translatedText: item.finalTranslation // use the editable field
+    };
+
+    this.verificationService.verifyItem(this.dataType, payload).subscribe({
+      next: () => {
+        this.items = this.items.filter(i => i.dataKey !== item.dataKey);
+        this.verifyingItemId = null;
+        alert('✅ Verified with custom translation!');
       },
       error: (err) => {
-        console.error('Error loading items:', err);
-        this.loading = false;
+        console.error('Error verifying item:', err);
+        this.verifyingItemId = null;
+        alert('❌ Failed to verify');
       }
     });
   }
 
-verifyItem(item: any): void {
-  this.verifyingItemId = item.dataKey;
-
-  this.verificationService.verifyItem(this.dataType, item).subscribe({
-    next: () => {
-      this.items = this.items.filter(i => i.dataKey !== item.dataKey);
-      this.verifyingItemId = null;
-      alert('✅ Verified successfully!');
-    },
-    error: (err) => {
-      console.error('Error verifying item:', err);
-      this.verifyingItemId = null;
-      alert('❌ Failed to verify item');
-    }
-  });
-}
-
   getDisplayedColumns(): string[] {
     if (this.dataType === 'vocab') {
       return ['partOfSpeech', 'word', 'meaning', 'actions'];
+    } else {
+      return ['originalText', 'translatedText', 'finalTranslation', 'actions'];
     }
-    if (this.dataType === 'phrase') {
-      return ['source', 'target', 'actions'];
-    }
-    return ['originalText', 'translatedText', 'actions']; // paragraph
   }
 
   isEven(index: number): boolean {
