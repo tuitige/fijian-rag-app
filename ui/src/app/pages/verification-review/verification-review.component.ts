@@ -25,6 +25,7 @@ export class VerificationReviewComponent implements OnInit {
   dataType: 'phrase' | 'vocab' | 'paragraph' = 'phrase';
   items: any[] = [];
   loading = false;
+  tabIndex = 0;
 
   constructor(private verificationService: VerificationService) {}
 
@@ -34,8 +35,21 @@ export class VerificationReviewComponent implements OnInit {
 
   changeTab(type: 'phrase' | 'vocab' | 'paragraph') {
     this.dataType = type;
+    this.tabIndex = this.getTabIndexFromType(type);
     this.items = [];
     this.loadItems();
+  }
+
+  getTabIndexFromType(type: string): number {
+    return { phrase: 0, vocab: 1, paragraph: 2 }[type] ?? 0;
+  }
+
+  getTypeFromTabIndex(index: number): 'phrase' | 'vocab' | 'paragraph' {
+    return ['phrase', 'vocab', 'paragraph'][index] as any;
+  }
+
+  onTabChanged(index: number) {
+    this.changeTab(this.getTypeFromTabIndex(index));
   }
 
   loadItems(): void {

@@ -1,4 +1,4 @@
-<mat-tab-group [(selectedIndex)]="['phrase', 'vocab', 'paragraph'].indexOf(dataType)">
+<mat-tab-group [selectedIndex]="tabIndex" (selectedIndexChange)="onTabChanged($event)">
   <mat-tab label="Phrases" (click)="changeTab('phrase')"></mat-tab>
   <mat-tab label="Vocabulary" (click)="changeTab('vocab')"></mat-tab>
   <mat-tab label="Paragraphs" (click)="changeTab('paragraph')"></mat-tab>
