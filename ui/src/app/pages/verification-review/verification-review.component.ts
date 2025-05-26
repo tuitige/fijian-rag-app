@@ -1,10 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatTabsModule } from '@angular/material/tabs';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatInputModule } from '@angular/material/input';
 import { VerificationService } from '../../services/verification.service';
 
 @Component({
@@ -13,19 +12,17 @@ import { VerificationService } from '../../services/verification.service';
   imports: [
     CommonModule,
     FormsModule,
-    MatTableModule,
-    MatButtonModule,
     MatTabsModule,
-    MatInputModule
+    MatTableModule,
+    MatButtonModule
   ],
   templateUrl: './verification-review.component.html',
   styleUrls: ['./verification-review.component.scss']
 })
 export class VerificationReviewComponent implements OnInit {
-  dataType: 'phrase' | 'vocab' | 'paragraph' = 'phrase';
+  dataType: 'vocab' | 'phrase' | 'paragraph' = 'vocab';
   items: any[] = [];
   loading = false;
-  tabIndex = 0;
 
   constructor(private verificationService: VerificationService) {}
 
@@ -33,30 +30,17 @@ export class VerificationReviewComponent implements OnInit {
     this.loadItems();
   }
 
-  changeTab(type: 'phrase' | 'vocab' | 'paragraph') {
-    this.dataType = type;
-    this.tabIndex = this.getTabIndexFromType(type);
-    this.items = [];
+  selectTab(index: number): void {
+    const types: ('vocab' | 'phrase' | 'paragraph')[] = ['vocab', 'phrase', 'paragraph'];
+    this.dataType = types[index];
     this.loadItems();
-  }
-
-  getTabIndexFromType(type: string): number {
-    return { phrase: 0, vocab: 1, paragraph: 2 }[type] ?? 0;
-  }
-
-  getTypeFromTabIndex(index: number): 'phrase' | 'vocab' | 'paragraph' {
-    return ['phrase', 'vocab', 'paragraph'][index] as any;
-  }
-
-  onTabChanged(index: number) {
-    this.changeTab(this.getTypeFromTabIndex(index));
   }
 
   loadItems(): void {
     this.loading = true;
     this.verificationService.getItemsToVerify(this.dataType).subscribe({
       next: (res) => {
-        this.items = res.items;
+        this.items = res.items || [];
         this.loading = false;
       },
       error: (err) => {
@@ -66,21 +50,14 @@ export class VerificationReviewComponent implements OnInit {
     });
   }
 
-  getDisplayedColumns(): string[] {
-    if (this.dataType === 'phrase' || this.dataType === 'paragraph') {
-      return ['originalText', 'translatedText', 'notes', 'action'];
-    } else if (this.dataType === 'vocab') {
-      return ['word', 'partOfSpeech', 'meaning', 'action'];
-    }
-    return [];
-  }
-
-  verifyItem(item: any) {
+  verifyItem(item: any): void {
     this.verificationService.verifyItem(this.dataType, item).subscribe({
       next: () => {
         this.items = this.items.filter(i => i.dataKey !== item.dataKey);
       },
-      error: (err) => console.error('Verification failed:', err)
+      error: (err) => {
+        console.error('Error verifying item:', err);
+      }
     });
   }
 }
