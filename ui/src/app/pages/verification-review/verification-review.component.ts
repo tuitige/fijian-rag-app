@@ -71,5 +71,9 @@ export class VerificationReviewComponent implements OnInit {
     return ['originalText', 'translatedText', 'actions']; // paragraph
   }
 
+  isEven(index: number): boolean {
+    return index % 2 === 0;
+  }
+
 
 }

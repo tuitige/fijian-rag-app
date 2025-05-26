@@ -1,82 +1,68 @@
-<mat-tab-group (selectedIndexChange)="selectTab($event)">
-  <mat-tab label="Vocabulary"></mat-tab>
-  <mat-tab label="Phrases"></mat-tab>
-  <mat-tab label="Paragraphs"></mat-tab>
-</mat-tab-group>
+<div style="padding: 2rem; max-width: 1200px; margin: auto;">
+  <h1 style="font-size: 2rem; margin-bottom: 1rem;">Verify Fijian Translations</h1>
 
-<div *ngIf="loading" style="margin-top: 1rem;">Loading...</div>
+  <p style="font-size: 1.1rem; margin-bottom: 1rem;">
+    This tool allows native speakers to review and verify AI-generated Fijian translations.
+    By validating each vocabulary word, phrase, or paragraph, we help build a high-quality training dataset that will be used in Retrieval-Augmented Generation (RAG) systems to teach and preserve the Fijian language.
+  </p>
 
-<table mat-table [dataSource]="items" *ngIf="!loading && items.length > 0" class="mat-elevation-z8" style="width: 100%; margin-top: 1rem;">
+  <mat-tab-group [(selectedIndex)]="['vocab', 'phrase', 'paragraph'].indexOf(dataType)" (selectedIndexChange)="onTabChange($event)">
+    <mat-tab label="Vocabulary"></mat-tab>
+    <mat-tab label="Phrases"></mat-tab>
+    <mat-tab label="Paragraphs"></mat-tab>
+  </mat-tab-group>
 
+  <div *ngIf="!loading && items.length === 0" style="margin-top: 2rem;">
+    <p>No items found for verification.</p>
+  </div>
 
-  <!-- Vocabulary Columns -->
-  <ng-container *ngIf="dataType === 'vocab'">
-    <ng-container matColumnDef="partOfSpeech">
-      <th mat-header-cell *matHeaderCellDef>Part of Speech</th>
+  <table mat-table [dataSource]="items" class="mat-elevation-z2" *ngIf="!loading && items.length > 0" style="width: 100%; margin-top: 2rem;">
+    <!-- Vocabulary Columns -->
+    <ng-container *ngIf="dataType === 'vocab'">
+      <ng-container matColumnDef="partOfSpeech">
+        <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">Part of Speech</th>
+        <td mat-cell *matCellDef="let item">{{ item.partOfSpeech }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="word">
+        <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">Fijian</th>
+        <td mat-cell *matCellDef="let item">{{ item.word }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="meaning">
+        <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">English (Meaning)</th>
+        <td mat-cell *matCellDef="let item">{{ item.meaning }}</td>
+      </ng-container>
+    </ng-container>
+
+    <!-- Phrase and Paragraph Columns -->
+    <ng-container *ngIf="dataType === 'phrase' || dataType === 'paragraph'">
+      <ng-container matColumnDef="originalText">
+        <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">Fijian</th>
+        <td mat-cell *matCellDef="let item">
+          <input [(ngModel)]="item.originalText" style="width: 100%;" />
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="translatedText">
+        <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">English</th>
+        <td mat-cell *matCellDef="let item">
+          <input [(ngModel)]="item.translatedText" style="width: 100%;" />
+        </td>
+      </ng-container>
+    </ng-container>
+
+    <!-- Shared Actions -->
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef></th>
       <td mat-cell *matCellDef="let item">
-        <input [(ngModel)]="item.partOfSpeech" style="width: 100%;" />
+        <button mat-raised-button color="primary" (click)="verify(item)">Verify</button>
       </td>
     </ng-container>
 
-    <ng-container matColumnDef="word">
-      <th mat-header-cell *matHeaderCellDef>Fijian</th>
-      <td mat-cell *matCellDef="let item">
-        <input [(ngModel)]="item.word" style="width: 100%;" />
-      </td>
-    </ng-container>
+    <!-- Header & Row Definitions -->
+    <tr mat-header-row *matHeaderRowDef="getDisplayedColumns()" style="background-color: #f5f5f5;"></tr>
+    <tr mat-row *matRowDef="let row; columns: getDisplayedColumns();" [ngStyle]="{ 'background-color': isEven(rowIndex) ? '#ffffff' : '#fafafa' }" let-rowIndex="index"></tr>
+  </table>
+</div>
 
-    <ng-container matColumnDef="meaning">
-      <th mat-header-cell *matHeaderCellDef>English</th>
-      <td mat-cell *matCellDef="let item">
-        <input [(ngModel)]="item.meaning" style="width: 100%;" />
-      </td>
-    </ng-container>
-  </ng-container>
-
-  <!-- Phrase Columns -->
-  <ng-container *ngIf="dataType === 'phrase'">
-    <ng-container matColumnDef="source">
-      <th mat-header-cell *matHeaderCellDef>Fijian</th>
-      <td mat-cell *matCellDef="let item">
-        <input [(ngModel)]="item.source" style="width: 100%;" />
-      </td>
-    </ng-container>
-
-    <ng-container matColumnDef="target">
-      <th mat-header-cell *matHeaderCellDef>English</th>
-      <td mat-cell *matCellDef="let item">
-        <input [(ngModel)]="item.target" style="width: 100%;" />
-      </td>
-    </ng-container>
-  </ng-container>
-
-  <!-- Paragraph Columns -->
-  <ng-container *ngIf="dataType === 'paragraph'">
-    <ng-container matColumnDef="originalText">
-      <th mat-header-cell *matHeaderCellDef>Fijian</th>
-      <td mat-cell *matCellDef="let item">
-        <input [(ngModel)]="item.originalText" style="width: 100%;" />
-      </td>
-    </ng-container>
-
-    <ng-container matColumnDef="translatedText">
-      <th mat-header-cell *matHeaderCellDef>English</th>
-      <td mat-cell *matCellDef="let item">
-        <input [(ngModel)]="item.translatedText" style="width: 100%;" />
-      </td>
-    </ng-container>
-  </ng-container>
-
-  <!-- Shared Action Column -->
-  <ng-container matColumnDef="actions">
-    <th mat-header-cell *matHeaderCellDef>Action</th>
-    <td mat-cell *matCellDef="let item">
-      <button mat-raised-button color="primary" (click)="verifyItem(item)">Verify</button>
-    </td>
-  </ng-container>
-
-  <!-- Row Definitions -->
-  <tr mat-header-row *matHeaderRowDef="getDisplayedColumns()"></tr>
-  <tr mat-row *matRowDef="let row; columns: getDisplayedColumns()"></tr>
-
-</table>

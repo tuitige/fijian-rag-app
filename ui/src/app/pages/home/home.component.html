@@ -1,41 +1,48 @@
+<div style="padding: 2rem; max-width: 900px; margin: auto;">
+  <h1 style="font-size: 2rem; margin-bottom: 1rem;">Fijian Language Learning App</h1>
 
-<div class="container py-5">
-  <!-- Welcome Section -->
-  <section class="welcome-section mb-5 p-4 rounded shadow">
-    <h1 class="display-4 mb-3">Welcome to Fijian Language Learning</h1>
-    <p class="lead">Start your journey to learn the beautiful Fijian language.</p>
-  </section>
+  <p style="font-size: 1.1rem; margin-bottom: 1rem;">
+    This application helps verify AI-generated Fijian translations. Native speaker validation ensures high-quality data used to train future AI models. Verified content is stored for use in Retrieval-Augmented Generation (RAG) systems that assist in understanding and teaching the Fijian language.
+  </p>
 
-  <!-- Features Section -->
-  <div class="row g-4">
-    <!-- Feature Card 1 -->
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 feature-card shadow-sm">
-        <div class="card-body">
-          <h2 class="card-title h4 mb-3">Interactive Learning</h2>
-          <p class="card-text">Engage with interactive lessons and exercises designed to enhance your understanding of the Fijian language.</p>
-        </div>
-      </div>
-    </div>
+  <p style="font-size: 1.1rem; margin-bottom: 1rem;">
+    Each translation—whether a vocabulary word, phrase, or paragraph—is generated from scanned documents, news articles, and other sources. Human reviewers (like Makita) edit or confirm accuracy, and once verified, items become part of a growing dataset used to improve AI comprehension of Fijian.
+  </p>
 
-    <!-- Feature Card 2 -->
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 feature-card shadow-sm">
-        <div class="card-body">
-          <h2 class="card-title h4 mb-3">Cultural Context</h2>
-          <p class="card-text">Learn the language while understanding its rich cultural heritage and traditional significance.</p>
-        </div>
-      </div>
-    </div>
+  <h2 style="font-size: 1.5rem; margin-top: 2rem;">Current Verification Summary</h2>
 
-    <!-- Feature Card 3 -->
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 feature-card shadow-sm">
-        <div class="card-body">
-          <h2 class="card-title h4 mb-3">Progress Tracking</h2>
-          <p class="card-text">Monitor your learning journey with detailed progress tracking and performance metrics.</p>
-        </div>
-      </div>
-    </div>
-  </div>
+  <table style="width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 1rem;">
+    <thead>
+      <tr style="background-color: #f5f5f5; font-weight: bold;">
+        <th style="padding: 0.5rem; border-bottom: 1px solid #ccc;">Type</th>
+        <th style="padding: 0.5rem; border-bottom: 1px solid #ccc;">Total</th>
+        <th style="padding: 0.5rem; border-bottom: 1px solid #ccc;">Verified</th>
+        <th style="padding: 0.5rem; border-bottom: 1px solid #ccc;">Verification %</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding: 0.5rem; border-bottom: 1px solid #eee;">Vocabulary</td>
+        <td style="padding: 0.5rem;">120</td>
+        <td style="padding: 0.5rem;">42</td>
+        <td style="padding: 0.5rem;">35%</td>
+      </tr>
+      <tr style="background-color: #fafafa;">
+        <td style="padding: 0.5rem; border-bottom: 1px solid #eee;">Phrases</td>
+        <td style="padding: 0.5rem;">310</td>
+        <td style="padding: 0.5rem;">93</td>
+        <td style="padding: 0.5rem;">30%</td>
+      </tr>
+      <tr>
+        <td style="padding: 0.5rem;">Paragraphs</td>
+        <td style="padding: 0.5rem;">70</td>
+        <td style="padding: 0.5rem;">25</td>
+        <td style="padding: 0.5rem;">36%</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="font-size: 0.9rem; margin-top: 1rem; color: #555;">
+    Data will update dynamically once the backend Lambda for stats is implemented.
+  </p>
 </div>
