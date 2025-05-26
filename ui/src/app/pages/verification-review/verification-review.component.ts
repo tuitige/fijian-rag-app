@@ -47,14 +47,10 @@ export class VerificationReviewComponent implements OnInit {
     const type = this.dataType;
 
     this.verificationService.getItemsToVerify(type).subscribe(res => {
-      this.items = res.items.map(item => {
-        return {
-          ...item,
-          sourceText: type === 'vocab' ? item.word : item.originalText,
-          aiTranslation: type === 'vocab' ? item.meaning : item.translatedText,
-          finalTranslation: type === 'vocab' ? item.meaning : item.translatedText
-        };
-      });
+      this.items = res.items.map(item => ({
+        ...item,
+        finalTranslation: item.finalTranslation || item.aiTranslation || ''
+      }));
       this.loading = false;
     });
   }
