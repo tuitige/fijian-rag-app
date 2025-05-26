@@ -8,12 +8,10 @@ import { createHash } from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { TextBlock } from '@anthropic-ai/sdk/resources';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+import { getAnthropicApiKey } from '../shared/utils';
 
 const bedrock = new BedrockRuntimeClient({});
 const ddb = new DynamoDBClient({});
-
-const apiKey = await getAnthropicApiKey();
-const anthropic = new Anthropic({ apiKey });
 
 const TRANSLATIONS_REVIEW_TABLE_NAME = process.env.TRANSLATIONS_REVIEW_TABLE_NAME || '';
 const VERIFIED_TRANSLATIONS_TABLE = process.env.VERIFIED_TRANSLATIONS_TABLE || '';
@@ -22,14 +20,19 @@ const VERIFIED_VOCAB_TABLE = process.env.VERIFIED_VOCAB_TABLE || '';
 const secretsClient = new SecretsManagerClient({});
 const SECRET_ARN = process.env.ANTHROPIC_SECRET_ARN!;
 
+/*
 async function getAnthropicApiKey(): Promise<string> {
   const command = new GetSecretValueCommand({ SecretId: SECRET_ARN });
   const secret = await secretsClient.send(command);
   return secret.SecretString!;
 }
+*/
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
+    const apiKey = await getAnthropicApiKey();
+    const anthropic = new Anthropic({ apiKey });
+    
     const { type, url } = JSON.parse(event.body || '{}');
     if (type !== 'article' || !url) {
       return { statusCode: 400, body: 'Missing or invalid type/url' };

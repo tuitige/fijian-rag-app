@@ -189,9 +189,10 @@ export class FijianRagAppStack extends cdk.Stack {
       deployOptions: { stageName: 'prod' },
     });
 
-    const apiKeyValue = 'replace-this-with-a-secure-key-1234567890';
-
-    const apiKey = unifiedApi.addApiKey('UnifiedAgentApiKey', { value: apiKeyValue });
+    // === Securely Generate API Key (no hardcoded string) ===
+    const apiKey = unifiedApi.addApiKey('UnifiedAgentApiKey', {
+      description: 'API Key for accessing /verify and /ingest endpoints'
+    });
 
     const usagePlan = unifiedApi.addUsagePlan('UnifiedAgentUsagePlan', {
       name: 'AgentUsagePlan',
@@ -199,11 +200,7 @@ export class FijianRagAppStack extends cdk.Stack {
     });
     usagePlan.addApiKey(apiKey);
 
-    new secretsmanager.Secret(this, 'AgentApiKeySecret', {
-      secretName: 'AgentApiKey',
-      secretStringValue: cdk.SecretValue.unsafePlainText(apiKeyValue),
-    });
-
+    // === Claude Secret for SDK ===
     const anthropicApiKeySecret = new secretsmanager.Secret(this, 'AnthropicApiKey', {
       secretName: 'AnthropicApiKey',
       description: 'API key for direct Claude access via SDK',
@@ -211,25 +208,24 @@ export class FijianRagAppStack extends cdk.Stack {
 
     anthropicApiKeySecret.grantRead(ingestLambda);
     ingestLambda.addEnvironment('ANTHROPIC_SECRET_ARN', anthropicApiKeySecret.secretArn);
-    
-    // === Attach /ingest endpoint ===
+
+    // === /ingest endpoint ===
     const ingestResource = unifiedApi.root.addResource('ingest');
     ingestResource.addMethod('POST', new apigateway.LambdaIntegration(ingestLambda), {
       apiKeyRequired: true,
     });
 
-    // === Get Items to Verify endpoint ===
+    // === /verify-items endpoint ===
     const verifyResource = unifiedApi.root.addResource('verify-items');
     verifyResource.addMethod('GET', new apigateway.LambdaIntegration(verifyHandler), {
       apiKeyRequired: true,
     });
 
-    // === Verify Item endpoint ===
+    // === /verify-item endpoint ===
     const submitVerifyResource = unifiedApi.root.addResource('verify-item');
     submitVerifyResource.addMethod('POST', new apigateway.LambdaIntegration(verifyHandler), {
       apiKeyRequired: true,
     });
-
 
   }
 }
