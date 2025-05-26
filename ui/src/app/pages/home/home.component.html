@@ -11,25 +11,37 @@
 
   <h2 style="font-size: 1.5rem; margin-top: 2rem;">Current Verification Summary</h2>
 
-  <div *ngIf="stats" style="margin-top: 2rem;">
-    <h2>Verification Stats</h2>
-    <table style="border-collapse: collapse; width: 100%;">
-      <thead>
-        <tr style="background-color: #f5f5f5;">
-          <th style="text-align: left; padding: 8px;">Type</th>
-          <th style="text-align: left; padding: 8px;">Total</th>
-          <th style="text-align: left; padding: 8px;">Verified</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let type of translationTypes">
-          <td style="padding: 8px;">{{ type }}</td>
-          <td style="padding: 8px;">{{ stats[type]?.total }}</td>
-          <td style="padding: 8px;">{{ stats[type]?.verified }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+<pre *ngIf="stats">{{ stats | json }}</pre>
+
+<div *ngIf="stats as s; else loadingStats" style="margin-top: 2rem;">
+  <h2>Verification Stats</h2>
+  <table style="border-collapse: collapse; width: 100%;">
+    <thead>
+      <tr style="background-color: #f5f5f5;">
+        <th style="text-align: left; padding: 8px;">Type</th>
+        <th style="text-align: left; padding: 8px;">Total</th>
+        <th style="text-align: left; padding: 8px;">Verified</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let type of translationTypes">
+        <td style="padding: 8px;">{{ type }}</td>
+        <td style="padding: 8px;">{{ s[type].total }}</td>
+        <td style="padding: 8px;">{{ s[type].verified }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<ng-template #loadingStats>
+  <p>Loading stats...</p>
+</ng-template>
+
+
+<ng-template #noStats>
+  <p style="color: red;">Stats object is falsy or undefined.</p>
+</ng-template>
+
 
   <p style="font-size: 0.9rem; margin-top: 1rem; color: #555;">
     Data will update dynamically once the backend Lambda for stats is implemented.
