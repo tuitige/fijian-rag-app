@@ -39,11 +39,14 @@ selectTab(index: number): void {
   const tabKeys = ['vocab', 'phrase', 'paragraph'];
   this.selectedTabIndex = index;
   this.dataType = tabKeys[index] as 'vocab' | 'phrase' | 'paragraph';
+  console.log('Selected data type:', this.dataType);
 }
 
   loadItems(): void {
     this.loading = true;
+    this.selectTab(this.selectedTabIndex);
     this.verificationService.getItemsToVerify(this.dataType).subscribe(res => {
+      console.log('Items received:', res.items);
       this.items = res.items.map(item => ({
         ...item,
         finalTranslation: item.translatedText  // new editable field
