@@ -196,80 +196,81 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     });
   }
 
-    if (method === 'POST' && path.endsWith('/verify-item')) {
-    const body = JSON.parse(event.body || '{}');
-    const { dataType, dataKey, fields } = body;
+if (method === 'POST' && path.endsWith('/verify-item')) {
+  const body = JSON.parse(event.body || '{}');
+  const { dataType, dataKey, fields } = body;
 
-    if (!dataType || !dataKey || !fields) {
-        return jsonResponse(400, { error: 'Missing dataType, dataKey, or fields' });
+  if (!dataType || !dataKey || !fields) {
+    return jsonResponse(400, { error: 'Missing dataType, dataKey, or fields' });
+  }
+
+  // 1. Mark as verified in the review table
+  await ddb.send(new UpdateItemCommand({
+    TableName: TRANSLATIONS_REVIEW_TABLE_NAME,
+    Key: {
+      dataType: { S: dataType },
+      dataKey: { S: dataKey }
+    },
+    UpdateExpression: 'SET verified = :v',
+    ExpressionAttributeValues: {
+      ':v': { S: 'true' }
     }
+  }));
 
-    // 1. Mark as verified in the review table
-    await ddb.send(new UpdateItemCommand({
-        TableName: TRANSLATIONS_REVIEW_TABLE_NAME,
-        Key: {
-        dataType: { S: dataType },
-        dataKey: { S: dataKey }
-        },
-        UpdateExpression: 'SET verified = :v',
-        ExpressionAttributeValues: {
-        ':v': { S: 'true' }
-        }
+  // 2. Prepare the unified item structure
+  const item = {
+    ...fields,
+    dataKey,
+    dataType,
+    verified: true
+  };
+
+  // 3. Store to correct verified table
+  if (dataType === 'phrase') {
+    await ddb.send(new PutItemCommand({
+      TableName: VERIFIED_TRANSLATIONS_TABLE,
+      Item: marshall({
+        fijian: fields.sourceText,
+        english: fields.translatedText,
+        source: dataKey,
+        verified: true
+      })
     }));
 
-    // 2. Prepare the unified item structure
-    const item = {
-        ...fields,
-        dataKey,
-        dataType,
+  } else if (dataType === 'vocab') {
+    await ddb.send(new PutItemCommand({
+      TableName: VERIFIED_VOCAB_TABLE,
+      Item: marshall({
+        word: fields.sourceText,
+        meaning: fields.translatedText,
+        partOfSpeech: fields.partOfSpeech,
+        source: dataKey,
         verified: true
-    };
+      })
+    }));
 
-    // 3. Store to correct verified table + OpenSearch + S3
-    if (dataType === 'phrase') {
-        await ddb.send(new PutItemCommand({
-        TableName: VERIFIED_TRANSLATIONS_TABLE,
-        Item: marshall({
-            fijian: fields.fijian,
-            english: fields.english,
-            source: dataKey,
-            verified: true
-        })
-        }));
+  } else if (dataType === 'paragraph') {
+    const articleId = createHash('md5').update(fields.articleUrl).digest('hex');
 
-    } else if (dataType === 'vocab') {
-        await ddb.send(new PutItemCommand({
-        TableName: VERIFIED_VOCAB_TABLE,
-        Item: marshall({
-            word: fields.word,
-            meaning: fields.meaning,
-            partOfSpeech: fields.partOfSpeech,
-            source: dataKey,
-            verified: true
-        })
-        }));
+    await ddb.send(new PutItemCommand({
+      TableName: process.env.VERIFIED_PARAGRAPHS_TABLE!,
+      Item: marshall({
+        articleId,
+        paragraphId: dataKey,
+        originalText: fields.sourceText,
+        translatedText: fields.translatedText,
+        verified: true
+      })
+    }));
+  }
 
-    } else if (dataType === 'paragraph') {
-        const articleId = createHash('md5').update(fields.articleUrl).digest('hex');
-        
-        await ddb.send(new PutItemCommand({
-        TableName: process.env.VERIFIED_PARAGRAPHS_TABLE!,
-        Item: marshall({
-            articleId,
-            paragraphId: dataKey,
-            originalText: fields.originalText,
-            translatedText: fields.translatedText,
-            verified: true
-        })
-        }));
-    }
+  // 4. Save to OpenSearch and S3
+  await indexToOpenSearch(item, dataType);
+  await storeTrainingDataToS3(item, dataType);
 
-    // 4. Save to OpenSearch and S3
-    await indexToOpenSearch(item, dataType);
-    await storeTrainingDataToS3(item, dataType);
+  return jsonResponse(200, { status: 'Verified and saved' });
+}
 
-    return jsonResponse(200, { status: 'Verified and saved' });
-    }
 
   return jsonResponse(404, { error: 'Unsupported route or method' });
 };

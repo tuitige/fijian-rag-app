@@ -30,9 +30,11 @@ async function getAnthropicApiKey(): Promise<string> {
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
+    console.log('[handler] Received event:', JSON.stringify(event, null, 2));
+
     const apiKey = await getAnthropicApiKey();
-    const anthropic = new Anthropic({ apiKey });
-    
+    const anthropic = new Anthropic({ apiKey });   
+
     const { type, url } = JSON.parse(event.body || '{}');
     if (type !== 'article' || !url) {
       return { statusCode: 400, body: 'Missing or invalid type/url' };
@@ -56,30 +58,55 @@ const msg = await anthropic.messages.create({
       content: [
         {
           type: 'text',
-          text: `
+text: `
 You are a Fijian linguist.
 
-Translate the following paragraph and extract:
-1. A translated English paragraph.
-2. Atomic phrase pairs (Fijian → English) in an array of { source, target } objects.
-   - Only include meaningful phrases of **at least 3 words** in Fijian.
-   - Avoid overly short or generic expressions (e.g. one-word or two-word fragments).
-3. Vocabulary items with fields: word, partOfSpeech, and meaning.
-   - Only include vocabulary if the **partOfSpeech is one of**: *noun*, *verb*, *adjective*, *adverb*, or *pronoun*.
-   - Exclude articles, prepositions, and similar function words (e.g. “sa”, “na”, “o”, “e”).
+Translate the paragraph below and extract three sets of results using this exact schema:
 
-⚠️ Respond ONLY with valid JSON. Do NOT include any explanation or commentary.
+---
 
-Your response MUST match this exact JSON shape:
+1. The full translated paragraph as an object named "paragraph" with:
+   - "sourceText": the original Fijian paragraph
+   - "aiTranslation": your best English translation
+
+2. A list of phrase pairs as an array named "phrases". Each item must include:
+   - "sourceText": a Fijian phrase (minimum **3 words**)
+   - "aiTranslation": its English translation
+
+3. A list of vocabulary items as an array named "vocabulary". Each item must include:
+   - "sourceText": a single Fijian word
+   - "partOfSpeech": one of: "noun", "verb", "adjective", "adverb", "pronoun"
+   - "aiTranslation": the best English meaning for that word
+
+---
+
+⚠️ Follow these strict rules:
+- Only include valid JSON
+- Only include items with real translations — do NOT return placeholder values like "source", "target", or "word"
+- Do NOT translate or change the key names: "sourceText", "aiTranslation", "partOfSpeech"
+- Skip any fragments or function words like "na", "o", "e", "sa"
+
+---
+
+📦 Example response:
+
 {
-  "translatedParagraph": string,
-  "atomicPhrases": [ { "source": string, "target": string } ],
-  "vocabulary": [ { "word": string, "partOfSpeech": string, "meaning": string } ]
+  "paragraph": {
+    "sourceText": "Original Fijian paragraph here",
+    "aiTranslation": "English translation of the paragraph"
+  },
+  "phrases": [
+    { "sourceText": "Fijian phrase here", "aiTranslation": "English equivalent" }
+  ],
+  "vocabulary": [
+    { "sourceText": "Fijian word", "partOfSpeech": "noun", "aiTranslation": "English meaning" }
+  ]
 }
 
 Here is the paragraph:
 ${p}
-          `.trim()
+`.trim()
+
         }
       ]
     }
@@ -98,31 +125,47 @@ ${p}
         console.log('[Claude] Raw Text:', textContent);
         parsed = JSON.parse(textContent);
 
-        if (!parsed || !parsed.translatedParagraph) throw new Error('Invalid response structure');
+        if (!parsed) throw new Error('Invalid response structure');
       } catch (e) {
         console.error('[Claude] JSON parsing failed:', e);
         console.error('[Claude] Raw content:', JSON.stringify(msg.content, null, 2));
         continue;
       }
 
-      const { translatedParagraph, atomicPhrases = [], vocabulary = [] } = parsed;
+      //const { translatedParagraph, atomicPhrases = [], vocabulary = [] } = parsed;
+      const {
+        paragraph,
+        phrases = [],
+        vocabulary = []
+      } = parsed;
+
+      if (!paragraph || !paragraph.sourceText || !paragraph.aiTranslation) {
+        throw new Error('Missing paragraph translation');
+      }
 
       await storeItem('paragraph', compositeKey, {
         articleUrl: url,
-        originalText: p,
-        translatedText: translatedParagraph,
+        sourceText: paragraph.sourceText,
+        aiTranslation: paragraph.aiTranslation,
+        finalTranslation: paragraph.aiTranslation
       });
+
 
       let phraseInserted = 0;
       let phraseSkipped = 0;
-      for (let j = 0; j < atomicPhrases.length; j++) {
-        const phrase = atomicPhrases[j];
-        const isDup = await isDuplicate('translation', phrase.source, phrase.target);
+      for (let j = 0; j < phrases.length; j++) {
+        const phrase = phrases[j];
+        const isDup = await isDuplicate('translation', phrase.sourceText, phrase.aiTranslation);
         if (isDup) {
           phraseSkipped++;
           continue;
         }
-        await storeItem('phrase', `${compositeKey}_${j}`, phrase);
+
+        await storeItem('phrase', `${compositeKey}_${j}`, {
+          sourceText: phrase.sourceText,
+          aiTranslation: phrase.aiTranslation,
+          finalTranslation: phrase.aiTranslation
+        });
         phraseInserted++;
       }
 
@@ -130,14 +173,21 @@ ${p}
       let vocabSkipped = 0;
       for (let k = 0; k < vocabulary.length; k++) {
         const vocab = vocabulary[k];
-        const isDup = await isDuplicate('vocab', vocab.word, vocab.meaning);
+        const isDup = await isDuplicate('vocab', vocab.sourceText, vocab.aiTranslation);
         if (isDup) {
           vocabSkipped++;
           continue;
         }
-        await storeItem('vocab', `${compositeKey}_${k}`, vocab);
+
+        await storeItem('vocab', `${compositeKey}_${k}`, {
+          sourceText: vocab.sourceText,
+          aiTranslation: vocab.aiTranslation,
+          finalTranslation: vocab.aiTranslation,
+          partOfSpeech: vocab.partOfSpeech
+        });
         vocabInserted++;
       }
+
 
       console.log(`[summary] Paragraph p${i} — phrases: ${phraseInserted} stored, ${phraseSkipped} skipped | vocab: ${vocabInserted} stored, ${vocabSkipped} skipped`);
     }
