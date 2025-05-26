@@ -9,15 +9,12 @@ import { AppComponent } from './app.component';
 import { HomeComponent } from './pages/home/home.component';
 import { VerificationReviewComponent } from './pages/verification-review/verification-review.component';
 
-import { CommonModule } from '@angular/common';
 import { MatTableModule } from '@angular/material/table';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
-import { MatTabsModule } from '@angular/material/tabs';  // if you're using tabs
-import { MatFormFieldModule } from '@angular/material/form-field'; // recommended
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-
-import { NgSwitch, NgSwitchCase, NgSwitchDefault } from '@angular/common';
 
 @NgModule({
   declarations: [
@@ -27,16 +24,12 @@ import { NgSwitch, NgSwitchCase, NgSwitchDefault } from '@angular/common';
   ],
   imports: [
     BrowserModule,
-    CommonModule,
     FormsModule,
     HttpClientModule,
     MatTableModule,
     MatInputModule,
     MatButtonModule,
     MatProgressSpinnerModule,
-    NgSwitch,
-    NgSwitchCase,
-    NgSwitchDefault,
     MatTabsModule,
     MatFormFieldModule,
     AppRoutingModule
