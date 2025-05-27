@@ -6,6 +6,9 @@ import { HttpClientModule } from '@angular/common/http';
 import { AppComponent } from './app.component';
 import { HomeComponent } from './pages/home/home.component';
 
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatIconModule } from '@angular/material/icon';
+
 import { AuthModule } from 'angular-auth-oidc-client';
 
 @NgModule({
@@ -17,6 +20,8 @@ import { AuthModule } from 'angular-auth-oidc-client';
     BrowserModule,
     FormsModule,
     HttpClientModule,
+    MatTooltipModule,
+    MatIconModule,
         AuthModule.forRoot({
       config: {
         authority: 'https://auth.fijian-ai.org',
