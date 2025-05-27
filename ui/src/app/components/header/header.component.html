@@ -11,7 +11,7 @@
     <div class="flex items-center">
       <button (click)="signOut()"
         class="text-gray-700 hover:text-red-500 font-semibold text-sm transition duration-200">
-        Bula vinaka, {{ user?.attributes?.given_name || user?.attributes?.email }}
+        Bula vinaka, {{ userEmail || 'User' }}
       </button>
     </div>
   </div>

@@ -9,7 +9,7 @@
     </ng-template>
 
     <ng-template amplifySlot="authenticated" let-user="user" let-signOut="signOut">
-      <app-header [user]="user" [signOut]="signOut"></app-header>
+      <app-header></app-header>
       <main class="authenticated-content">
         <router-outlet></router-outlet>
       </main>
