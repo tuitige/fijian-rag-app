@@ -4,15 +4,24 @@
       <span class="text-2xl font-bold text-blue-600">Fijian AI 📘</span>
       <nav class="hidden md:flex space-x-6">
         <a routerLink="/home" routerLinkActive="text-blue-500" class="text-gray-700 hover:text-blue-500">Home</a>
-        <a routerLink="/verify" routerLinkActive="text-blue-500" class="text-gray-700 hover:text-blue-500">Model Training</a>
-        <a routerLink="/chat" routerLinkActive="text-blue-500" class="text-gray-700 hover:text-blue-500">Chat in Fijian</a>
+        <ng-container *ngIf="isAuthenticated">
+          <a routerLink="/verify" routerLinkActive="text-blue-500" class="text-gray-700 hover:text-blue-500">Model Training</a>
+          <a routerLink="/chat" routerLinkActive="text-blue-500" class="text-gray-700 hover:text-blue-500">Chat in Fijian</a>
+        </ng-container>
       </nav>
     </div>
+
     <div class="flex items-center">
-      <button (click)="logout()"
-        class="text-gray-700 hover:text-red-500 font-semibold text-sm transition duration-200">
-        Bula vinaka, {{ userEmail || 'User' }}
-      </button>
+      <ng-container *ngIf="isAuthenticated; else notLoggedIn">
+        <button (click)="logout()" class="text-gray-700 hover:text-red-500 font-semibold text-sm transition duration-200">
+          Bula vinaka, {{ userEmail || 'User' }}
+        </button>
+      </ng-container>
+      <ng-template #notLoggedIn>
+        <button (click)="login()" class="text-blue-600 hover:text-blue-800 font-semibold text-sm transition duration-200">
+          Sign in
+        </button>
+      </ng-template>
     </div>
   </div>
 </header>
