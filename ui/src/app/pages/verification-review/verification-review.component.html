@@ -18,11 +18,17 @@
 
 <table class="mat-elevation-z2" *ngIf="!loading && items.length > 0" style="width: 100%; margin-top: 2rem;">
   <ng-container *ngFor="let item of items; let i = index">
-    <!-- Row 1: Fijian + AI Translation + Verify -->
+    <!-- Row 1: Source + AI Translation + Verify -->
     <tr [ngStyle]="{ 'background-color': isEven(i) ? '#ffffff' : '#fafafa' }">
       <td colspan="2" style="padding: 8px 12px;">
-        <div style="font-weight: bold; color: #333;">{{ item.sourceText }}</div>
-        <div style="color: #666; font-size: 0.95rem;">{{ item.aiTranslation }}</div>
+        <div style="font-weight: bold; color: #333;">
+          {{ item.sourceText }}
+          <mat-icon matTooltip="Fijian phrase or vocab">translate</mat-icon>
+        </div>
+        <div style="color: #666; font-size: 0.95rem;">
+          {{ item.aiTranslation }}
+          <mat-icon matTooltip="AI-generated English translation">smart_toy</mat-icon>
+        </div>
       </td>
       <td style="text-align: right; padding: 8px;">
         <button mat-raised-button color="primary"
@@ -30,6 +36,7 @@
                 [disabled]="verifyingItemId === item.dataKey">
           <mat-spinner *ngIf="verifyingItemId === item.dataKey" diameter="20"></mat-spinner>
           <span *ngIf="verifyingItemId !== item.dataKey">Verify</span>
+          <mat-icon *ngIf="item.verified" matTooltip="Verified by human expert">verified_user</mat-icon>
         </button>
       </td>
     </tr>
@@ -56,5 +63,6 @@
     </tr>
   </ng-container>
 </table>
+
 </div>
 
