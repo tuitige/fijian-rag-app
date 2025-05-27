@@ -1,4 +1,5 @@
 🇫🇯 Fijian AI Project
+
 ![Public-Benefit Project](https://img.shields.io/badge/public--benefit-Fijian%20AI-blueviolet)
 
 🌍 Empowering Fijians through Language, Culture, and AI
