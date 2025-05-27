@@ -19,7 +19,7 @@ export class HeaderComponent {
   constructor() {
     this.oidcSecurityService.checkAuth().subscribe(({ isAuthenticated, userData }) => {
       this.isAuthenticated = isAuthenticated;
-      this.userEmail = userData?.email ?? null;
+      this.userEmail = userData?.given_name || userData?.email || 'User';
       console.log('authenticated:', isAuthenticated, userData);
     });
   }
