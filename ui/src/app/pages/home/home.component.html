@@ -24,12 +24,12 @@
         <td style="padding: 8px;">{{ stats[type]?.total }}</td>
         <td style="padding: 8px;">{{ stats[type]?.verified }}</td>
         <td style="padding: 8px;">
-          <ng-container *ngIf="stats[type]?.total && stats[type]?.verified !== undefined; else zeroPercent">
-            {{ (stats[type].verified / stats[type].total * 100) | number:'1.0-0' }}%
-          </ng-container>
-          <ng-template #zeroPercent>0%</ng-template>
+          {{
+            stats[type]?.total && stats[type]?.verified
+              ? ((stats[type]!.verified! / stats[type]!.total!) * 100) | number:'1.0-0'
+              : '0'
+          }}%
         </td>
-
       </tr>
     </tbody>
   </table>
