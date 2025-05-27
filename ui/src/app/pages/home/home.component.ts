@@ -22,4 +22,11 @@ ngOnInit() {
   });
 }
 
+getPercentage(type: string): string {
+  const t = this.stats?.[type];
+  if (!t || !t.total || !t.verified) return '0';
+  const percent = (t.verified / t.total) * 100;
+  return percent.toFixed(0);
+}
+
 }
