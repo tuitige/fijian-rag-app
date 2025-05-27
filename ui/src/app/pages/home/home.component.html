@@ -1,21 +1,15 @@
-<div style="padding: 2rem; max-width: 900px; margin: auto;">
-  <h1 style="font-size: 2rem; margin-bottom: 1rem;">Fijian Language Learning App</h1>
+<div style="padding: 2rem; max-width: 1200px; margin: auto;">
+  <h1 style="font-size: 2rem; margin-bottom: 1rem;">Welcome to the Fijian AI Project</h1>
 
   <p style="font-size: 1.1rem; margin-bottom: 1rem;">
-    This application helps verify AI-generated Fijian translations. Native speaker validation ensures high-quality data used to train future AI models. Verified content is stored for use in Retrieval-Augmented Generation (RAG) systems that assist in understanding and teaching the Fijian language.
+    This public-benefit initiative brings cutting-edge AI tools to help preserve, translate,
+    and teach the Fijian language. Our goal is to support learners, educators, native speakers,
+    and future AI models — all while preserving cultural identity and unlocking opportunity
+    across the Pacific.
   </p>
 
-  <p style="font-size: 1.1rem; margin-bottom: 1rem;">
-    Each translation—whether a vocabulary word, phrase, or paragraph—is generated from scanned documents, news articles, and other sources. Human reviewers (like Makita) edit or confirm accuracy, and once verified, items become part of a growing dataset used to improve AI comprehension of Fijian.
-  </p>
-
-  <h2 style="font-size: 1.5rem; margin-top: 2rem;">Current Verification Summary</h2>
-
-<!--<pre *ngIf="stats">{{ stats | json }}</pre>--->
-
-<div *ngIf="stats as s; else loadingStats" style="margin-top: 2rem;">
   <h2>Verification Stats</h2>
-  <table style="border-collapse: collapse; width: 100%;">
+  <table style="border-collapse: collapse; width: 100%; margin-top: 1rem;">
     <thead>
       <tr style="background-color: #f5f5f5;">
         <th style="text-align: left; padding: 8px;">Type</th>
@@ -27,27 +21,12 @@
     <tbody>
       <tr *ngFor="let type of translationTypes">
         <td style="padding: 8px;">{{ type }}</td>
-        <td style="padding: 8px;">{{ s[type].total }}</td>
-        <td style="padding: 8px;">{{ s[type].verified }}</td>
+        <td style="padding: 8px;">{{ stats[type]?.total }}</td>
+        <td style="padding: 8px;">{{ stats[type]?.verified }}</td>
         <td style="padding: 8px;">
-          {{ (s[type].total > 0 ? (s[type].verified / s[type].total * 100) : 0) | number:'1.0-0' }}%
+          {{ (stats[type]?.total > 0 ? (stats[type]?.verified / stats[type]?.total * 100) : 0) | number:'1.0-0' }}%
         </td>
       </tr>
     </tbody>
   </table>
-</div>
-
-<ng-template #loadingStats>
-  <p>Loading stats...</p>
-</ng-template>
-
-
-<ng-template #noStats>
-  <p style="color: red;">Stats object is falsy or undefined.</p>
-</ng-template>
-
-
-  <p style="font-size: 0.9rem; margin-top: 1rem; color: #555;">
-    Data will update dynamically once the backend Lambda for stats is implemented.
-  </p>
 </div>

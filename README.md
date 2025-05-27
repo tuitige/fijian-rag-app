@@ -1,139 +1,70 @@
-# 🇫🇯 Fijian Language Learning App (AI-powered via AWS Bedrock)
+🇫🇯 Fijian AI Project
+![Public-Benefit Project](https://img.shields.io/badge/public--benefit-Fijian%20AI-blueviolet)
 
----
+🌍 Empowering Fijians through Language, Culture, and AI
 
-Despite its importance in Fiji's national identity, Fijian is underrepresented in global language resources.
- 
-This project uses **AI + Human-in-the-Loop validation** to build a **high-fidelity language learning experience** for Fijian speakers, learners, and researchers.
+🧠 What is the Fijian AI Project?
 
-This is an AI-powered language learning platform designed to help users learn **Fijian** (Standard Bauan) interactively, accurately, and respectfully.
+The Fijian AI Project is a public-benefit initiative that brings the power of Generative AI and language technologies to the Fijian people — and to anyone who wants to learn, preserve, or connect with Fijian culture.
 
----
+At its core, this project aims to:
 
-## 🤖 Why AI + Human-in-the-Loop?
+🗣️ Enable conversational and educational AI tools in the Fijian language
 
-Because Fijian is a **low-resource language**, it suffers from:
-- ❌ Inaccurate translations from mainstream LLMs
-- ❌ Limited grammar/syntax teaching resources
-- ❌ Cultural nuance loss
+📚 Preserve and revitalize traditional stories, grammar, and vocabulary
 
-This platform solves that using:
-- **Amazon Bedrock** + **Claude 3.5 Sonnet** for AI translation and teaching
-- **Native speaker validation** (by Makita) for cultural fidelity
-- **RAG-based delivery** using OpenSearch embeddings
-- **Human-verified datasets** continually improving the AI's accuracy
+🌍 Empower locals, students, and visitors with culturally respectful translation tools
 
-✅ Machine + Human = Trustworthy, respectful Fijian AI learning.
+🧠 Enrich global AI with underrepresented linguistic data
 
----
+🔧 Tech Stack: GenAI + RAG + Fine-Tuning
 
-## 🧠 Core Features
+Generative AI: Powered by Claude (Anthropic) via AWS Bedrock
 
-### ✅ Current System
+RAG: Retrieval-Augmented Generation using OpenSearch vector embeddings
 
-- `/translate`  
-  ➔ Translate Fijian phrases to English (via Claude 3.5)
+Embedding & Search: High-precision semantic search across verified Fijian-English datasets
 
-- `/verify`  
-  ➔ Accept human-verified translations ➔ Store embeddings in OpenSearch
+AWS Infrastructure: Lambda, API Gateway, DynamoDB, OpenSearch, S3
 
-- `/learn`  
-  ➔ Interactive chat-based learning sessions built from Peace Corps and Grammar modules
+Frontend: Angular + Amplify, designed for mobile and low-bandwidth environments
 
-- `/aggregate`  
-  ➔ Aggregate OCR'd pages into full chapter text for further processing
+❗ Why Fijian Matters in AI
 
-- Automated Data Ingestion Pipeline:
-  - OCR Peace Corps & Grammar book scans (Textract)
-  - Aggregation of OCR pages into chapters
-  - Claude module generation and phrase extraction
-  - DynamoDB staging for human verification
+Fijian is a low-resource language, meaning:
 
----
+Very limited high-quality digital content
 
-### 🧭 Roadmap (Next Phases)
+Minimal representation in large AI models
 
-- 🖥️ **Training UI** for Makita (verify and correct translations easily)
-- 📚 **Learning UI** for students (chatbot-like structured lessons)
-- 🧑‍🤝‍🧑 **User accounts** (AWS Cognito login and lesson tracking)
-- 🎙️ **Audio dataset creation** (Makita reading verified phrases, for future TTS training)
-- 📈 **Dashboard** (track number of verified phrases, training volume, ingestion stats)
+Few or no TTS or ASR tools
 
----
+By creating structured, verified datasets and an open pipeline, the Fijian AI Project makes the language accessible to AI models — and to future generations.
 
-## 🏗️ Architecture Overview
+🚀 Future Roadmap
 
-![Architecture Diagram](./Fijian-RAG-app-diagram-v2.png)
+🎤 Train a Fijian Text-to-Speech engine with native voices
 
-| Component | Role |
-|:---|:---|
-| Amazon API Gateway | Entry points `/translate`, `/verify`, `/learn`, `/aggregate` |
-| AWS Lambda | Core application logic |
-| Amazon Bedrock (Claude 3.5 Sonnet) | Translation, module generation, phrase extraction |
-| Amazon OpenSearch Serverless | Verified embeddings storage and retrieval |
-| Amazon S3 | Raw OCR storage, scanned documents |
-| Amazon DynamoDB | Verified and unverified translation staging, learning modules |
-| Amazon SQS | Queueing ingestion and aggregation steps (async) |
-| AWS Textract | OCR of scanned textbook pages |
-| AWS Amplify + Angular | UI for students and verifiers |
-| Amazon Cognito | Authentication and progress tracking |
+🧑‍🏫 Launch a full language learning app with progress tracking
 
----
+🧭 Enable voice AI assistants in Fijian for tourism, schools, and government
 
-# 📊 Data Ingestion Pipeline
+🗃️ Create open datasets for fine-tuning multilingual models
 
-## Overview
+💡 A Public-Benefit Mission
 
-A scalable, asynchronous ingestion system handling scanned Fijian language materials at production-grade scale.
+This is not a profit-driven SaaS tool. It's a digital preservation project rooted in:
 
-✅ Handles Peace Corps, Fijian Reference Grammar, and Nai Lalakai articles.  
-✅ Fully async, no API Gateway timeouts.  
-✅ Modular Claude enrichment steps.
+Cultural identity
 
----
+Linguistic justice
 
-## 📚 Ingestion Pipeline Flow
+AI inclusion for the Pacific
 
-```plaintext
-Upload .jpg pages to S3
-    ➔ S3 Event triggers Textract Processor Lambda
-        ➔ OCR output .json files saved to S3
-            ➔ Aggregator Lambda manually triggered (via API Gateway /aggregate)
-                ➔ Aggregates OCR JSONs into full chapter text
-                    ➔ Sends message into Worker SQS Queue
-                        ➔ Worker Lambda downloads text
-                            ➔ Calls Claude for:
-                               - Learning Module generation
-                               - Phrase extraction
-                               ➔ Saves results to DynamoDB:
-                                  - LearningModulesTable
-                                  - TranslationsTable (unverified)
-```
+We welcome grants, public funding, and partnerships with:
 
-✅ Clean modular pipeline
-✅ Expandable to even larger datasets later.
+🇫🇯 Fijian government and education ministries
 
----
+🏝️ Pacific NGOs and regional digital literacy programs
 
-# 🛠️ Tech Stack
-
-| Tech | Purpose |
-|:---|:---|
-| AWS CDK (TypeScript) | Infrastructure-as-Code |
-| Node.js (TypeScript) | Lambda functions |
-| Amazon Bedrock (Claude 3.5 Sonnet) | AI translations and module generation |
-| Amazon OpenSearch | Vector search of verified embeddings |
-| Amazon S3 | Raw file storage |
-| Amazon DynamoDB | Data staging and storage |
-| AWS Textract | OCR of scanned textbooks |
-| AWS SQS | Async workflows for long ingestion |
-| AWS Amplify + Angular | Web UI |
-| AWS Cognito | Authentication and progress tracking |
-
----
-
-# 📜 Usage
-
-> Full instructions for each endpoint, Lambda function, and Amplify UI integration coming soon.
-
----
+🌐 VCs and foundations focused on Indigenous or Ethical AI
