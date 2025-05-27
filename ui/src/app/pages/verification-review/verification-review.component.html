@@ -20,7 +20,7 @@
 
   <!-- Fijian & AI Translation Column -->
   <ng-container matColumnDef="text">
-    <mat-row *matRowDef="let item; columns: displayedColumns;"></mat-row>
+    <mat-row *matRowDef="let item; columns: getDisplayedColumns();"></mat-row>
     <mat-header-cell *matHeaderCellDef> Translation </mat-header-cell>
     <mat-cell *matCellDef="let item">
       <div>
