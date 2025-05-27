@@ -7,6 +7,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatIconModule } from '@angular/material/icon';
 import { VerificationService } from '../../services/verification.service';
 
 @Component({
@@ -18,6 +20,8 @@ import { VerificationService } from '../../services/verification.service';
     MatTabsModule,
     MatTableModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
+    MatIconModule,    
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule

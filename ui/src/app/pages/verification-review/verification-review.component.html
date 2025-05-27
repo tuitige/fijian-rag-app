@@ -16,53 +16,50 @@
     <p>No items found for verification.</p>
   </div>
 
-<table class="mat-elevation-z2" *ngIf="!loading && items.length > 0" style="width: 100%; margin-top: 2rem;">
-  <ng-container *ngFor="let item of items; let i = index">
-    <!-- Row 1: Source + AI Translation + Verify -->
-    <tr [ngStyle]="{ 'background-color': isEven(i) ? '#ffffff' : '#fafafa' }">
-      <td colspan="2" style="padding: 8px 12px;">
-        <div style="font-weight: bold; color: #333;">
-          {{ item.sourceText }}
-          <mat-icon matTooltip="Fijian phrase or vocab">translate</mat-icon>
-        </div>
-        <div style="color: #666; font-size: 0.95rem;">
-          {{ item.aiTranslation }}
-          <mat-icon matTooltip="AI-generated English translation">smart_toy</mat-icon>
-        </div>
-      </td>
-      <td style="text-align: right; padding: 8px;">
-        <button mat-raised-button color="primary"
-                (click)="verifyItem(item)"
-                [disabled]="verifyingItemId === item.dataKey">
-          <mat-spinner *ngIf="verifyingItemId === item.dataKey" diameter="20"></mat-spinner>
-          <span *ngIf="verifyingItemId !== item.dataKey">Verify</span>
-          <mat-icon *ngIf="item.verified" matTooltip="Verified by human expert">verified_user</mat-icon>
-        </button>
-      </td>
-    </tr>
+<mat-table [dataSource]="items" class="mat-elevation-z2" *ngIf="!loading && items.length > 0">
 
-    <!-- Row 2: Editable Final Translation -->
-    <tr [ngStyle]="{ 'background-color': isEven(i) ? '#ffffff' : '#fafafa' }">
-      <td colspan="3" style="padding: 0 12px 16px;">
-        <textarea
-          [(ngModel)]="item.finalTranslation"
-          placeholder="Edit or confirm English translation..."
-          rows="2"
-          style="
-            width: 100%;
-            resize: vertical;
-            min-height: 60px;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 0.95rem;
-            box-sizing: border-box;
-          "
-        ></textarea>
-      </td>
-    </tr>
+  <!-- Fijian & AI Translation Column -->
+  <ng-container matColumnDef="text">
+    <mat-row *matRowDef="let item; columns: displayedColumns;"></mat-row>
+    <mat-header-cell *matHeaderCellDef> Translation </mat-header-cell>
+    <mat-cell *matCellDef="let item">
+      <div>
+        <mat-icon matTooltip="Fijian phrase or vocab">translate</mat-icon>
+        <strong>{{ item.sourceText }}</strong>
+      </div>
+      <div>
+        <mat-icon matTooltip="AI-generated English translation">smart_toy</mat-icon>
+        {{ item.aiTranslation }}
+      </div>
+    </mat-cell>
   </ng-container>
-</table>
+
+  <!-- Final Translation Column -->
+  <ng-container matColumnDef="final">
+    <mat-header-cell *matHeaderCellDef> Verified Translation </mat-header-cell>
+    <mat-cell *matCellDef="let item">
+      <textarea [(ngModel)]="item.finalTranslation"
+                placeholder="Edit or confirm..."
+                rows="2"
+                style="width: 100%; font-size: 0.95rem;"></textarea>
+    </mat-cell>
+  </ng-container>
+
+  <!-- Verify Button Column -->
+  <ng-container matColumnDef="actions">
+    <mat-header-cell *matHeaderCellDef> Actions </mat-header-cell>
+    <mat-cell *matCellDef="let item">
+      <button mat-raised-button color="primary"
+              (click)="verifyItem(item)"
+              [disabled]="verifyingItemId === item.dataKey">
+        <mat-spinner *ngIf="verifyingItemId === item.dataKey" diameter="20"></mat-spinner>
+        <span *ngIf="verifyingItemId !== item.dataKey">Verify</span>
+      </button>
+      <mat-icon *ngIf="item.verified" matTooltip="Verified by human expert">verified_user</mat-icon>
+    </mat-cell>
+  </ng-container>
+
+</mat-table>
 
 </div>
 
