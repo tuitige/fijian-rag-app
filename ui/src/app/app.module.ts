@@ -19,10 +19,10 @@ import { AuthModule } from 'angular-auth-oidc-client';
     HttpClientModule,
         AuthModule.forRoot({
       config: {
-        authority: 'https://cognito-idp.us-west-2.amazonaws.com/us-west-2_shE3zxrwp',
-        redirectUrl: 'https://fijian-ai.org/',
-        postLogoutRedirectUri: 'https://fijian-ai.org/',
-        clientId: '6c1anji9n56kt4bmqtp2a0c8kb',
+        authority: 'https://auth.fijian-ai.org',
+        redirectUrl: window.location.origin,
+        postLogoutRedirectUri: window.location.origin,
+        clientId: '4pvrvr5jf8h9bvi59asmlbdjcp',
         scope: 'openid profile email',
         responseType: 'code',
         silentRenew: true,

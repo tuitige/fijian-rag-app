@@ -1,18 +1,6 @@
 <div class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-  <amplify-authenticator>
-    <ng-template amplifySlot="sign-in-header">
-      <div class="text-center mb-6">
-        <img src="assets/fijian-ai-logo-512.png" alt="Fijian AI Logo" class="w-16 h-16 mx-auto mb-2" />
-        <h2 class="text-2xl font-semibold text-blue-600">Welcome to Fijian AI ✨</h2>
-        <p class="text-sm text-gray-500">Sign in to contribute and explore</p>
-      </div>
-    </ng-template>
-
-    <ng-template amplifySlot="authenticated" let-user="user" let-signOut="signOut">
-      <app-header></app-header>
-      <main class="authenticated-content">
-        <router-outlet></router-outlet>
-      </main>
-    </ng-template>
-  </amplify-authenticator>
+<app-header></app-header>
+<main class="authenticated-content">
+  <router-outlet></router-outlet>
+</main>
 </div>
