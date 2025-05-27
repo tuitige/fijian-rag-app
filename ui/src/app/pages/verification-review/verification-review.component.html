@@ -1,52 +1,58 @@
-<table mat-table [dataSource]="items" class="mat-elevation-z2" *ngIf="!loading && items.length > 0" style="width: 100%; margin-top: 2rem;">
+<div style="padding: 2rem; max-width: 1200px; margin: auto;">
+  <h1 style="font-size: 2rem; margin-bottom: 1rem;">Verify Fijian Translations</h1>
 
-  <!-- Source Text Column (Fijian + Tooltip Icon) -->
-  <ng-container matColumnDef="sourceText">
-    <th mat-header-cell *matHeaderCellDef> 
-      <mat-icon matTooltip="Fijian phrase or vocab">translate</mat-icon> 
-    </th>
-    <td mat-cell *matCellDef="let item">
-      <strong>{{ item.sourceText }}</strong>
-    </td>
+  <p style="font-size: 1.1rem; margin-bottom: 1rem;">
+    This tool allows native speakers to review and verify AI-generated Fijian translations.
+    By validating each vocabulary word, phrase, or paragraph, we help build a high-quality training dataset that will be used in Retrieval-Augmented Generation (RAG) systems to teach and preserve the Fijian language.
+  </p>
+
+  <mat-tab-group [selectedIndex]="selectedTabIndex" (selectedIndexChange)="selectTab($event)">
+    <mat-tab label="Vocabulary"></mat-tab>
+    <mat-tab label="Phrases"></mat-tab>
+    <mat-tab label="Paragraphs"></mat-tab>
+  </mat-tab-group>
+
+  <div *ngIf="!loading && items.length === 0" style="margin-top: 2rem;">
+    <p>No items found for verification.</p>
+  </div>
+
+<table class="translation-table" *ngIf="!loading && items.length > 0">
+  <ng-container *ngFor="let item of items; let i = index">
+    
+    <!-- Row 1: Display Fijian and AI Translation -->
+    <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
+      <td colspan="2" class="fijian-ai-cell">
+        <div class="fijian-text">{{ item.sourceText }}</div>
+        <div class="ai-text">{{ item.aiTranslation }}</div>
+      </td>
+      <td class="actions-cell">
+        <button class="verify-btn" (click)="verifyItem(item)" [disabled]="verifyingItemId === item.dataKey">
+          <ng-container *ngIf="verifyingItemId === item.dataKey">
+            <mat-spinner diameter="20"></mat-spinner>
+          </ng-container>
+          <ng-container *ngIf="verifyingItemId !== item.dataKey">
+            Verify
+          </ng-container>
+        </button>
+        <mat-icon *ngIf="item.verified" matTooltip="Verified by human expert" class="verified-icon">verified_user</mat-icon>
+      </td>
+    </tr>
+
+    <!-- Row 2: Editable Final Translation -->
+    <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
+      <td colspan="3" class="edit-row-cell">
+        <textarea
+          [(ngModel)]="item.finalTranslation"
+          placeholder="Edit or confirm English translation..."
+          rows="2"
+          class="editable-textarea"
+        ></textarea>
+      </td>
+    </tr>
+
   </ng-container>
-
-  <!-- AI Translation Column -->
-  <ng-container matColumnDef="aiTranslation">
-    <th mat-header-cell *matHeaderCellDef>
-      <mat-icon matTooltip="AI-generated English translation">smart_toy</mat-icon>
-    </th>
-    <td mat-cell *matCellDef="let item">
-      {{ item.aiTranslation }}
-    </td>
-  </ng-container>
-
-  <!-- Final Editable Translation Column -->
-  <ng-container matColumnDef="finalTranslation">
-    <th mat-header-cell *matHeaderCellDef> Final Translation </th>
-    <td mat-cell *matCellDef="let item">
-      <textarea [(ngModel)]="item.finalTranslation"
-                placeholder="Edit or confirm..."
-                rows="2"
-                style="width: 100%; font-size: 0.95rem; padding: 6px; border-radius: 6px; border: 1px solid #ccc;"></textarea>
-    </td>
-  </ng-container>
-
-  <!-- Actions Column -->
-  <ng-container matColumnDef="actions">
-    <th mat-header-cell *matHeaderCellDef> Actions </th>
-    <td mat-cell *matCellDef="let item" style="text-align: right;">
-      <button mat-raised-button color="primary"
-              (click)="verifyItem(item)"
-              [disabled]="verifyingItemId === item.dataKey">
-        <mat-spinner *ngIf="verifyingItemId === item.dataKey" diameter="20"></mat-spinner>
-        <span *ngIf="verifyingItemId !== item.dataKey">Verify</span>
-      </button>
-      <mat-icon *ngIf="item.verified" color="accent" matTooltip="Verified by human expert">verified_user</mat-icon>
-    </td>
-  </ng-container>
-
-  <!-- Header and Row definitions -->
-  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-
 </table>
+
+
+</div>
+
