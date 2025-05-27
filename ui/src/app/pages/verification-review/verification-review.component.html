@@ -24,16 +24,12 @@
       <td colspan="2" class="fijian-ai-cell">
 
         <!-- Fijian Source -->
-        <div class="fijian-text">
-          <mat-icon matTooltip="Fijian source text" class="icon-inline">language</mat-icon>
-          {{ item.sourceText }}
-        </div>
+        <span class="icon-inline" matTooltip="Fijian source text">🌺</span>
+        <strong>{{ item.sourceText }}</strong>
 
         <!-- AI Translation -->
-        <div class="ai-text">
-          <mat-icon matTooltip="AI-generated translation" class="icon-inline">smart_toy</mat-icon>
-          {{ item.aiTranslation }}
-        </div>
+        <span class="icon-inline" matTooltip="AI-generated English translation">🧠</span>
+        {{ item.aiTranslation }}
       </td>
 
       <!-- Actions -->
@@ -50,7 +46,7 @@
     <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
       <td colspan="3" class="edit-row-cell">
         <div class="editable-wrapper">
-          <mat-icon matTooltip="Human verified translation" class="icon-inline">person</mat-icon>
+          <span *ngIf="item.verified" class="icon-inline" matTooltip="Verified by human expert">✅</span>
           <textarea
             [(ngModel)]="item.finalTranslation"
             placeholder="Edit or confirm English translation..."
