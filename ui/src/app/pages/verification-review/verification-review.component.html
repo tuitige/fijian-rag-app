@@ -22,14 +22,8 @@
     <!-- Row 1: Fijian + AI Translation + Actions -->
     <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
       <td colspan="2" class="fijian-ai-cell">
-
-        <!-- Fijian Source -->
-        <span class="icon-inline" matTooltip="Fijian source text">🌺</span>
-        <strong>{{ item.sourceText }}</strong>
-
-        <!-- AI Translation -->
-        <span class="icon-inline" matTooltip="AI-generated English translation">🧠</span>
-        {{ item.aiTranslation }}
+        <div class="fijian-text">🇫🇯 {{ item.sourceText }}</div>
+        <div class="ai-text">🧠 {{ item.aiTranslation }}</div>
       </td>
 
       <!-- Actions -->
