@@ -31,7 +31,7 @@
 
     <!-- Row 2: Editable Final Translation -->
     <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
-      <td class="icon-cell">✅</td>
+      <td class="icon-cell" style="vertical-align: middle;"">✅</td>
       <td class="text-cell">
         <textarea
           [(ngModel)]="item.finalTranslation"
