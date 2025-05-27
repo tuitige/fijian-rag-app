@@ -1,6 +1,6 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
-import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, PutItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { isDuplicate } from './dedupUtils';
@@ -156,16 +156,13 @@ ${p}
       for (let j = 0; j < phrases.length; j++) {
         const phrase = phrases[j];
         const isDup = await isDuplicate('translation', phrase.sourceText, phrase.aiTranslation);
-        if (isDup) {
-          phraseSkipped++;
-          continue;
-        }
 
-        await storeItem('phrase', `${compositeKey}_${j}`, {
+        await storeItemWithCount('phrase', `${compositeKey}_${j}`, {
           sourceText: phrase.sourceText,
           aiTranslation: phrase.aiTranslation,
-          finalTranslation: phrase.aiTranslation
-        });
+          finalTranslation: phrase.aiTranslation,
+          dedupKey: `${phrase.sourceText.toLowerCase()}::${phrase.aiTranslation.toLowerCase()}`
+        }, isDup);
         phraseInserted++;
       }
 
@@ -174,17 +171,13 @@ ${p}
       for (let k = 0; k < vocabulary.length; k++) {
         const vocab = vocabulary[k];
         const isDup = await isDuplicate('vocab', vocab.sourceText, vocab.aiTranslation);
-        if (isDup) {
-          vocabSkipped++;
-          continue;
-        }
 
-        await storeItem('vocab', `${compositeKey}_${k}`, {
+        await storeItemWithCount('vocab', `${compositeKey}_${k}`, {
           sourceText: vocab.sourceText,
           aiTranslation: vocab.aiTranslation,
           finalTranslation: vocab.aiTranslation,
-          partOfSpeech: vocab.partOfSpeech
-        });
+          dedupKey: `${vocab.sourceText.toLowerCase()}::${vocab.aiTranslation.toLowerCase()}`
+        }, isDup);
         vocabInserted++;
       }
 
@@ -222,6 +215,51 @@ async function storeItem(dataType: string, dataKey: string, fields: Record<strin
     TableName: TRANSLATIONS_REVIEW_TABLE_NAME,
     Item: item
   }));
+}
+
+async function storeItemWithCount(
+  dataType: string,
+  dataKey: string,
+  fields: Record<string, string>,
+  isDup: boolean
+) {
+  const key = {
+    dataType: { S: dataType },
+    dataKey: { S: dataKey }
+  };
+
+  if (isDup) {
+    // Update existing item with count += 1
+    await ddb.send(new UpdateItemCommand({
+      TableName: TRANSLATIONS_REVIEW_TABLE_NAME,
+      Key: key,
+      UpdateExpression: 'SET count = if_not_exists(count, :start) + :inc',
+      ExpressionAttributeValues: {
+        ':start': { N: '1' },
+        ':inc': { N: '1' }
+      }
+    }));
+  } else {
+    // Insert new item with count = 1
+    const item: Record<string, { S: string } | { N: string }> = {
+      ...key,
+      verified: { S: 'false' },
+      count: { N: '1' }
+    };
+
+    for (const [k, v] of Object.entries(fields)) {
+      if (v !== undefined && v !== null) {
+        item[k] = { S: v };
+      } else {
+        console.warn(`[storeItemWithCount] Skipped undefined/null field "${k}"`);
+      }
+    }
+
+    await ddb.send(new PutItemCommand({
+      TableName: TRANSLATIONS_REVIEW_TABLE_NAME,
+      Item: item
+    }));
+  }
 }
 
 function generateDataKey(articleUrl: string, paragraphIndex: number) {

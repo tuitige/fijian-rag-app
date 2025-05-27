@@ -31,6 +31,7 @@ export class VerificationReviewComponent implements OnInit {
   constructor(private verificationService: VerificationService) {}
 
   ngOnInit(): void {
+    this.selectTab(this.selectedTabIndex);
     this.loadItems();
   }
 
@@ -40,6 +41,7 @@ export class VerificationReviewComponent implements OnInit {
     this.selectedTabIndex = index;
     this.dataType = tabKeys[index] as 'vocab' | 'phrase' | 'paragraph';
     console.log('Selected data type:', this.dataType);
+    this.loadItems();
   }
 
   loadItems(): void {
