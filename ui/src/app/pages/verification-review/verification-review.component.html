@@ -19,35 +19,26 @@
 <table class="translation-table" *ngIf="!loading && items.length > 0">
   <ng-container *ngFor="let item of items; let i = index">
 
-    <!-- Row 1: Fijian + AI Translation + Actions -->
+    <!-- Row 1: Fijian + AI Translation -->
     <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
-      <td colspan="2" class="fijian-ai-cell">
-        <div class="fijian-text">🇫🇯 {{ item.sourceText }}</div>
-        <div class="ai-text">🧠 {{ item.aiTranslation }}</div>
-      </td>
-
-      <!-- Actions -->
-      <td class="actions-cell">
-        <button class="verify-btn" (click)="verifyItem(item)" [disabled]="verifyingItemId === item.dataKey">
-          <mat-spinner *ngIf="verifyingItemId === item.dataKey" diameter="20"></mat-spinner>
-          <span *ngIf="verifyingItemId !== item.dataKey">Verify</span>
-        </button>
-        <mat-icon *ngIf="item.verified" matTooltip="Verified by human expert" class="verified-icon">verified_user</mat-icon>
-      </td>
+      <td class="icon-cell">🌺</td>
+      <td class="text-cell">{{ item.sourceText }}</td>
+    </tr>
+    <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
+      <td class="icon-cell">🧠</td>
+      <td class="text-cell">{{ item.aiTranslation }}</td>
     </tr>
 
     <!-- Row 2: Editable Final Translation -->
     <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
-      <td colspan="3" class="edit-row-cell">
-        <div class="editable-wrapper">
-          <span *ngIf="item.verified" class="icon-inline" matTooltip="Verified by human expert">✅</span>
-          <textarea
-            [(ngModel)]="item.finalTranslation"
-            placeholder="Edit or confirm English translation..."
-            rows="2"
-            class="editable-textarea"
-          ></textarea>
-        </div>
+      <td class="icon-cell">✅</td>
+      <td class="text-cell">
+        <textarea
+          [(ngModel)]="item.finalTranslation"
+          placeholder="Edit or confirm English translation..."
+          rows="2"
+          class="editable-textarea"
+        ></textarea>
       </td>
     </tr>
 
