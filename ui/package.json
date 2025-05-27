@@ -23,6 +23,7 @@
     "@aws-amplify/ui": "^5.3.11",
     "@aws-amplify/ui-angular": "^3.2.15",
     "@popperjs/core": "^2.11.8",
+    "angular-auth-oidc-client": "19.0.1",
     "aws-amplify": "^5.3.11",
     "bootstrap": "^5.3.3",
     "cd": "^0.3.3",
