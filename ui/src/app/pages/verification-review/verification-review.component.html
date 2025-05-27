@@ -16,86 +16,45 @@
     <p>No items found for verification.</p>
   </div>
 
-  <table mat-table [dataSource]="items" class="mat-elevation-z2" *ngIf="!loading && items.length > 0" style="width: 100%; margin-top: 2rem;">
-    <!-- Unified Table Columns for All Types -->
-    <ng-container matColumnDef="sourceText">
-      <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">Fijian</th>
-      <td mat-cell *matCellDef="let item">{{ item.sourceText }}</td>
-    </ng-container>
-
-    <ng-container matColumnDef="aiTranslation">
-      <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">AI Translation</th>
-      <td mat-cell *matCellDef="let item">{{ item.aiTranslation }}</td>
-    </ng-container>
-
-    <ng-container matColumnDef="finalTranslation">
-      <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">Your Translation</th>
-      <td mat-cell *matCellDef="let item" style="vertical-align: middle;">
-        <mat-form-field appearance="outline" style="width: 100%; vertical-align: middle;">
-          <input
-            matInput
-            [(ngModel)]="item.finalTranslation"
-            placeholder="Edit translation"
-            style="height: 36px;"
-          />
-        </mat-form-field>
+<table class="mat-elevation-z2" *ngIf="!loading && items.length > 0" style="width: 100%; margin-top: 2rem;">
+  <ng-container *ngFor="let item of items; let i = index">
+    <!-- Row 1: Fijian + AI Translation + Verify -->
+    <tr [ngStyle]="{ 'background-color': isEven(i) ? '#ffffff' : '#fafafa' }">
+      <td colspan="2" style="padding: 8px 12px;">
+        <div style="font-weight: bold; color: #333;">{{ item.sourceText }}</div>
+        <div style="color: #666; font-size: 0.95rem;">{{ item.aiTranslation }}</div>
       </td>
-    </ng-container>
-
-
-    <!-- Shared Actions -->
-    <ng-container matColumnDef="actions">
-      <th mat-header-cell *matHeaderCellDef></th>
-      <td mat-cell *matCellDef="let item">
-      <button mat-raised-button color="primary" (click)="verifyItem(item)" [disabled]="verifyingItemId === item.dataKey">
-        <mat-spinner *ngIf="verifyingItemId === item.dataKey" diameter="20"></mat-spinner>
-        <span *ngIf="verifyingItemId !== item.dataKey">Verify</span>
-      </button>
-
+      <td style="text-align: right; padding: 8px;">
+        <button mat-raised-button color="primary"
+                (click)="verifyItem(item)"
+                [disabled]="verifyingItemId === item.dataKey">
+          <mat-spinner *ngIf="verifyingItemId === item.dataKey" diameter="20"></mat-spinner>
+          <span *ngIf="verifyingItemId !== item.dataKey">Verify</span>
+        </button>
       </td>
-    </ng-container>
+    </tr>
 
-    <!-- Header & Row Definitions -->
-    <tr mat-header-row *matHeaderRowDef="getDisplayedColumns()" style="background-color: #f5f5f5;"></tr>
-    <!--<tr mat-row *matRowDef="let row; columns: getDisplayedColumns();" [ngStyle]="{ 'background-color': isEven(rowIndex) ? '#ffffff' : '#fafafa' }" let-rowIndex="index"></tr>--->
-    <ng-container *ngFor="let item of items; let i = index">
-      <!-- Row 1: Fijian + AI Translation + Verify -->
-      <tr [ngStyle]="{ 'background-color': isEven(i) ? '#ffffff' : '#fafafa' }">
-        <td colspan="2" style="padding: 8px 12px;">
-          <div style="font-weight: bold; color: #333;">{{ item.sourceText }}</div>
-          <div style="color: #666; font-size: 0.95rem;">{{ item.aiTranslation }}</div>
-        </td>
-        <td style="text-align: right; padding: 8px;">
-          <button mat-raised-button color="primary"
-                  (click)="verifyItem(item)"
-                  [disabled]="verifyingItemId === item.dataKey">
-            <mat-spinner *ngIf="verifyingItemId === item.dataKey" diameter="20"></mat-spinner>
-            <span *ngIf="verifyingItemId !== item.dataKey">Verify</span>
-          </button>
-        </td>
-      </tr>
-
-      <!-- Row 2: Editable Final Translation -->
-      <tr [ngStyle]="{ 'background-color': isEven(i) ? '#ffffff' : '#fafafa' }">
-        <td colspan="3" style="padding: 0 12px 16px;">
-          <textarea
-            [(ngModel)]="item.finalTranslation"
-            placeholder="Edit or confirm English translation..."
-            rows="2"
-            style="
-              width: 100%;
-              resize: vertical;
-              min-height: 60px;
-              padding: 8px;
-              border: 1px solid #ccc;
-              border-radius: 6px;
-              font-size: 0.95rem;
-              box-sizing: border-box;
-            "
-          ></textarea>
-        </td>
-      </tr>
-    </ng-container>
-  </table>
+    <!-- Row 2: Editable Final Translation -->
+    <tr [ngStyle]="{ 'background-color': isEven(i) ? '#ffffff' : '#fafafa' }">
+      <td colspan="3" style="padding: 0 12px 16px;">
+        <textarea
+          [(ngModel)]="item.finalTranslation"
+          placeholder="Edit or confirm English translation..."
+          rows="2"
+          style="
+            width: 100%;
+            resize: vertical;
+            min-height: 60px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+          "
+        ></textarea>
+      </td>
+    </tr>
+  </ng-container>
+</table>
 </div>
 
