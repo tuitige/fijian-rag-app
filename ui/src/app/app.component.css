@@ -41,14 +41,14 @@
     width: 100%;
   }
 
-  amplify-authenticator {
+amplify-authenticator {
+  --amplify-components-button-primary-background-color: #2563eb;
+  --amplify-components-button-primary-hover-background-color: #1e40af;
+  --amplify-components-fieldcontrol-border-radius: 6px;
   --amplify-font-family: 'Inter', sans-serif;
-  --amplify-primary-color: #2563eb; /* Tailwind's blue-600 */
-  --amplify-button-border-radius: 6px;
-  --amplify-input-border-radius: 6px;
-  --amplify-components-fieldcontrol-border-color: #d1d5db; /* gray-300 */
   --amplify-components-tabs-item-active-border-color: #2563eb;
-  --amplify-components-button-hover-background-color: #1d4ed8;
+  --amplify-components-textfield-border-color: #cbd5e0;
 }
+
 
   
