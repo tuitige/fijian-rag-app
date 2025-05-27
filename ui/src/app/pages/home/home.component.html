@@ -24,7 +24,7 @@
         <td style="padding: 8px;">{{ stats[type]?.total }}</td>
         <td style="padding: 8px;">{{ stats[type]?.verified }}</td>
         <td style="padding: 8px;">
-          {{ (stats[type]?.total > 0 ? (stats[type]?.verified / stats[type]?.total * 100) : 0) | number:'1.0-0' }}%
+          {{ stats[type]?.total && stats[type]?.verified !== undefined ? (stats[type].verified / stats[type].total * 100) | number:'1.0-0': '0'}}%
         </td>
       </tr>
     </tbody>
