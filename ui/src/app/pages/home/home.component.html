@@ -23,13 +23,12 @@
         <td style="padding: 8px;">{{ type }}</td>
         <td style="padding: 8px;">{{ stats[type]?.total }}</td>
         <td style="padding: 8px;">{{ stats[type]?.verified }}</td>
-        <td style="padding: 8px;">
-          {{
-            stats[type]?.total && stats[type]?.verified
-              ? ((stats[type]!.verified! / stats[type]!.total!) * 100) | number:'1.0-0'
-              : '0'
-          }}%
-        </td>
+<td style="padding: 8px;">
+  <ng-container *ngIf="stats[type]?.total as total && stats[type]?.verified as verified; else fallback">
+    {{ (verified / total * 100) | number:'1.0-0' }}%
+  </ng-container>
+  <ng-template #fallback>0%</ng-template>
+</td>
       </tr>
     </tbody>
   </table>
