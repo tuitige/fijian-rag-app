@@ -88,8 +88,33 @@ mat-icon {
   background-color: #1e40af;
 }
 
-.verified-icon {
-  margin-left: 10px;
-  color: green;
+
+.icon-inline {
   vertical-align: middle;
+  margin-right: 6px;
+  font-size: 20px;
+  color: #555;
+}
+
+.verified-icon {
+  margin-left: 8px;
+  color: green;
+}
+
+.editable-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.editable-textarea {
+  flex: 1;
+  width: 100%;
+  resize: vertical;
+  min-height: 60px;
+  padding: 10px;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
 }

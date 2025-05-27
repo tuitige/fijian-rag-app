@@ -18,21 +18,29 @@
 
 <table class="translation-table" *ngIf="!loading && items.length > 0">
   <ng-container *ngFor="let item of items; let i = index">
-    
-    <!-- Row 1: Display Fijian and AI Translation -->
+
+    <!-- Row 1: Fijian + AI Translation + Actions -->
     <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
       <td colspan="2" class="fijian-ai-cell">
-        <div class="fijian-text">{{ item.sourceText }}</div>
-        <div class="ai-text">{{ item.aiTranslation }}</div>
+
+        <!-- Fijian Source -->
+        <div class="fijian-text">
+          <mat-icon matTooltip="Fijian source text" class="icon-inline">language</mat-icon>
+          {{ item.sourceText }}
+        </div>
+
+        <!-- AI Translation -->
+        <div class="ai-text">
+          <mat-icon matTooltip="AI-generated translation" class="icon-inline">smart_toy</mat-icon>
+          {{ item.aiTranslation }}
+        </div>
       </td>
+
+      <!-- Actions -->
       <td class="actions-cell">
         <button class="verify-btn" (click)="verifyItem(item)" [disabled]="verifyingItemId === item.dataKey">
-          <ng-container *ngIf="verifyingItemId === item.dataKey">
-            <mat-spinner diameter="20"></mat-spinner>
-          </ng-container>
-          <ng-container *ngIf="verifyingItemId !== item.dataKey">
-            Verify
-          </ng-container>
+          <mat-spinner *ngIf="verifyingItemId === item.dataKey" diameter="20"></mat-spinner>
+          <span *ngIf="verifyingItemId !== item.dataKey">Verify</span>
         </button>
         <mat-icon *ngIf="item.verified" matTooltip="Verified by human expert" class="verified-icon">verified_user</mat-icon>
       </td>
@@ -41,17 +49,21 @@
     <!-- Row 2: Editable Final Translation -->
     <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
       <td colspan="3" class="edit-row-cell">
-        <textarea
-          [(ngModel)]="item.finalTranslation"
-          placeholder="Edit or confirm English translation..."
-          rows="2"
-          class="editable-textarea"
-        ></textarea>
+        <div class="editable-wrapper">
+          <mat-icon matTooltip="Human verified translation" class="icon-inline">person</mat-icon>
+          <textarea
+            [(ngModel)]="item.finalTranslation"
+            placeholder="Edit or confirm English translation..."
+            rows="2"
+            class="editable-textarea"
+          ></textarea>
+        </div>
       </td>
     </tr>
 
   </ng-container>
 </table>
+
 
 
 </div>
