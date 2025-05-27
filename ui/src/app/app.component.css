@@ -42,13 +42,19 @@
   }
 
 amplify-authenticator {
+  --amplify-font-family: 'Inter', sans-serif;
   --amplify-components-button-primary-background-color: #2563eb;
   --amplify-components-button-primary-hover-background-color: #1e40af;
   --amplify-components-fieldcontrol-border-radius: 6px;
-  --amplify-font-family: 'Inter', sans-serif;
   --amplify-components-tabs-item-active-border-color: #2563eb;
   --amplify-components-textfield-border-color: #cbd5e0;
-}
 
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  background-color: white;
+  padding: 2rem;
+  width: 100%;
+  max-width: 420px;
+}
 
   
