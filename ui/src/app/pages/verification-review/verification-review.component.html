@@ -31,7 +31,22 @@
     <ng-container matColumnDef="finalTranslation">
       <th mat-header-cell *matHeaderCellDef style="font-weight: bold;">Your Translation</th>
       <td mat-cell *matCellDef="let item">
-        <input [(ngModel)]="item.finalTranslation" style="width: 100%;" />
+        <input
+          [(ngModel)]="item.finalTranslation"
+          placeholder="Edit translation..."
+          class="translation-input"
+          style="
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            background-color: #fefefe;
+            transition: border-color 0.2s;
+          "
+          (focus)="(event.target as HTMLInputElement).style.borderColor = '#1976d2'"
+          (blur)="(event.target as HTMLInputElement).style.borderColor = '#ccc'"
+        />
       </td>
     </ng-container>
 

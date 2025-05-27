@@ -229,22 +229,22 @@ async function storeItemWithCount(
   };
 
   if (isDup) {
-    // Update existing item with count += 1
+    // Update frequency counter
     await ddb.send(new UpdateItemCommand({
       TableName: TRANSLATIONS_REVIEW_TABLE_NAME,
       Key: key,
-      UpdateExpression: 'SET count = if_not_exists(count, :start) + :inc',
+      UpdateExpression: 'SET frequency = if_not_exists(frequency, :start) + :inc',
       ExpressionAttributeValues: {
         ':start': { N: '1' },
         ':inc': { N: '1' }
       }
     }));
   } else {
-    // Insert new item with count = 1
+    // Insert with frequency = 1
     const item: Record<string, { S: string } | { N: string }> = {
       ...key,
       verified: { S: 'false' },
-      count: { N: '1' }
+      frequency: { N: '1' }
     };
 
     for (const [k, v] of Object.entries(fields)) {
