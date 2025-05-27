@@ -12,9 +12,20 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as opensearch from 'aws-cdk-lib/aws-opensearchservice';
 import * as path from 'path';
 
+import * as cognito from 'aws-cdk-lib/aws-cognito';
+import { CognitoUserPoolsAuthorizer } from 'aws-cdk-lib/aws-apigateway';
+
+
+
+
 export class FijianRagAppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    const userPool = cognito.UserPool.fromUserPoolId(this, 'ExistingUserPool', 'us-west-2_shE3zxrwp');
+    const authorizer = new CognitoUserPoolsAuthorizer(this, 'FijianCognitoAuthorizer', {
+      cognitoUserPools: [userPool]
+    });
 
     // === S3 Buckets ===
     const contentBucket = new s3.Bucket(this, 'ContentBucket', {
@@ -213,12 +224,16 @@ export class FijianRagAppStack extends cdk.Stack {
     const ingestResource = unifiedApi.root.addResource('ingest');
     ingestResource.addMethod('POST', new apigateway.LambdaIntegration(ingestLambda), {
       apiKeyRequired: true,
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
     });
 
     // === /verify-items endpoint ===
     const verifyResource = unifiedApi.root.addResource('verify-items');
     verifyResource.addMethod('GET', new apigateway.LambdaIntegration(verifyHandler), {
       apiKeyRequired: true,
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
     });
 
     verifyResource.addMethod('OPTIONS', new apigateway.MockIntegration({
@@ -248,6 +263,8 @@ export class FijianRagAppStack extends cdk.Stack {
     const submitVerifyResource = unifiedApi.root.addResource('verify-item');
     submitVerifyResource.addMethod('POST', new apigateway.LambdaIntegration(verifyHandler), {
       apiKeyRequired: true,
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
     });
 
     submitVerifyResource.addMethod('OPTIONS', new apigateway.MockIntegration({
@@ -271,8 +288,6 @@ export class FijianRagAppStack extends cdk.Stack {
         }
       }]
     });
-
-
 
   }
 }
