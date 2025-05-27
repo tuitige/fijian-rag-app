@@ -40,4 +40,15 @@
   main {
     width: 100%;
   }
+
+  amplify-authenticator {
+  --amplify-font-family: 'Inter', sans-serif;
+  --amplify-primary-color: #2563eb; /* Tailwind's blue-600 */
+  --amplify-button-border-radius: 6px;
+  --amplify-input-border-radius: 6px;
+  --amplify-components-fieldcontrol-border-color: #d1d5db; /* gray-300 */
+  --amplify-components-tabs-item-active-border-color: #2563eb;
+  --amplify-components-button-hover-background-color: #1d4ed8;
+}
+
   
