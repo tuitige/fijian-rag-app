@@ -29,4 +29,13 @@ getPercentage(type: string): string {
   return percent.toFixed(0);
 }
 
+getTotal(type: string): number {
+  return this.stats?.[type]?.total ?? 0;
+}
+
+getVerified(type: string): number {
+  return this.stats?.[type]?.verified ?? 0;
+}
+
+
 }

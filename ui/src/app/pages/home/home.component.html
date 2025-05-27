@@ -21,8 +21,8 @@
     <tbody>
       <tr *ngFor="let type of translationTypes">
         <td style="padding: 8px;">{{ type }}</td>
-        <td style="padding: 8px;">{{ stats[type]?.total }}</td>
-        <td style="padding: 8px;">{{ stats[type]?.verified }}</td>
+        <td style="padding: 8px;">{{ getTotal(type) }}</td>
+        <td style="padding: 8px;">{{ getVerified(type) }}</td>
         <td style="padding: 8px;">
           {{ getPercentage(type) }}%
         </td>
