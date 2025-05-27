@@ -35,6 +35,8 @@ export class VerificationReviewComponent implements OnInit {
   loading = false;
   selectedTabIndex = 0;
   verifyingItemId: string | null = null;
+  displayedColumns: string[] = ['sourceText', 'aiTranslation', 'finalTranslation', 'actions'];
+
 
   constructor(private verificationService: VerificationService) {}
 
