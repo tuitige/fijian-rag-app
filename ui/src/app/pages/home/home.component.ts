@@ -11,8 +11,11 @@ import { VerificationService } from '../../services/verification.service';
 })
 export class HomeComponent implements OnInit {
 
-  stats: { [key: string]: { total: number, verified: number } } | null = null;
+  //stats: { [key: string]: { total: number, verified: number } } | null = null;
+  //translationTypes = ['vocab', 'phrase', 'paragraph'];
+
   translationTypes = ['vocab', 'phrase', 'paragraph'];
+  stats: { [type: string]: { total: number; verified: number } } = {};
 
   constructor(private verificationService: VerificationService) {}
 

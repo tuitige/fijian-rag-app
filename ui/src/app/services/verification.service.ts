@@ -34,11 +34,16 @@ export class VerificationService {
 
   getStats() {
     const headers = new HttpHeaders({ 'x-api-key': environment.apiKey });
-    return this.http.get<{ stats: { count: number, items: any[] } }>(
-      `${this.baseUrl}-items?type=vocab`,
-      { headers }
-    );
+    return this.http.get<{
+      stats: {
+        vocab: { total: number; verified: number };
+        phrase: { total: number; verified: number };
+        paragraph: { total: number; verified: number };
+      };
+    }>(`${this.baseUrl}-items?type=vocab`, { headers });
   }
+
+
 
   verifyItem(dataType: string, item: any): Observable<any> {
     const payload = {
