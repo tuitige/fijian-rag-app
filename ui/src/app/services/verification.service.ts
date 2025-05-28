@@ -34,7 +34,7 @@ export class VerificationService {
 
   getStats() {
     const headers = new HttpHeaders({ 'x-api-key': environment.apiKey });
-    return this.http.get<{ count: number, items: any[] }>(
+    return this.http.get<{ stats: { count: number, items: any[] } }>(
       `${this.baseUrl}-items?type=vocab`,
       { headers }
     );
