@@ -22,28 +22,16 @@
     <!-- Row 1: Fijian Source -->
     <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
       <td class="icon-cell">🇫🇯</td>
-      <td class="text-cell">{{ item.sourceText }}</td>
-      <td class="action-cell" rowspan="3" style="vertical-align: top;">
-        <button *ngIf="!item.verified"
-                class="verify-btn"
-                (click)="verifyItem(item)"
-                [disabled]="verifyingItemId === item.dataKey">
-          <mat-spinner *ngIf="verifyingItemId === item.dataKey" diameter="20"></mat-spinner>
-          <span *ngIf="verifyingItemId !== item.dataKey">Verify</span>
-        </button>
-        <mat-icon *ngIf="item.verified"
-                  matTooltip="Verified by human expert"
-                  style="color: green;">verified_user</mat-icon>
-      </td>
+      <td class="text-cell" colspan="2">{{ item.sourceText }}</td>
     </tr>
 
     <!-- Row 2: AI Translation -->
     <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
       <td class="icon-cell">🧠</td>
-      <td class="text-cell">{{ item.aiTranslation }}</td>
+      <td class="text-cell" colspan="2">{{ item.aiTranslation }}</td>
     </tr>
 
-    <!-- Row 3: Final Editable Translation -->
+    <!-- Row 3: Final Editable Translation + Verify Button -->
     <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
       <td class="icon-cell">✅</td>
       <td class="text-cell">
@@ -54,10 +42,25 @@
           class="editable-textarea"
         ></textarea>
       </td>
+      <td class="action-cell" style="text-align: right; vertical-align: top;">
+        <button 
+          [disabled]="verifyingItemId === item.dataKey || item.verified"
+          (click)="verifyItem(item)"
+          [ngClass]="{
+            'verify-btn': !item.verified,
+            'verified-btn': item.verified
+          }">
+          <mat-spinner *ngIf="verifyingItemId === item.dataKey" diameter="20"></mat-spinner>
+          <span *ngIf="verifyingItemId !== item.dataKey">
+            {{ item.verified ? 'Verified' : 'Verify' }}
+          </span>
+        </button>
+      </td>
     </tr>
 
   </ng-container>
 </table>
+
 
 
 

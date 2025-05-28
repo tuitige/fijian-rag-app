@@ -65,16 +65,27 @@ mat-icon {
 }
 
 .verify-btn {
-  background-color: #2563eb;
-  color: #fff;
+  background-color: #1976d2;
+  color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
+  padding: 6px 16px;
+  font-weight: bold;
+  border-radius: 4px;
   cursor: pointer;
+  transition: background-color 0.3s ease;
 }
 
 .verify-btn:hover {
-  background-color: #1e40af;
+  background-color: #125a9c;
+}
+
+.verified-btn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  font-weight: bold;
+  border-radius: 4px;
 }
 
 
