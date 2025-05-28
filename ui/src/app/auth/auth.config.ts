@@ -7,6 +7,5 @@ export const authConfig: PassedInitialConfig = {
     clientId: '4pvrvr5jf8h9bvi59asmlbdjcp',
     scope: 'email openid profile',
     responseType: 'code'
-  };
-
+  }
 }
