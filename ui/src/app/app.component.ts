@@ -19,11 +19,7 @@ import { OidcSecurityService } from 'angular-auth-oidc-client';
   ]
 })
 export class AppComponent {
-constructor(private oidcSecurityService: OidcSecurityService) {}
+  constructor(private oidcSecurityService: OidcSecurityService) {}
 
-ngOnInit(): void {
-  this.oidcSecurityService.checkAuth().subscribe(({ isAuthenticated, userData }) => {
-    console.log('Auth state:', isAuthenticated, userData);
-  });
-}
+  ngOnInit(): void {}
 }
