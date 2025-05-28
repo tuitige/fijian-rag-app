@@ -16,7 +16,7 @@ export class VerificationService {
   ) {}
 
   private async getHeaders(): Promise<HttpHeaders> {
-    const token = (await this.oidcSecurityService.getAccessToken().toPromise()) || '';
+    const token = (await this.oidcSecurityService.getIdToken().toPromise()) || '';
     return new HttpHeaders({
       Authorization: `Bearer ${token}`,
       'x-api-key': environment.apiKey
