@@ -19,19 +19,33 @@
 <table class="translation-table" *ngIf="!loading && items.length > 0">
   <ng-container *ngFor="let item of items; let i = index">
 
-    <!-- Row 1: Fijian + AI Translation -->
+    <!-- Row 1: Fijian Source -->
     <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
       <td class="icon-cell">🇫🇯</td>
       <td class="text-cell">{{ item.sourceText }}</td>
+      <td class="action-cell" rowspan="3" style="vertical-align: top;">
+        <button *ngIf="!item.verified"
+                class="verify-btn"
+                (click)="verifyItem(item)"
+                [disabled]="verifyingItemId === item.dataKey">
+          <mat-spinner *ngIf="verifyingItemId === item.dataKey" diameter="20"></mat-spinner>
+          <span *ngIf="verifyingItemId !== item.dataKey">Verify</span>
+        </button>
+        <mat-icon *ngIf="item.verified"
+                  matTooltip="Verified by human expert"
+                  style="color: green;">verified_user</mat-icon>
+      </td>
     </tr>
+
+    <!-- Row 2: AI Translation -->
     <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
       <td class="icon-cell">🧠</td>
       <td class="text-cell">{{ item.aiTranslation }}</td>
     </tr>
 
-    <!-- Row 2: Editable Final Translation -->
+    <!-- Row 3: Final Editable Translation -->
     <tr [ngClass]="{ 'even-row': isEven(i), 'odd-row': !isEven(i) }">
-      <td class="icon-cell" style="vertical-align: middle;">✅</td>
+      <td class="icon-cell">✅</td>
       <td class="text-cell">
         <textarea
           [(ngModel)]="item.finalTranslation"
@@ -44,6 +58,7 @@
 
   </ng-container>
 </table>
+
 
 
 
