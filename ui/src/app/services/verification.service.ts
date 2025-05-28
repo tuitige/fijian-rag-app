@@ -1,6 +1,8 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { environment } from '../../environments/environment';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
+import { from, Observable } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -13,39 +15,41 @@ export class VerificationService {
     private oidcSecurityService: OidcSecurityService
   ) {}
 
-  private async getAuthHeaders(): Promise<HttpHeaders> {
-    const token = await this.oidcSecurityService.getAccessToken().toPromise();
+  private async getHeaders(): Promise<HttpHeaders> {
+    const token = (await this.oidcSecurityService.getAccessToken().toPromise()) || '';
     return new HttpHeaders({
       Authorization: `Bearer ${token}`
     });
   }
 
-  async getItemsToVerify(type: string) {
-    const headers = await this.getAuthHeaders();
-    return this.http.get<{ count: number, items: any[] }>(
-      `${this.baseUrl}-items?type=${type}`,
-      { headers }
-    ).toPromise();
+  getItemsToVerify(type: string): Observable<{ count: number; items: any[] }> {
+    return from(this.getHeaders().then(headers =>
+      this.http.get<{ count: number; items: any[] }>(
+        `${this.baseUrl}-items?type=${type}`,
+        { headers }
+      ).toPromise()
+    ).then(res => res ?? { count: 0, items: [] }));
   }
 
-  async getStats() {
-    const headers = await this.getAuthHeaders();
-    return this.http.get<any>(
-      `${this.baseUrl}-items?type=vocab`,
-      { headers }
-    ).toPromise();
+
+  getStats(): Observable<any> {
+    return from(this.getHeaders().then(headers =>
+      this.http.get<any>(
+        `${this.baseUrl}-items?type=vocab`, { headers }
+      ).toPromise()
+    ));
   }
 
-  async verifyItem(dataType: string, item: any) {
-    const headers = await this.getAuthHeaders();
-    return this.http.post(
-      `${this.baseUrl}-item`,
-      {
-        dataType,
-        dataKey: item.dataKey,
-        fields: item
-      },
-      { headers }
-    ).toPromise();
+  verifyItem(dataType: string, item: any): Observable<any> {
+    const payload = {
+      dataType,
+      dataKey: item.dataKey,
+      fields: item
+    };
+    return from(this.getHeaders().then(headers =>
+      this.http.post<any>(
+        `${this.baseUrl}-item`, payload, { headers }
+      ).toPromise()
+    ));
   }
 }
