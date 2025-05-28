@@ -81,6 +81,7 @@ export class VerificationReviewComponent implements OnInit {
       next: () => {
         this.items = this.items.filter(i => i.dataKey !== item.dataKey);
         this.verifyingItemId = null;
+        item.verified = true;
       },
       error: (err) => {
         console.error('Error verifying item:', err);

@@ -234,7 +234,7 @@ if (method === 'POST' && path.endsWith('/verify-item')) {
         english: fields.translatedText,
         source: dataKey,
         verified: true
-      })
+      }, { removeUndefinedValues: true })
     }));
 
   } else if (dataType === 'vocab') {
@@ -246,7 +246,7 @@ if (method === 'POST' && path.endsWith('/verify-item')) {
         partOfSpeech: fields.partOfSpeech,
         source: dataKey,
         verified: true
-      })
+      }, { removeUndefinedValues: true })
     }));
 
   } else if (dataType === 'paragraph') {
@@ -260,7 +260,7 @@ if (method === 'POST' && path.endsWith('/verify-item')) {
         originalText: fields.sourceText,
         translatedText: fields.translatedText,
         verified: true
-      })
+      }, { removeUndefinedValues: true })
     }));
   }
 
