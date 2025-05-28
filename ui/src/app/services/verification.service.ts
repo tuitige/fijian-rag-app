@@ -32,12 +32,12 @@ export class VerificationService {
   }
 
 
-  getStats(): Observable<any> {
-    return from(this.getHeaders().then(headers =>
-      this.http.get<any>(
-        `${this.baseUrl}-items?type=vocab`, { headers }
-      ).toPromise()
-    ));
+  getStats() {
+    const headers = new HttpHeaders({ 'x-api-key': environment.apiKey });
+    return this.http.get<{ count: number, items: any[] }>(
+      `${this.baseUrl}-items?type=vocab`,
+      { headers }
+    );
   }
 
   verifyItem(dataType: string, item: any): Observable<any> {

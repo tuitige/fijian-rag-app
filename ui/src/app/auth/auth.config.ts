@@ -13,3 +13,4 @@ export const authConfig: PassedInitialConfig = {
     useRefreshToken: true
   }
 }
+
