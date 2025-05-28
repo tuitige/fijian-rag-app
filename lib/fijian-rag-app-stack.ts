@@ -231,9 +231,7 @@ export class FijianRagAppStack extends cdk.Stack {
     // === /verify-items endpoint ===
     const verifyResource = unifiedApi.root.addResource('verify-items');
     verifyResource.addMethod('GET', new apigateway.LambdaIntegration(verifyHandler), {
-      apiKeyRequired: true,
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO
+      apiKeyRequired: true
     });
 
     verifyResource.addMethod('OPTIONS', new apigateway.MockIntegration({

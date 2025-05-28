@@ -2,14 +2,14 @@ import { PassedInitialConfig } from 'angular-auth-oidc-client';
 
 export const authConfig: PassedInitialConfig = {
   config: {
-              authority: 'https://fijianai.auth.us-west-2.amazoncognito.com',
-              redirectUrl: window.location.origin,
-              postLogoutRedirectUri: window.location.origin,
-              clientId: 'please-enter-clientId',
-              scope: 'please-enter-scopes', // 'openid profile offline_access ' + your scopes
-              responseType: 'code',
-              silentRenew: true,
-              useRefreshToken: true,
-              renewTimeBeforeTokenExpiresInSeconds: 30,
-          }
+    authority: 'https://auth.fijian-ai.org',
+    redirectUrl: window.location.origin,
+    postLogoutRedirectUri: window.location.origin,
+    clientId: '4pvrvr5jf8h9bvi59asmlbdjcp',
+    scope: 'openid profile email',
+    responseType: 'code',
+    silentRenew: true,
+    renewTimeBeforeTokenExpiresInSeconds: 60,
+    useRefreshToken: true
+  }
 }
