@@ -43,9 +43,10 @@ mat-icon {
 }
 
 .actions-cell {
+  width:120px;
   text-align: right;
-  vertical-align: top;
-  padding: 12px;
+  vertical-align: middle;
+  padding: 8px;
 }
 
 .fijian-text {
@@ -112,11 +113,11 @@ mat-icon {
   text-align: center;
   vertical-align: top;
   font-size: 1.5rem;
-  /*padding-top: 6px;*/
+  padding-top: 8px;
 }
 
 .text-cell {
-  padding: 8px 12px;
+  padding: 8px;
   vertical-align: top;
   font-size: 0.95rem;
 }

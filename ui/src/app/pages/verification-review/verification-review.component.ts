@@ -61,7 +61,8 @@ export class VerificationReviewComponent implements OnInit {
     this.verificationService.getItemsToVerify(type).subscribe(res => {
       this.items = res.items.map(item => ({
         ...item,
-        finalTranslation: item.finalTranslation || item.aiTranslation || ''
+        finalTranslation: item.finalTranslation || item.aiTranslation || '',
+        verified: item.verified === true 
       }));
       this.loading = false;
     });
