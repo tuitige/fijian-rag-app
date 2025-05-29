@@ -16,6 +16,9 @@ import * as path from 'path';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import { CognitoUserPoolsAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 
+import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as logs from 'aws-cdk-lib/aws-logs';
 
 
 
@@ -26,6 +29,12 @@ export class FijianRagAppStack extends cdk.Stack {
     const userPool = cognito.UserPool.fromUserPoolId(this, 'ExistingUserPool', 'us-west-2_shE3zxrwp');
     const authorizer = new CognitoUserPoolsAuthorizer(this, 'FijianCognitoAuthorizer', {
       cognitoUserPools: [userPool]
+    });
+
+    // === Claude Secret for SDK ===
+    const anthropicApiKeySecret = new secretsmanager.Secret(this, 'AnthropicApiKey', {
+      secretName: 'AnthropicApiKey',
+      description: 'API key for direct Claude access via SDK',
     });
 
     // === S3 Buckets ===
@@ -82,6 +91,43 @@ export class FijianRagAppStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });    
+
+    // === NEW: DynamoDB Tables for Learning Modules ===
+    const learningModulesTable = new dynamodb.Table(this, 'LearningModulesTable', {
+      partitionKey: { name: 'moduleId', type: dynamodb.AttributeType.STRING }, // e.g., "ch02.5"
+      sortKey: { name: 'contentType', type: dynamodb.AttributeType.STRING }, // e.g., "metadata", "vocabulary", "grammar"
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    learningModulesTable.addGlobalSecondaryIndex({
+      indexName: 'GSI_ChapterContent',
+      partitionKey: { name: 'chapter', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'lessonNumber', type: dynamodb.AttributeType.NUMBER },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    const moduleVocabularyTable = new dynamodb.Table(this, 'ModuleVocabularyTable', {
+      partitionKey: { name: 'vocabularyId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'moduleId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    moduleVocabularyTable.addGlobalSecondaryIndex({
+      indexName: 'GSI_ModuleVocab',
+      partitionKey: { name: 'moduleId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'fijian', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    moduleVocabularyTable.addGlobalSecondaryIndex({
+      indexName: 'GSI_VocabByType',
+      partitionKey: { name: 'type', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'moduleId', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
 
     // === OpenSearch Serverless Collection ===
     const osDomain = new opensearch.Domain(this, 'FijianRagCollection', {
@@ -194,6 +240,90 @@ export class FijianRagAppStack extends cdk.Stack {
       resources: ['arn:aws:bedrock:*::foundation-model/*']
     }));    
 
+    // === NEW: Lambda for Processing Learning Modules ===
+    const processLearningModuleLambda = new lambdaNodejs.NodejsFunction(this, 'ProcessLearningModuleLambda', {
+      entry: path.join(__dirname, '../lambda/process-learning-module/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 2048, // More memory for processing multiple images
+      timeout: cdk.Duration.seconds(900), // 15 minutes for processing full chapters
+      bundling: {
+        nodeModules: [
+          '@anthropic-ai/sdk',
+          '@aws-sdk/client-s3',
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/util-dynamodb',
+          '@aws-sdk/client-opensearch',
+          '@aws-sdk/credential-provider-node',
+          '@smithy/protocol-http',
+          '@smithy/node-http-handler',
+          '@smithy/signature-v4',
+          '@aws-crypto/sha256-js',
+          'uuid'
+        ]
+      },
+      environment: {
+        CONTENT_BUCKET: contentBucket.bucketName,
+        LEARNING_MODULES_TABLE: learningModulesTable.tableName,
+        MODULE_VOCABULARY_TABLE: moduleVocabularyTable.tableName,
+        VERIFIED_TRANSLATIONS_TABLE: verifiedTranslationsTable.tableName,
+        VERIFIED_VOCAB_TABLE: verifiedVocabTable.tableName,
+        OS_ENDPOINT: osDomain.domainEndpoint,
+        OS_REGION: this.region,
+        ANTHROPIC_SECRET_ARN: anthropicApiKeySecret.secretArn,
+      },
+      logRetention: logs.RetentionDays.ONE_WEEK,
+    });
+
+    // Grant permissions
+    learningModulesTable.grantReadWriteData(processLearningModuleLambda);
+    moduleVocabularyTable.grantReadWriteData(processLearningModuleLambda);
+    verifiedTranslationsTable.grantReadWriteData(processLearningModuleLambda);
+    verifiedVocabTable.grantReadWriteData(processLearningModuleLambda);
+    contentBucket.grantRead(processLearningModuleLambda);
+    anthropicApiKeySecret.grantRead(processLearningModuleLambda);
+
+    // OpenSearch permissions
+    processLearningModuleLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'es:ESHttpPost',
+        'es:ESHttpPut',
+        'es:ESHttpGet',
+        'es:ESHttpDelete'
+      ],
+      resources: [`arn:aws:es:${this.region}:${this.account}:domain/${osDomain.domainName}/*`]
+    }));
+
+    // === S3 Event Notification for manifest.json uploads ===
+    contentBucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new s3n.LambdaDestination(processLearningModuleLambda),
+      {
+        prefix: 'manuals/',
+        suffix: 'manifest.json'
+      }
+    );
+
+    // === NEW: CloudWatch Dashboard for Monitoring ===
+    const dashboard = new cloudwatch.Dashboard(this, 'LearningModulesDashboard', {
+      dashboardName: 'fijian-learning-modules',
+    });
+
+    dashboard.addWidgets(
+      new cloudwatch.LogQueryWidget({
+        title: 'Module Processing Status',
+        logGroupNames: [processLearningModuleLambda.logGroup.logGroupName],
+        queryLines: [
+          'fields @timestamp, @message',
+          'filter @message like /Processing complete/',
+          'stats count() by moduleId'
+        ],
+        width: 12,
+        height: 6,
+      })
+    );
+
+
     // === API Gateway ===
     const unifiedApi = new apigateway.RestApi(this, 'fijian-ai-api', {
       restApiName: 'Fijian AI API',
@@ -211,12 +341,6 @@ export class FijianRagAppStack extends cdk.Stack {
       apiStages: [{ api: unifiedApi, stage: unifiedApi.deploymentStage }],
     });
     usagePlan.addApiKey(apiKey);
-
-    // === Claude Secret for SDK ===
-    const anthropicApiKeySecret = new secretsmanager.Secret(this, 'AnthropicApiKey', {
-      secretName: 'AnthropicApiKey',
-      description: 'API key for direct Claude access via SDK',
-    });
 
     anthropicApiKeySecret.grantRead(ingestLambda);
     ingestLambda.addEnvironment('ANTHROPIC_SECRET_ARN', anthropicApiKeySecret.secretArn);
@@ -288,5 +412,45 @@ export class FijianRagAppStack extends cdk.Stack {
       }]
     });
 
+      // === NEW: API Endpoints for Learning Modules ===
+      const modulesResource = unifiedApi.root.addResource('learning-modules');
+      
+      // GET /learning-modules/{moduleId}
+      const moduleResource = modulesResource.addResource('{moduleId}');
+      moduleResource.addMethod('GET', new apigateway.LambdaIntegration(processLearningModuleLambda), {
+        apiKeyRequired: true,
+        requestParameters: {
+          'method.request.path.moduleId': true
+        }
+      });
+
+      // POST /learning-modules/process (manual trigger)
+      const processResource = modulesResource.addResource('process');
+      processResource.addMethod('POST', new apigateway.LambdaIntegration(processLearningModuleLambda), {
+        apiKeyRequired: true,
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO
+      });
+
+      // === Outputs ===
+      new cdk.CfnOutput(this, 'LearningModulesTableName', {
+        value: learningModulesTable.tableName,
+        description: 'Name of the Learning Modules DynamoDB table'
+      });
+
+      new cdk.CfnOutput(this, 'ModuleVocabularyTableName', {
+        value: moduleVocabularyTable.tableName,
+        description: 'Name of the Module Vocabulary DynamoDB table'
+      });
+
+      new cdk.CfnOutput(this, 'ManualUploadPath', {
+        value: `s3://${contentBucket.bucketName}/manuals/`,
+        description: 'S3 path for uploading manual pages'
+      });
+
+      new cdk.CfnOutput(this, 'UnifiedApiUrl', {
+        value: unifiedApi.url,
+        description: 'Base URL for the Unified API'
+      });
   }
 }

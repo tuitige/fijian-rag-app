@@ -32,6 +32,7 @@
     "aws-cdk-lib": "^2.190.0",
     "axios": "^1.9.0",
     "cheerio": "^1.0.0",
+    "commander": "^14.0.0",
     "constructs": "^10.4.2",
     "dotenv": "^16.4.7",
     "esbuild": "^0.25.2",
