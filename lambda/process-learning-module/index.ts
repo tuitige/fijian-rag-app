@@ -1,16 +1,51 @@
-// lambda/process-learning-module/index.ts
+// index.ts (Lambda entrypoint)
+//
+// This version expects that each S3 “manifest.json” triggers this function.
+// It now fetches per‐page both a Textract JSON and a raw‐text file, plus the image,
+// then calls Claude (sonnet‐4) with exactly the same prompt you validated locally.
+//
+// Make sure you have @anthropic‐ai/sdk, @aws‐sdk/client‐s3, @aws‐sdk/client‐dynamodb,
+// @aws‐sdk/util‐dynamodb, @aws‐sdk/client‐secrets‐manager, and uuid installed.
 
-import { S3Event, APIGatewayProxyHandler } from 'aws-lambda';
-import { S3Client, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { DynamoDBClient, PutItemCommand, BatchWriteItemCommand } from '@aws-sdk/client-dynamodb';
-import { marshall } from '@aws-sdk/util-dynamodb';
-import Anthropic from '@anthropic-ai/sdk';
-import { v4 as uuidv4 } from 'uuid';
-import { getAnthropicApiKey } from '../shared/utils';
-import { indexToOpenSearch, createEmbedding } from './opensearch';
+import { S3Event } from "aws-lambda";
+import {
+  S3Client,
+  GetObjectCommand,
+} from "@aws-sdk/client-s3";
+import {
+  DynamoDBClient,
+  PutItemCommand,
+  BatchWriteItemCommand,
+} from "@aws-sdk/client-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
+import Anthropic from "@anthropic-ai/sdk";
+import { v4 as uuidv4 } from "uuid";
+
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand,
+} from "@aws-sdk/client-secrets-manager";
+import { indexToOpenSearch, createEmbedding } from "./opensearch";
+import {
+  ChapterManifest,
+  ChapterExtraction,
+  TranslationItem,
+  GrammarRule,
+  Exercise,
+  CulturalNote,
+  Dialogue,
+  VisualAid,
+} from "./interfaces";
 
 const s3 = new S3Client({});
 const ddb = new DynamoDBClient({});
+
+// Environment variables (set via CDK)
+// CONTENT_BUCKET         = process.env.CONTENT_BUCKET
+// LEARNING_MODULES_TABLE = process.env.LEARNING_MODULES_TABLE
+// MODULE_VOCABULARY_TABLE= process.env.MODULE_VOCABULARY_TABLE
+// VERIFIED_TRANSLATIONS_TABLE
+// VERIFIED_VOCAB_TABLE
 
 const CONTENT_BUCKET = process.env.CONTENT_BUCKET!;
 const LEARNING_MODULES_TABLE = process.env.LEARNING_MODULES_TABLE!;
@@ -18,489 +53,557 @@ const MODULE_VOCABULARY_TABLE = process.env.MODULE_VOCABULARY_TABLE!;
 const VERIFIED_TRANSLATIONS_TABLE = process.env.VERIFIED_TRANSLATIONS_TABLE!;
 const VERIFIED_VOCAB_TABLE = process.env.VERIFIED_VOCAB_TABLE!;
 
-interface ChapterManifest {
-  chapter: string;
-  topic: string;
-  startPage: number;
-  totalPages: number;
-  files: string[];
-  timestamp: string;
-  s3Prefix: string;
+// ─── Helpers ────────────────────────────────────────────────────────────────────
+
+// Fetch a Key from S3, return the Body as a Buffer
+async function fetchS3ObjectAsBuffer(bucket: string, key: string): Promise<Buffer> {
+  const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
+  const res = await s3.send(cmd);
+  if (!res.Body) throw new Error(`Empty body for s3://${bucket}/${key}`);
+  // @ts-ignore – in Node 18+, res.Body is a Readable stream
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of res.Body as any) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk, "utf-8") : chunk);
+  }
+  return Buffer.concat(chunks);
 }
 
-interface ChapterExtraction {
-  chapterMetadata: {
-    lesson: string;
-    title: string;
-    subtitle: string;
-    pageRange: string;
-    source: string;
-    totalPages: number;
-    learningObjectives: string[];
-    prerequisiteLessons?: string[];
-  };
-  translationPairs: {
-    [category: string]: TranslationItem[];
-  };
-  grammarRules: GrammarRule[];
-  exercises: Exercise[];
-  culturalNotes: CulturalNote[];
-  dialogues?: Dialogue[];
-  visualAids?: VisualAid[];
+// Fetch a Key from S3, return the Body as a UTF‐8 string
+async function fetchS3ObjectAsString(bucket: string, key: string): Promise<string> {
+  const buf = await fetchS3ObjectAsBuffer(bucket, key);
+  return buf.toString("utf-8");
 }
 
-interface TranslationItem {
-  fijian: string;
-  english: string;
-  type: string;
-  page: number;
-  usageNotes?: string;
-  pronunciation?: string;
-  verified: boolean;
-  source: string;
+// Retrieve Anthropic API key from Secrets Manager
+async function getAnthropicApiKeyFromSecrets(): Promise<string> {
+  const client = new SecretsManagerClient({ region: "us-west-2" });
+  const cmd = new GetSecretValueCommand({
+    SecretId:
+      "arn:aws:secretsmanager:us-west-2:934889091214:secret:AnthropicApiKey-MDtXdC",
+  });
+  const r = await client.send(cmd);
+  if (!r.SecretString) throw new Error("No Anthropic API key in Secrets Manager");
+  return r.SecretString;
 }
 
-interface GrammarRule {
-  concept: string;
-  explanation: string;
-  pattern?: string;
-  examples: Array<{
-    fijian: string;
-    english: string;
-    breakdown?: string;
-  }>;
-  page: number;
-}
-
-interface Exercise {
-  type: string;
-  instruction: string;
-  content?: string;
-  page: number;
-}
-
-interface CulturalNote {
-  note: string;
-  pages?: number[];
-}
-
-interface Dialogue {
-  id: string;
-  topic: string;
-  participants?: string[];
-  page: number;
-}
-
-interface VisualAid {
-  type: string;
-  description: string;
-  pages: number[];
-}
+// ─── Lambda Handler ─────────────────────────────────────────────────────────────
 
 export const handler = async (event: S3Event | any) => {
-  console.log('Event received:', JSON.stringify(event, null, 2));
+  console.log("Event received:", JSON.stringify(event, null, 2));
 
   try {
-    // Handle S3 trigger (manifest.json upload)
-    if (event.Records && event.Records[0]?.s3) {
+    // Only handle S3 manifest‐upload events here
+    if (event.Records && event.Records[0].s3) {
       const bucket = event.Records[0].s3.bucket.name;
-      const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, ' '));
-      
+      const key = decodeURIComponent(
+        event.Records[0].s3.object.key.replace(/\+/g, " ")
+      );
+
       console.log(`Processing manifest from s3://${bucket}/${key}`);
-      
-      // Get manifest
-      const manifestResponse = await s3.send(new GetObjectCommand({
-        Bucket: bucket,
-        Key: key
-      }));
-      
-      const manifestContent = await manifestResponse.Body!.transformToString();
+
+      // 1) Download manifest JSON
+      const manifestContent = await fetchS3ObjectAsString(bucket, key);
       const manifest: ChapterManifest = JSON.parse(manifestContent);
-      
-      // Process the chapter
-      await processChapter(manifest, bucket, key.substring(0, key.lastIndexOf('/')));
-      
-      return { statusCode: 200, body: 'Processing complete' };
+
+      // 2) Process entire chapter
+      await processChapter(manifest, bucket, key.substring(0, key.lastIndexOf("/")));
+
+      return { statusCode: 200, body: "Processing complete" };
     }
-    
-    // Handle API Gateway trigger (manual processing)
-    if (event.httpMethod) {
-      const body = JSON.parse(event.body || '{}');
-      
-      if (event.httpMethod === 'POST' && event.path === '/learning-modules/process') {
-        const { s3Path } = body;
-        // Parse s3://bucket/path/to/manifest.json
-        const match = s3Path.match(/s3:\/\/([^\/]+)\/(.+)/);
-        if (!match) {
-          return {
-            statusCode: 400,
-            body: JSON.stringify({ error: 'Invalid S3 path format' })
-          };
-        }
-        
-        const [, bucket, key] = match;
-        const manifestResponse = await s3.send(new GetObjectCommand({
-          Bucket: bucket,
-          Key: key
-        }));
-        
-        const manifestContent = await manifestResponse.Body!.transformToString();
-        const manifest: ChapterManifest = JSON.parse(manifestContent);
-        
-        await processChapter(manifest, bucket, key.substring(0, key.lastIndexOf('/')));
-        
-        return {
-          statusCode: 200,
-          body: JSON.stringify({ status: 'Processing started', chapter: manifest.chapter })
-        };
-      }
-      
-      if (event.httpMethod === 'GET' && event.pathParameters?.moduleId) {
-        // Retrieve module data
-        const moduleData = await getModuleData(event.pathParameters.moduleId);
-        return {
-          statusCode: 200,
-          body: JSON.stringify(moduleData)
-        };
-      }
-    }
-    
-    return { statusCode: 400, body: 'Invalid request' };
-    
-  } catch (error) {
-    console.error('Error processing:', error);
+
+    return { statusCode: 400, body: "No valid S3 event" };
+  } catch (error: any) {
+    console.error("Error processing:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Processing failed', details: error.message })
+      body: JSON.stringify({ error: "Processing failed", details: error.message }),
     };
   }
 };
 
-async function processChapter(manifest: ChapterManifest, bucket: string, prefix: string) {
+// ─── processChapter ────────────────────────────────────────────────────────────
+
+async function processChapter(
+  manifest: ChapterManifest,
+  bucket: string,
+  prefix: string
+) {
   console.log(`Processing chapter ${manifest.chapter} with ${manifest.totalPages} pages`);
-  
-  const apiKey = await getAnthropicApiKey();
-  const anthropic = new Anthropic({ apiKey });
-  
-  // Get all image files
-  const imageContents: { page: number; base64: string; filename: string }[] = [];
-  
+
+  // 1) Instantiate Anthropic client once
+  const anthropicApiKey = await getAnthropicApiKeyFromSecrets();
+  const anthropic = new Anthropic({ apiKey: anthropicApiKey });
+
+  // 2) For each “image filename” in manifest.files, fetch:
+  //    a) the page image (convert to base64)
+  //    b) the Textract JSON (detectDocumentTextResponse.json)
+  //    c) the raw text (rawText.txt) – two different S3 keys
+  //
+  // We assume that, for each filename “foo.jpg” in manifest.files,
+  // there exist sibling keys:
+  //   prefix/foo.jpg
+  //   prefix/foo-textract.json
+  //   prefix/foo-raw.txt
+  //
+  // In practice, you should upload both the full Textract output AND a raw‐text output
+  // under those keys (or adjust this code to match your actual naming convention).
+
+  const extractions: ChapterExtraction[] = [];
+
   for (const filename of manifest.files) {
-    if (filename.endsWith('.json')) continue;
-    
-    const imageResponse = await s3.send(new GetObjectCommand({
-      Bucket: bucket,
-      Key: `${prefix}/${filename}`
-    }));
-    
-    const imageBuffer = await imageResponse.Body!.transformToByteArray();
-    const base64Image = Buffer.from(imageBuffer).toString('base64');
-    
-    // Extract page number from filename (e.g., "peace_corps_fiji_ch02_5_p037_telling_time.jpg")
-    const pageMatch = filename.match(/_p(\d+)_/);
-    const pageNum = pageMatch ? parseInt(pageMatch[1]) : 0;
-    
-    imageContents.push({
-      page: pageNum,
-      base64: base64Image,
-      filename
-    });
+    if (filename.toLowerCase().endsWith(".json")) continue; // skip manifest itself
+
+    // Image buffer → base64
+    const imgBuf = await fetchS3ObjectAsBuffer(bucket, `${prefix}/${filename}`);
+    const imgBase64 = imgBuf.toString("base64");
+    console.log(`  • Fetched image ${filename} (${(imgBuf.length / 1024).toFixed(1)} KiB)`);
+
+    // Build Textract JSON key: replace extension with “-textract.json”
+    const texKey = filename.replace(/\.[^.]+$/, "-textract.json");
+    console.log(`    – Fetching Textract JSON s3://${bucket}/${prefix}/${texKey}`);
+    const texJsonText = await fetchS3ObjectAsString(bucket, `${prefix}/${texKey}`);
+    const texParsed = JSON.parse(texJsonText);
+    const texPretty = JSON.stringify(texParsed, null, 2);
+    console.log(
+      `    – Textract JSON length ${(texPretty.length / 1024).toFixed(1)} KiB`
+    );
+
+    // Build raw‐text key: replace extension with “-raw.txt”
+    const rawKey = filename.replace(/\.[^.]+$/, "-raw.txt");
+    console.log(`    – Fetching raw text s3://${bucket}/${prefix}/${rawKey}`);
+    const rawText = await fetchS3ObjectAsString(bucket, `${prefix}/${rawKey}`);
+    const rawTrimmed = rawText.trim();
+    console.log(
+      `    – Raw text length ${(rawTrimmed.length / 1024).toFixed(1)} KiB`
+    );
+
+    // Extract content from this single page
+    const singlePageExtraction = await extractPageContent(
+      anthropic,
+      imgBase64,
+      filename,
+      texPretty,
+      rawTrimmed,
+      manifest
+    );
+    extractions.push(singlePageExtraction);
   }
-  
-  // Sort by page number
-  imageContents.sort((a, b) => a.page - b.page);
-  
-  // Process all pages together with Claude
-  const extraction = await extractChapterContent(anthropic, imageContents, manifest);
-  
-  // Store in DynamoDB
-  await storeChapterData(extraction, manifest);
-  
-  // Create embeddings and index to OpenSearch
-  await indexChapterContent(extraction);
-  
+
+  // 3) Merge “per‐page” extractions into a single ChapterExtraction object
+  //    (concatenate translationPairs, grammarRules, etc.). For simplicity, we assume
+  //    that each page returns the same top‐level “chapterMetadata.” If not, take the
+  //    first one.
+  const merged: ChapterExtraction = {
+    chapterMetadata: extractions[0].chapterMetadata,
+    translationPairs: {},
+    grammarRules: [],
+    exercises: [],
+    culturalNotes: [],
+    dialogues: [],
+    visualAids: [],
+  };
+
+  for (const ex of extractions) {
+    // Merge translationPairs
+    for (const [cat, items] of Object.entries(ex.translationPairs)) {
+      if (!merged.translationPairs[cat]) merged.translationPairs[cat] = [];
+      merged.translationPairs[cat].push(...items);
+    }
+    // Append arrays
+    merged.grammarRules.push(...ex.grammarRules);
+    merged.exercises.push(...ex.exercises);
+    merged.culturalNotes.push(...ex.culturalNotes);
+    if (ex.dialogues) merged.dialogues!.push(...ex.dialogues!);
+    if (ex.visualAids) merged.visualAids!.push(...ex.visualAids!);
+  }
+
+  // 4) Store results
+  await storeChapterData(merged, manifest);
+  // 5) Index to OpenSearch
+  await indexChapterContent(merged);
+
   console.log(`Processing complete for chapter ${manifest.chapter}`);
 }
 
-async function extractChapterContent(
+// ─── extractPageContent ─────────────────────────────────────────────────────────
+//
+// Calls Claude‐sonnet‐4 with:
+//   • system prompt (schema), user prompt (raw + Textract JSON)
+//   • a single image block (no inline base64 in text)
+// Returns exactly one page’s ChapterExtraction fragment.
+
+async function extractPageContent(
   anthropic: Anthropic,
-  images: { page: number; base64: string; filename: string }[],
+  imageBase64: string,
+  filename: string,
+  texPretty: string,
+  rawTrimmed: string,
   manifest: ChapterManifest
 ): Promise<ChapterExtraction> {
-  
-  const imageMessages = images.map(img => ({
-    type: 'image' as const,
-    source: {
-      type: 'base64' as const,
-      media_type: 'image/jpeg' as const,
-      data: img.base64
-    }
-  }));
-  
-  const prompt = `
-You are analyzing pages from a Fijian language learning manual (Peace Corps).
-Chapter: ${manifest.chapter}
-Topic: ${manifest.topic}
-Total pages: ${manifest.totalPages}
+  const modelName = "claude-sonnet-4-20250514";
+  const maxTokens = 12000;
+  const temperature = 0.0; // deterministic
 
-Extract all learning content and format as JSON with this exact structure:
+  // Determine media_type from extension
+  const mediaType: "image/png" | "image/jpeg" =
+    filename.toLowerCase().endsWith(".png")
+      ? "image/png"
+      : "image/jpeg";
 
+  // System prompt (same as local)
+  const systemPrompt = `
+You are a Fijian‐language extraction engine. You will receive:
+  • A block of OCR‐extracted text (from AWS Textract), in JSON form.
+  • A “raw text” block of the same page (plain UTF‐8).
+  • A Base64‐encoded image of the same page.
+
+Produce exactly one JSON object that follows this schema (no extra keys):
 {
   "chapterMetadata": {
-    "lesson": "${manifest.chapter}",
-    "title": "Main Fijian title from the pages",
-    "subtitle": "English subtitle if present",
-    "pageRange": "first-last page numbers",
+    "lesson": "<lesson ID or chapter number>",
+    "title": "<Main Fijian heading on page, if any>",
+    "subtitle": "<English subtitle, if present>",
+    "pageRange": "<e.g. 37-47>",
     "source": "Peace Corps Fiji",
-    "totalPages": ${manifest.totalPages},
-    "learningObjectives": ["objective 1", "objective 2", ...],
-    "prerequisiteLessons": ["2.4", "2.3"] // if mentioned
+    "totalPages": number,
+    "learningObjectives": ["...","..."],
+    "prerequisiteLessons": ["2.4","2.3"]  // if mentioned
   },
   "translationPairs": {
-    "category_name": [
+    "<category1>": [
       {
-        "fijian": "Fijian word/phrase",
-        "english": "English translation",
-        "type": "noun/verb/phrase/etc",
-        "page": page_number,
-        "usageNotes": "optional context",
-        "pronunciation": "if provided",
+        "fijian": "<Fijian word or phrase>",
+        "english": "<English translation>",
+        "type": "<noun|verb|phrase|number|…>",
+        "page": <page number>,
+        "usageNotes": "<optional context>",
+        "pronunciation": "<optional notes>",
         "verified": true,
         "source": "peace_corps_manual"
       }
-    ]
+      // …more…
+    ],
+    "<anotherCategory>": [ … ]
   },
   "grammarRules": [
     {
-      "concept": "Grammar concept name",
-      "explanation": "How it works",
-      "pattern": "Pattern formula if applicable",
+      "concept": "<Grammar concept>",
+      "explanation": "<How it works>",
+      "pattern": "<Pattern formula, if any>",
       "examples": [
-        {
-          "fijian": "example",
-          "english": "translation",
-          "breakdown": "optional grammatical breakdown"
-        }
+        { "fijian": "<…>", "english": "<…>", "breakdown": "<…>" }
       ],
-      "page": page_number
+      "page": <page number>
     }
+    // …etc…
   ],
   "exercises": [
     {
-      "type": "listening/fill_in_blank/practice/etc",
-      "instruction": "What students should do",
-      "content": "Exercise details",
-      "page": page_number
+      "type": "<listening|fill_in_blank|practice|…>",
+      "instruction": "<What students do>",
+      "content": "<Details>",
+      "page": <page number>
     }
+    // …etc…
   ],
   "culturalNotes": [
     {
-      "note": "Cultural information",
-      "pages": [page_numbers]
+      "note": "<Cultural note text>",
+      "pages": [<array of page numbers>]
     }
+    // …etc…
   ],
   "dialogues": [
     {
-      "id": "2.5.1",
-      "topic": "Conversation topic",
-      "participants": ["A", "B"],
-      "page": page_number
+      "id": "<e.g. 2.5.1>",
+      "topic": "<Conversation topic>",
+      "participants": ["A","B"],
+      "page": <page number>
     }
+    // …etc…
   ],
   "visualAids": [
     {
-      "type": "clock_faces/images/charts",
-      "description": "What it shows",
-      "pages": [page_numbers]
+      "type": "<clock_faces|images|charts|…>",
+      "description": "<What it shows>",
+      "pages": [<array of page numbers>]
     }
+    // …etc…
   ]
 }
 
 Important:
-- Extract ALL vocabulary and translations you can see
-- Group vocabulary by logical categories (numbers, time expressions, days, months, etc.)
-- Include page numbers for everything
-- Mark all translations as verified: true
-- Note any grammar patterns or rules explained
-- Capture exercise instructions and cultural notes
-- Be thorough - this will be used to teach students`;
+  • Use ALL usable content on the page.
+  • The JSON block above is strict—no extra keys.
+  • Trust the OCR JSON for structure; use raw text for actual words.
+  • Use the image only if needed (embedded below).
+  • Mark every translation with \"verified\": true.
+  • Group vocabulary into logical categories (\"numbers\", \"time_expressions\", etc.).
+  • Include page numbers for everything.
+`;
 
-  const message = await anthropic.messages.create({
-    model: 'claude-3-opus-20240229',
-    max_tokens: 8000,
-    temperature: 0.1,
+  // Build user prompt (raw + JSON)
+  const userPrompt = `
+Here is the raw OCR text from Textract:
+─── RAW OCR TEXT BEGIN ───
+${rawTrimmed}
+─── RAW OCR TEXT END ───
+
+Here is the Textract JSON (pretty‐printed):
+─── TEXTRACT JSON BEGIN ───
+${texPretty}
+─── TEXTRACT JSON END ───
+`;
+
+  // Build Antropic “image” block
+  const imageBlock = {
+    type: "image" as const,
+    source: {
+      type: "base64" as const,
+      media_type: mediaType,
+      data: imageBase64,
+    },
+  };
+
+  console.log(`    ✎ Calling Claude (${modelName}) for page ${filename}…`);
+  const response = await anthropic.messages.create({
+    model: modelName,
+    max_tokens: maxTokens,
+    temperature,
+    system: [{ type: "text" as const, text: systemPrompt.trim() }],
     messages: [
       {
-        role: 'user',
+        role: "user" as const,
         content: [
-          { type: 'text', text: prompt },
-          ...imageMessages
-        ]
-      }
-    ]
+          { type: "text" as const, text: userPrompt.trim() },
+          imageBlock,
+        ],
+      },
+    ],
   });
-  
-  const responseText = message.content
-    .filter(block => block.type === 'text')
-    .map(block => block.text)
-    .join('\n');
-  
-  console.log('Claude extraction complete, parsing JSON...');
-  
-  try {
-    return JSON.parse(responseText);
-  } catch (error) {
-    console.error('Failed to parse Claude response:', responseText);
-    throw new Error('Failed to parse extraction results');
+
+  // Concatenate all “text” blocks
+  const textBlocks = response.content.filter((b) => b.type === "text");
+  const combinedText = textBlocks.map((b) => b.text).join("\n").trim();
+
+  // Save raw response into S3 for debugging
+  await s3.send(
+    new GetObjectCommand({
+      Bucket: CONTENT_BUCKET,
+      Key: `debug/claude-raw/${manifest.chapter}-${filename.replace(
+        /\.[^.]+$/,
+        ""
+      )}-${Date.now()}.json`,
+    })
+  );
+
+  // Strip Markdown code fences if any
+  let cleaned = combinedText;
+  if (cleaned.startsWith("```json")) {
+    cleaned = cleaned.replace(/^```json\s*/, "").replace(/\s*```$/, "").trim();
+  } else if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```\s*/, "").replace(/\s*```$/, "").trim();
   }
+
+  console.log(
+    `    ✔ Claude responded (${combinedText.length} chars), parsing JSON…`
+  );
+  let parsed: ChapterExtraction;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch (err: any) {
+    console.error("    ✗ Failed to parse JSON:", err);
+    console.error("    >> First 1000 chars of response:", combinedText.substring(0, 1000));
+    throw new Error("Failed to parse Claude response as JSON");
+  }
+
+  // Basic sanity check
+  if (!parsed.chapterMetadata || !parsed.translationPairs) {
+    console.error("    ✗ Missing top-level fields in parsed output:", Object.keys(parsed));
+    throw new Error("Invalid extraction structure");
+  }
+
+  console.log(`    ✔ Parsed page ${filename} with keys:`, Object.keys(parsed));
+  return parsed;
 }
+
+// ─── storeChapterData ──────────────────────────────────────────────────────────
 
 async function storeChapterData(extraction: ChapterExtraction, manifest: ChapterManifest) {
   const moduleId = `ch${manifest.chapter}`;
   const timestamp = new Date().toISOString();
-  
-  // Store main module metadata
-  await ddb.send(new PutItemCommand({
-    TableName: LEARNING_MODULES_TABLE,
-    Item: marshall({
-      moduleId,
-      contentType: 'metadata',
-      chapter: manifest.chapter.split('.')[0],
-      lessonNumber: parseFloat(manifest.chapter),
-      ...extraction.chapterMetadata,
-      manifest,
-      createdAt: timestamp,
-      status: 'processed'
+
+  // 1) Store module‐level metadata in LEARNING_MODULES_TABLE
+  const metadataItem = {
+    moduleId,
+    contentType: "metadata",
+    chapter: manifest.chapter.split(".")[0],
+    lessonNumber: parseFloat(manifest.chapter),
+    lesson: extraction.chapterMetadata.lesson,
+    title: extraction.chapterMetadata.title,
+    subtitle: extraction.chapterMetadata.subtitle,
+    pageRange: extraction.chapterMetadata.pageRange,
+    source: extraction.chapterMetadata.source,
+    totalPages: extraction.chapterMetadata.totalPages,
+    learningObjectives: JSON.stringify(
+      extraction.chapterMetadata.learningObjectives || []
+    ),
+    prerequisiteLessons: JSON.stringify(
+      extraction.chapterMetadata.prerequisiteLessons || []
+    ),
+    manifestData: JSON.stringify(manifest),
+    createdAt: timestamp,
+    status: "processed",
+  };
+
+  console.log("  • Storing metadata:", metadataItem);
+  await ddb.send(
+    new PutItemCommand({
+      TableName: LEARNING_MODULES_TABLE,
+      Item: marshall(metadataItem, { removeUndefinedValues: true }),
     })
-  }));
-  
-  // Store vocabulary in batches
-  const vocabItems: any[] = [];
+  );
+
+  // 2) Store vocabulary/translation pairs into two tables:
+  //    a) MODULE_VOCABULARY_TABLE (batch writes)
+  //    b) VERIFIED_TRANSLATIONS_TABLE & VERIFIED_VOCAB_TABLE individually
+  const vocabRequests: any[] = [];
   let vocabCount = 0;
-  
+
   for (const [category, items] of Object.entries(extraction.translationPairs)) {
     for (const item of items) {
       const vocabId = `${moduleId}_vocab_${++vocabCount}`;
-      
-      vocabItems.push({
+      // a) Push into MODULE_VOCABULARY_TABLE in batches
+      vocabRequests.push({
         PutRequest: {
           Item: marshall({
             vocabularyId: vocabId,
             moduleId,
             category,
             ...item,
-            createdAt: timestamp
-          })
-        }
+            createdAt: timestamp,
+          }),
+        },
       });
-      
-      // Also add to verified translations table
-      await ddb.send(new PutItemCommand({
-        TableName: VERIFIED_TRANSLATIONS_TABLE,
-        Item: marshall({
-          fijian: item.fijian,
-          english: item.english,
-          type: item.type,
-          source: 'peace_corps_manual',
-          moduleId,
-          verified: true,
-          verifiedAt: timestamp
-        })
-      }));
-      
-      // Add to verified vocab if single word
-      if (item.type !== 'phrase' && !item.fijian.includes(' ')) {
-        await ddb.send(new PutItemCommand({
-          TableName: VERIFIED_VOCAB_TABLE,
+
+      // b) Directly write into VERIFIED_TRANSLATIONS_TABLE
+      await ddb.send(
+        new PutItemCommand({
+          TableName: VERIFIED_TRANSLATIONS_TABLE,
           Item: marshall({
-            word: item.fijian,
-            meaning: item.english,
-            partOfSpeech: item.type,
-            source: 'peace_corps_manual',
+            fijian: item.fijian,
+            english: item.english,
+            type: item.type,
+            source: "peace_corps_manual",
             moduleId,
             verified: true,
-            verifiedAt: timestamp
+            verifiedAt: timestamp,
+          }),
+        })
+      );
+
+      // If it’s a single‐word (no space), also write into VERIFIED_VOCAB_TABLE
+      if (item.type !== "phrase" && !item.fijian.includes(" ")) {
+        await ddb.send(
+          new PutItemCommand({
+            TableName: VERIFIED_VOCAB_TABLE,
+            Item: marshall({
+              word: item.fijian,
+              meaning: item.english,
+              partOfSpeech: item.type,
+              source: "peace_corps_manual",
+              moduleId,
+              verified: true,
+              verifiedAt: timestamp,
+            }),
           })
-        }));
+        );
       }
     }
   }
-  
-  // Batch write vocabulary (DynamoDB limit: 25 items per batch)
-  for (let i = 0; i < vocabItems.length; i += 25) {
-    const batch = vocabItems.slice(i, i + 25);
-    await ddb.send(new BatchWriteItemCommand({
-      RequestItems: {
-        [MODULE_VOCABULARY_TABLE]: batch
-      }
-    }));
-  }
-  
-  // Store grammar rules
-  if (extraction.grammarRules.length > 0) {
-    await ddb.send(new PutItemCommand({
-      TableName: LEARNING_MODULES_TABLE,
-      Item: marshall({
-        moduleId,
-        contentType: 'grammar',
-        rules: extraction.grammarRules,
-        createdAt: timestamp
+
+  // Batch‐write into MODULE_VOCABULARY_TABLE (25‐item chunks)
+  for (let i = 0; i < vocabRequests.length; i += 25) {
+    const batch = vocabRequests.slice(i, i + 25);
+    await ddb.send(
+      new BatchWriteItemCommand({
+        RequestItems: {
+          [MODULE_VOCABULARY_TABLE]: batch,
+        },
       })
-    }));
+    );
   }
-  
-  // Store exercises
-  if (extraction.exercises.length > 0) {
-    await ddb.send(new PutItemCommand({
-      TableName: LEARNING_MODULES_TABLE,
-      Item: marshall({
-        moduleId,
-        contentType: 'exercises',
-        exercises: extraction.exercises,
-        createdAt: timestamp
+
+  console.log(`  • Stored ${vocabCount} translation items.`);
+
+  // 3) Store grammarRules, exercises, culturalNotes (all as JSON strings in LEARNING_MODULES_TABLE)
+  if (extraction.grammarRules.length) {
+    await ddb.send(
+      new PutItemCommand({
+        TableName: LEARNING_MODULES_TABLE,
+        Item: marshall({
+          moduleId,
+          contentType: "grammar",
+          rules: JSON.stringify(extraction.grammarRules),
+          createdAt: timestamp,
+        }),
       })
-    }));
+    );
   }
-  
-  // Store cultural notes
-  if (extraction.culturalNotes.length > 0) {
-    await ddb.send(new PutItemCommand({
-      TableName: LEARNING_MODULES_TABLE,
-      Item: marshall({
-        moduleId,
-        contentType: 'cultural',
-        notes: extraction.culturalNotes,
-        createdAt: timestamp
+  if (extraction.exercises.length) {
+    await ddb.send(
+      new PutItemCommand({
+        TableName: LEARNING_MODULES_TABLE,
+        Item: marshall({
+          moduleId,
+          contentType: "exercises",
+          exercises: JSON.stringify(extraction.exercises),
+          createdAt: timestamp,
+        }),
       })
-    }));
+    );
   }
-  
-  console.log(`Stored ${vocabCount} vocabulary items for module ${moduleId}`);
+  if (extraction.culturalNotes.length) {
+    await ddb.send(
+      new PutItemCommand({
+        TableName: LEARNING_MODULES_TABLE,
+        Item: marshall({
+          moduleId,
+          contentType: "cultural",
+          notes: JSON.stringify(extraction.culturalNotes),
+          createdAt: timestamp,
+        }),
+      })
+    );
+  }
+
+  console.log(`  • Completed storing all chapter data for ${moduleId}`);
 }
+
+// ─── indexChapterContent ────────────────────────────────────────────────────────
 
 async function indexChapterContent(extraction: ChapterExtraction) {
   const indexPromises: Promise<any>[] = [];
-  
-  // Index each vocabulary item with embeddings
+
+  // 1) Vocabulary items
   for (const [category, items] of Object.entries(extraction.translationPairs)) {
     for (const item of items) {
       const contextString = `
-        Fijian: "${item.fijian}"
-        English: "${item.english}"
-        Type: ${item.type}
-        Category: ${category}
-        Usage: ${item.usageNotes || 'general'}
-        Lesson: ${extraction.chapterMetadata.title}
+Fijian: "${item.fijian}"
+English: "${item.english}"
+Type: ${item.type}
+Category: ${category}
+Usage: ${item.usageNotes || "general"}
+Lesson: ${extraction.chapterMetadata.lesson}
       `.trim();
-      
+
       const embedding = await createEmbedding(contextString);
-      
       indexPromises.push(
         indexToOpenSearch({
-          index: 'fijian-learning-modules',
+          index: "fijian-learning-modules",
           id: uuidv4(),
           body: {
-            contentType: 'vocabulary',
+            contentType: "vocabulary",
             moduleId: `ch${extraction.chapterMetadata.lesson}`,
             fijian: item.fijian,
             english: item.english,
@@ -511,31 +614,30 @@ async function indexChapterContent(extraction: ChapterExtraction) {
             embedding,
             lessonTitle: extraction.chapterMetadata.title,
             verified: true,
-            source: 'peace_corps_manual',
-            timestamp: new Date().toISOString()
-          }
+            source: "peace_corps_manual",
+            timestamp: new Date().toISOString(),
+          },
         })
       );
     }
   }
-  
-  // Index grammar rules
+
+  // 2) Grammar rules
   for (const rule of extraction.grammarRules) {
     const ruleContext = `
-      Grammar concept: ${rule.concept}
-      Explanation: ${rule.explanation}
-      Pattern: ${rule.pattern || 'N/A'}
-      Examples: ${rule.examples.map(e => `${e.fijian} = ${e.english}`).join('; ')}
+Grammar concept: ${rule.concept}
+Explanation: ${rule.explanation}
+Pattern: ${rule.pattern || "N/A"}
+Examples: ${rule.examples.map((e) => `${e.fijian} = ${e.english}`).join("; ")}
     `.trim();
-    
+
     const embedding = await createEmbedding(ruleContext);
-    
     indexPromises.push(
       indexToOpenSearch({
-        index: 'fijian-learning-modules',
+        index: "fijian-learning-modules",
         id: uuidv4(),
         body: {
-          contentType: 'grammar',
+          contentType: "grammar",
           moduleId: `ch${extraction.chapterMetadata.lesson}`,
           concept: rule.concept,
           explanation: rule.explanation,
@@ -544,21 +646,12 @@ async function indexChapterContent(extraction: ChapterExtraction) {
           page: rule.page,
           embedding,
           lessonTitle: extraction.chapterMetadata.title,
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       })
     );
   }
-  
-  await Promise.all(indexPromises);
-  console.log(`Indexed ${indexPromises.length} items to OpenSearch`);
-}
 
-async function getModuleData(moduleId: string) {
-  // Retrieve module data from DynamoDB
-  // Implementation depends on what data you want to return
-  return {
-    moduleId,
-    status: 'not_implemented_yet'
-  };
+  await Promise.all(indexPromises);
+  console.log(`  • Indexed ${indexPromises.length} items to OpenSearch`);
 }
