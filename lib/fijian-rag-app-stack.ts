@@ -275,6 +275,38 @@ export class FijianRagAppStack extends cdk.Stack {
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
+    const loadLearningModuleJsonLambda = new lambdaNodejs.NodejsFunction(this, 'LoadLearningModuleJsonLambda', {
+      entry: path.join(__dirname, '../lambda/load-learning-module-json/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(300),
+      bundling: {
+        nodeModules: [
+          '@aws-sdk/client-s3',
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/util-dynamodb',
+          '@aws-sdk/client-opensearch',
+          '@aws-sdk/credential-provider-node',
+          '@smithy/protocol-http',
+          '@smithy/node-http-handler',
+          '@smithy/signature-v4',
+          '@aws-crypto/sha256-js',
+          'uuid'
+        ]
+      },
+      environment: {
+        CONTENT_BUCKET: contentBucket.bucketName,
+        LEARNING_MODULES_TABLE: learningModulesTable.tableName,
+        MODULE_VOCABULARY_TABLE: moduleVocabularyTable.tableName,
+        VERIFIED_TRANSLATIONS_TABLE: verifiedTranslationsTable.tableName,
+        VERIFIED_VOCAB_TABLE: verifiedVocabTable.tableName,
+        OS_ENDPOINT: osDomain.domainEndpoint,
+        OS_REGION: this.region
+      },
+      logRetention: logs.RetentionDays.ONE_WEEK,
+    });
+
     // Grant permissions
     learningModulesTable.grantReadWriteData(processLearningModuleLambda);
     moduleVocabularyTable.grantReadWriteData(processLearningModuleLambda);
@@ -282,6 +314,12 @@ export class FijianRagAppStack extends cdk.Stack {
     verifiedVocabTable.grantReadWriteData(processLearningModuleLambda);
     contentBucket.grantRead(processLearningModuleLambda);
     anthropicApiKeySecret.grantRead(processLearningModuleLambda);
+
+    learningModulesTable.grantReadWriteData(loadLearningModuleJsonLambda);
+    moduleVocabularyTable.grantReadWriteData(loadLearningModuleJsonLambda);
+    verifiedTranslationsTable.grantReadWriteData(loadLearningModuleJsonLambda);
+    verifiedVocabTable.grantReadWriteData(loadLearningModuleJsonLambda);
+    contentBucket.grantRead(loadLearningModuleJsonLambda);
 
     // OpenSearch permissions
     processLearningModuleLambda.addToRolePolicy(new iam.PolicyStatement({
@@ -294,13 +332,23 @@ export class FijianRagAppStack extends cdk.Stack {
       resources: [`arn:aws:es:${this.region}:${this.account}:domain/${osDomain.domainName}/*`]
     }));
 
-    // === S3 Event Notification for manifest.json uploads ===
+    loadLearningModuleJsonLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'es:ESHttpPost',
+        'es:ESHttpPut',
+        'es:ESHttpGet',
+        'es:ESHttpDelete'
+      ],
+      resources: [`arn:aws:es:${this.region}:${this.account}:domain/${osDomain.domainName}/*`]
+    }));
+
+    // === S3 Event Notification for chapter.json uploads ===
     contentBucket.addEventNotification(
       s3.EventType.OBJECT_CREATED,
-      new s3n.LambdaDestination(processLearningModuleLambda),
+      new s3n.LambdaDestination(loadLearningModuleJsonLambda),
       {
         prefix: 'manuals/',
-        suffix: 'manifest.json'
+        suffix: 'chapter.json'
       }
     );
 
@@ -312,7 +360,10 @@ export class FijianRagAppStack extends cdk.Stack {
     dashboard.addWidgets(
       new cloudwatch.LogQueryWidget({
         title: 'Module Processing Status',
-        logGroupNames: [processLearningModuleLambda.logGroup.logGroupName],
+        logGroupNames: [
+          processLearningModuleLambda.logGroup.logGroupName,
+          loadLearningModuleJsonLambda.logGroup.logGroupName
+        ],
         queryLines: [
           'fields @timestamp, @message',
           'filter @message like /Processing complete/',
