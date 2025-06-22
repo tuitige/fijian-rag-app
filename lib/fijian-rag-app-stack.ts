@@ -307,6 +307,21 @@ export class FijianRagAppStack extends cdk.Stack {
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
+    const mergePagesLambda = new lambdaNodejs.NodejsFunction(this, 'MergePagesLambda', {
+      entry: path.join(__dirname, '../lambda/merge-pages/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 512,
+      timeout: cdk.Duration.seconds(300),
+      bundling: {
+        nodeModules: ['@aws-sdk/client-s3']
+      },
+      environment: {
+        CONTENT_BUCKET: contentBucket.bucketName
+      },
+      logRetention: logs.RetentionDays.ONE_WEEK,
+    });
+
     // Grant permissions
     learningModulesTable.grantReadWriteData(processLearningModuleLambda);
     moduleVocabularyTable.grantReadWriteData(processLearningModuleLambda);
@@ -320,6 +335,7 @@ export class FijianRagAppStack extends cdk.Stack {
     verifiedTranslationsTable.grantReadWriteData(loadLearningModuleJsonLambda);
     verifiedVocabTable.grantReadWriteData(loadLearningModuleJsonLambda);
     contentBucket.grantRead(loadLearningModuleJsonLambda);
+    contentBucket.grantReadWrite(mergePagesLambda);
 
     // OpenSearch permissions
     processLearningModuleLambda.addToRolePolicy(new iam.PolicyStatement({
