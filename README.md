@@ -69,3 +69,15 @@ We welcome grants, public funding, and partnerships with:
 🏝️ Pacific NGOs and regional digital literacy programs
 
 🌐 VCs and foundations focused on Indigenous or Ethical AI
+
+## Merging Page JSON Files
+
+1. Upload your page-level JSON files to a folder inside the S3 content bucket. A typical path looks like `manuals/lesson4.1/`.
+2. Open the **MergePagesLambda** function in the AWS Lambda console.
+3. Choose **Test** and configure a new event with the following JSON, adjusting the prefix to your folder:
+   ```json
+   { "prefix": "manuals/lesson4.1/" }
+   ```
+4. Run the test to invoke the lambda. It reads all `.json` files in that folder (except `chapter.json`), merges them, and writes `chapter.json` back to the same path.
+5. The `chapter.json` file automatically triggers the **LoadLearningModuleJsonLambda** to ingest the module into DynamoDB and OpenSearch.
+
