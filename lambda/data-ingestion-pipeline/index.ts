@@ -1,6 +1,6 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
-import { DynamoDBClient, PutItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, PutItemCommand, UpdateItemCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { isDuplicate } from './dedupUtils';
@@ -19,6 +19,24 @@ const VERIFIED_VOCAB_TABLE = process.env.VERIFIED_VOCAB_TABLE || '';
 
 const secretsClient = new SecretsManagerClient({});
 const SECRET_ARN = process.env.ANTHROPIC_SECRET_ARN!;
+const QUALITY_TABLE = process.env.TRANSLATION_QUALITY_TABLE || '';
+
+async function chooseModel(): Promise<string> {
+  if (!QUALITY_TABLE) return 'claude-3-haiku-20240307';
+  try {
+    const res = await ddb.send(
+      new GetItemCommand({
+        TableName: QUALITY_TABLE,
+        Key: { metric: { S: 'averageQuality' } }
+      })
+    );
+    const score = res.Item?.value?.N ? parseFloat(res.Item.value.N) : 1;
+    return score < 0.85 ? 'claude-3-sonnet-20240229' : 'claude-3-haiku-20240307';
+  } catch (err) {
+    console.warn('[chooseModel] failed to fetch metric', err);
+    return 'claude-3-haiku-20240307';
+  }
+}
 
 /*
 async function getAnthropicApiKey(): Promise<string> {
@@ -43,13 +61,14 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const html = (await axios.get(url)).data;
     const $ = cheerio.load(html);
     const paragraphs = $('.entry-content p').map((i, el) => $(el).text()).get();
+    const model = await chooseModel();
 
     for (let i = 0; i < paragraphs.length; i++) {
       const p = paragraphs[i];
       const compositeKey = generateDataKey(url, i);
 
 const msg = await anthropic.messages.create({
-  model: 'claude-3-haiku-20240307',
+  model,
   max_tokens: 1200,
   temperature: 0.2,
   messages: [

@@ -90,7 +90,21 @@ export class FijianRagAppStack extends cdk.Stack {
       sortKey: { name: 'paragraphId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });    
+    });
+
+    // Tracks translation quality metrics used for model selection
+    const translationQualityTable = new dynamodb.Table(this, 'TranslationQualityTable', {
+      partitionKey: { name: 'metric', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // Queue of articles for the ingestion-agent to process
+    const articleQueueTable = new dynamodb.Table(this, 'ArticleQueueTable', {
+      partitionKey: { name: 'url', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
 
     // === NEW: DynamoDB Tables for Learning Modules ===
     const learningModulesTable = new dynamodb.Table(this, 'LearningModulesTable', {
@@ -172,7 +186,8 @@ export class FijianRagAppStack extends cdk.Stack {
         VERIFIED_TRANSLATIONS_TABLE: verifiedTranslationsTable.tableName,
         VERIFIED_VOCAB_TABLE: verifiedVocabTable.tableName,
         CONTENT_BUCKET: contentBucket.bucketName,
-        TRAINING_BUCKET: trainingDataBucket.bucketName
+        TRAINING_BUCKET: trainingDataBucket.bucketName,
+        TRANSLATION_QUALITY_TABLE: translationQualityTable.tableName
       },
     });
 
@@ -182,11 +197,31 @@ export class FijianRagAppStack extends cdk.Stack {
     contentBucket.grantReadWrite(ingestLambda);
     trainingDataBucket.grantReadWrite(ingestLambda);
     verifiedParagraphsTable.grantReadWriteData(ingestLambda);
+    translationQualityTable.grantReadData(ingestLambda);
 
     ingestLambda.addToRolePolicy(new iam.PolicyStatement({
       actions: ['bedrock:InvokeModel'],
       resources: ['arn:aws:bedrock:*::foundation-model/*']
     }));
+
+    // === Lambda: ingestion-agent ===
+    const ingestionAgent = new lambdaNodejs.NodejsFunction(this, 'IngestionAgentLambda', {
+      entry: path.join(__dirname, '../lambda/ingestion-agent/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 512,
+      timeout: cdk.Duration.seconds(120),
+      bundling: {
+        nodeModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-lambda']
+      },
+      environment: {
+        ARTICLE_QUEUE_TABLE: articleQueueTable.tableName,
+        INGESTION_FUNCTION_NAME: ingestLambda.functionName
+      },
+    });
+
+    articleQueueTable.grantReadWriteData(ingestionAgent);
+    ingestLambda.grantInvoke(ingestionAgent);
 
     // === Lambda: verify-handler ===
     const verifyHandler = new lambdaNodejs.NodejsFunction(this, 'VerifyHandlerLambda', {
@@ -215,6 +250,7 @@ export class FijianRagAppStack extends cdk.Stack {
         VERIFIED_VOCAB_TABLE: verifiedVocabTable.tableName,
         OS_ENDPOINT: osDomain.domainEndpoint,
         TRAINING_BUCKET: trainingDataBucket.bucketName,
+        ENABLE_AUTO_VALIDATION: 'true'
       },
     });
 

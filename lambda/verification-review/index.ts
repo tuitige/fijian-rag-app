@@ -18,6 +18,7 @@ const TRANSLATIONS_REVIEW_TABLE_NAME = process.env.TRANSLATIONS_REVIEW_TABLE_NAM
 const VERIFIED_TRANSLATIONS_TABLE = process.env.VERIFIED_TRANSLATIONS_TABLE!;
 const VERIFIED_VOCAB_TABLE = process.env.VERIFIED_VOCAB_TABLE!;
 const TRAINING_BUCKET = process.env.TRAINING_BUCKET!;
+const ENABLE_AUTO_VALIDATION = process.env.ENABLE_AUTO_VALIDATION === 'true';
 
 
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
@@ -143,6 +144,30 @@ async function getEmbedding(text: string): Promise<number[]> {
   return result.embedding;
 }
 
+async function autoValidate(original: string, translation: string): Promise<boolean> {
+  if (!ENABLE_AUTO_VALIDATION) return true;
+  try {
+    const client = new BedrockRuntimeClient({});
+    const cmd = new InvokeModelCommand({
+      modelId: 'anthropic.claude-3-haiku-20240307',
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: JSON.stringify({
+        messages: [
+          { role: 'user', content: `Is the English phrase \"${translation}\" a correct translation of \"${original}\"? Answer yes or no.` }
+        ],
+        max_tokens: 1
+      })
+    });
+    const res = await client.send(cmd);
+    const txt = Buffer.from(res.body).toString();
+    return /yes/i.test(txt);
+  } catch (err) {
+    console.warn('[autoValidate] failed', err);
+    return true;
+  }
+}
+
 export const handler: APIGatewayProxyHandler = async (event) => {
   const method = event.httpMethod;
   const path = event.path;
@@ -202,6 +227,17 @@ if (method === 'POST' && path.endsWith('/verify-item')) {
 
   if (!dataType || !dataKey || !fields) {
     return jsonResponse(400, { error: 'Missing dataType, dataKey, or fields' });
+  }
+
+  const pass = await autoValidate(fields.sourceText || fields.word || fields.originalText, fields.translatedText || fields.meaning);
+  if (!pass) {
+    await ddb.send(new UpdateItemCommand({
+      TableName: TRANSLATIONS_REVIEW_TABLE_NAME,
+      Key: { dataType: { S: dataType }, dataKey: { S: dataKey } },
+      UpdateExpression: 'SET needsReview = :r',
+      ExpressionAttributeValues: { ':r': { S: 'true' } }
+    }));
+    return jsonResponse(200, { status: 'Flagged for manual review' });
   }
 
   // 1. Mark as verified in the review table
