@@ -7,14 +7,27 @@ import { environment } from '../../environments/environment';
   providedIn: 'root'
 })
 export class LearnService {
-  private apiUrl = environment.apiUrl + '/learn'; // Ensure your environment points to API Gateway URL
+  private apiUrl = environment.apiUrl + '/chat';
 
   constructor(private http: HttpClient) {}
 
-  async sendMessage(message: string, session: any = {}): Promise<{ reply: string, session: any }> {
+  async sendMessage(message: string, session: any = {}): Promise<{ reply: string; session: any }> {
     const body = { input: message, session };
-    const response = await this.http.post<{ reply: string, session: any }>(this.apiUrl, body).toPromise();
-    return response!;
+    const raw = await this.http
+      .post(this.apiUrl, body, { responseType: 'text' })
+      .toPromise();
+    let reply = raw || '';
+    let newSession = session;
+    try {
+      const parsed = JSON.parse(raw || '');
+      reply = parsed?.content?.[0]?.text || parsed.reply || raw || '';
+      if (parsed.session) {
+        newSession = parsed.session;
+      }
+    } catch {
+      // fall back to raw string
+    }
+    return { reply, session: newSession };
   }
   
 }
