@@ -10,5 +10,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/verification-review/verification-review.component').then(m => m.VerificationReviewComponent),
     canActivate: [AuthGuard]
   },
+  {
+    path: 'chat',
+    loadComponent: () => import('./pages/learn/learn.component').then(m => m.LearnComponent),
+    canActivate: [AuthGuard]
+  },
   { path: '**', redirectTo: '' }
 ];
