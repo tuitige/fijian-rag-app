@@ -358,6 +358,23 @@ export class FijianRagAppStack extends cdk.Stack {
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
+    // === NEW: Lambda for chat and learn endpoints ===
+    const fijianApiLambda = new lambdaNodejs.NodejsFunction(this, 'FijianApiLambda', {
+      entry: path.join(__dirname, '../lambda/fijian/src/handler.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 512,
+      timeout: cdk.Duration.seconds(60),
+      bundling: {
+        nodeModules: ['@aws-sdk/client-bedrock-runtime']
+      },
+    });
+
+    fijianApiLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: ['arn:aws:bedrock:*::foundation-model/*']
+    }));
+
     // Grant permissions
     learningModulesTable.grantReadWriteData(processLearningModuleLambda);
     moduleVocabularyTable.grantReadWriteData(processLearningModuleLambda);
@@ -513,6 +530,23 @@ export class FijianRagAppStack extends cdk.Stack {
           'method.response.header.Access-Control-Allow-Methods': true
         }
       }]
+    });
+
+    // === Chat and Learning endpoints ===
+    const learnResource = unifiedApi.root.addResource('learn');
+    learnResource.addMethod('GET', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    learnResource.addMethod('POST', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+
+    const chatResource = unifiedApi.root.addResource('chat');
+    chatResource.addMethod('POST', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
     });
 
       // === NEW: API Endpoints for Learning Modules ===
