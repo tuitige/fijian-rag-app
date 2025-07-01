@@ -3,6 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LearningService, LearningModule } from '../services/learning.service';
+import { LearnService } from '../../services/learn.service';
 
 @Component({
   selector: 'app-learning',
@@ -86,8 +87,12 @@ export class LearningComponent implements OnInit {
   currentPage: number = 1;
   userMessage: string = '';
   chatMessages: Array<{ text: string; isUser: boolean }> = [];
+  session: any = {};
 
-  constructor(private learningService: LearningService) {}
+  constructor(
+    private learningService: LearningService,
+    private learnService: LearnService
+  ) {}
 
   ngOnInit() {
     this.loadModules();
@@ -132,16 +137,16 @@ export class LearningComponent implements OnInit {
 
     // Add user message to chat
     this.chatMessages.push({ text: this.userMessage, isUser: true });
-    
-    // TODO: Implement actual chat functionality
-    // For now, just echo the message
-    setTimeout(() => {
-      this.chatMessages.push({ 
-        text: `You said: ${this.userMessage}`, 
-        isUser: false 
-      });
-    }, 1000);
-
+    const msg = this.userMessage;
     this.userMessage = '';
+
+    try {
+      const response = await this.learnService.sendMessage(msg, this.session);
+      this.session = response.session;
+      this.chatMessages.push({ text: response.reply, isUser: false });
+    } catch (err) {
+      console.error('Chat failed', err);
+      this.chatMessages.push({ text: 'Sorry, something went wrong.', isUser: false });
+    }
   }
 }
