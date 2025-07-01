@@ -1,6 +1,18 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
+function jsonResponse(statusCode: number, body: any): APIGatewayProxyResult {
+  return {
+    statusCode,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+    },
+    body: typeof body === 'string' ? body : JSON.stringify(body)
+  };
+}
+
 export const handler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
@@ -9,10 +21,7 @@ export const handler = async (
       { title: 'Basic Greetings', pages: 2, summary: 'This is a summary of the module content.' },
       { title: 'Numbers', pages: 1, summary: 'This is a summary of the module content.' }
     ];
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ modules })
-    };
+    return jsonResponse(200, { modules });
   }
 
   if (event.httpMethod === 'POST' && event.path === '/chat') {
@@ -25,8 +34,8 @@ export const handler = async (
       body: JSON.stringify({ messages: [{ role: 'user', content: body.input || '' }], max_tokens: 100 })
     }));
     const text = Buffer.from(res.body).toString();
-    return { statusCode: 200, body: text };
+    return jsonResponse(200, text);
   }
 
-  return { statusCode: 405, body: 'Method Not Allowed' };
+  return jsonResponse(405, 'Method Not Allowed');
 };
