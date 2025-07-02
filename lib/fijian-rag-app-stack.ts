@@ -482,16 +482,7 @@ export class FijianRagAppStack extends cdk.Stack {
       deployOptions: { stageName: 'prod' },
     });
 
-    // === Securely Generate API Key (no hardcoded string) ===
-    const apiKey = unifiedApi.addApiKey('UnifiedAgentApiKey', {
-      description: 'API Key for accessing /verify and /ingest endpoints'
-    });
 
-    const usagePlan = unifiedApi.addUsagePlan('UnifiedAgentUsagePlan', {
-      name: 'AgentUsagePlan',
-      apiStages: [{ api: unifiedApi, stage: unifiedApi.deploymentStage }],
-    });
-    usagePlan.addApiKey(apiKey);
 
     anthropicApiKeySecret.grantRead(ingestLambda);
     ingestLambda.addEnvironment('ANTHROPIC_SECRET_ARN', anthropicApiKeySecret.secretArn);
@@ -499,7 +490,6 @@ export class FijianRagAppStack extends cdk.Stack {
     // === /ingest endpoint ===
     const ingestResource = unifiedApi.root.addResource('ingest');
     ingestResource.addMethod('POST', new apigateway.LambdaIntegration(ingestLambda), {
-      apiKeyRequired: true,
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO
     });
@@ -508,7 +498,8 @@ export class FijianRagAppStack extends cdk.Stack {
     // === /verify-items endpoint ===
     const verifyResource = unifiedApi.root.addResource('verify-items');
     verifyResource.addMethod('GET', new apigateway.LambdaIntegration(verifyHandler), {
-      apiKeyRequired: true
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
     });
 
     addCorsOptions(verifyResource);
@@ -517,7 +508,6 @@ export class FijianRagAppStack extends cdk.Stack {
     // === /verify-item endpoint ===
     const submitVerifyResource = unifiedApi.root.addResource('verify-item');
     submitVerifyResource.addMethod('POST', new apigateway.LambdaIntegration(verifyHandler), {
-      apiKeyRequired: true,
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO
     });
@@ -549,7 +539,8 @@ export class FijianRagAppStack extends cdk.Stack {
       // GET /learning-modules/{moduleId}
       const moduleResource = modulesResource.addResource('{moduleId}');
       moduleResource.addMethod('GET', new apigateway.LambdaIntegration(processLearningModuleLambda), {
-        apiKeyRequired: true,
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
         requestParameters: {
           'method.request.path.moduleId': true
         }
@@ -559,7 +550,6 @@ export class FijianRagAppStack extends cdk.Stack {
       // POST /learning-modules/process (manual trigger)
       const processResource = modulesResource.addResource('process');
       processResource.addMethod('POST', new apigateway.LambdaIntegration(processLearningModuleLambda), {
-        apiKeyRequired: true,
         authorizer,
         authorizationType: apigateway.AuthorizationType.COGNITO
       });
