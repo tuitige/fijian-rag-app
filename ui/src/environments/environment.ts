@@ -1,6 +1,6 @@
 export const environment = {
-    production: false,
-    apiUrl: 'https://qbfl8hrn0g.execute-api.us-west-2.amazonaws.com/prod',
-    apiKey: 'GtI1FXSndrwoaZWRKfSg2NtuBI4qqJU1gqPVw1H9'
-  };
+  production: false,
+  apiUrl: 'https://qbfl8hrn0g.execute-api.us-west-2.amazonaws.com/prod',
+  apiKey: process.env['API_KEY'] ?? ''
+};
   
