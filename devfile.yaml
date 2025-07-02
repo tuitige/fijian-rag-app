@@ -16,3 +16,11 @@ commands:
     exec:
       component: dev
       commandLine: "cd ui && npm run test"
+  - id: synth
+    exec:
+      component: dev
+      commandLine: "cdk synth"
+  - id: cdk-deploy
+    exec:
+      component: dev
+      commandLine: "npx cdk deploy --all"
