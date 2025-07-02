@@ -543,25 +543,6 @@ export class FijianRagAppStack extends cdk.Stack {
     });
     addCorsOptions(chatResource);
 
-    // === Chat and Learning endpoints ===
-    const learnResource = unifiedApi.root.addResource('learn');
-    learnResource.addMethod('GET', new apigateway.LambdaIntegration(fijianApiLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO
-    });
-    learnResource.addMethod('POST', new apigateway.LambdaIntegration(fijianApiLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO
-    });
-    addCorsOptions(learnResource);
-
-    const chatResource = unifiedApi.root.addResource('chat');
-    chatResource.addMethod('POST', new apigateway.LambdaIntegration(fijianApiLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO
-    });
-    addCorsOptions(chatResource);
-
       // === NEW: API Endpoints for Learning Modules ===
       const modulesResource = unifiedApi.root.addResource('learning-modules');
       
