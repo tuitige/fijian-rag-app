@@ -20,6 +20,37 @@ import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as logs from 'aws-cdk-lib/aws-logs';
 
+function addCorsOptions(resource: apigateway.IResource) {
+  resource.addMethod(
+    'OPTIONS',
+    new apigateway.MockIntegration({
+      integrationResponses: [
+        {
+          statusCode: '200',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
+            'method.response.header.Access-Control-Allow-Origin': "'*'",
+            'method.response.header.Access-Control-Allow-Methods': "'GET,POST,OPTIONS'",
+          },
+        },
+      ],
+      passthroughBehavior: apigateway.PassthroughBehavior.NEVER,
+      requestTemplates: { 'application/json': '{"statusCode": 200}' },
+    }),
+    {
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Headers': true,
+            'method.response.header.Access-Control-Allow-Origin': true,
+            'method.response.header.Access-Control-Allow-Methods': true,
+          },
+        },
+      ],
+    }
+  );
+}
 
 
 export class FijianRagAppStack extends cdk.Stack {
@@ -358,6 +389,23 @@ export class FijianRagAppStack extends cdk.Stack {
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
+    // === NEW: Lambda for chat and learn endpoints ===
+    const fijianApiLambda = new lambdaNodejs.NodejsFunction(this, 'FijianApiLambda', {
+      entry: path.join(__dirname, '../lambda/fijian/src/handler.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 512,
+      timeout: cdk.Duration.seconds(60),
+      bundling: {
+        nodeModules: ['@aws-sdk/client-bedrock-runtime']
+      },
+    });
+
+    fijianApiLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: ['arn:aws:bedrock:*::foundation-model/*']
+    }));
+
     // Grant permissions
     learningModulesTable.grantReadWriteData(processLearningModuleLambda);
     moduleVocabularyTable.grantReadWriteData(processLearningModuleLambda);
@@ -455,6 +503,7 @@ export class FijianRagAppStack extends cdk.Stack {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO
     });
+    addCorsOptions(ingestResource);
 
     // === /verify-items endpoint ===
     const verifyResource = unifiedApi.root.addResource('verify-items');
@@ -515,6 +564,25 @@ export class FijianRagAppStack extends cdk.Stack {
       }]
     });
 
+    // === Chat and Learning endpoints ===
+    const learnResource = unifiedApi.root.addResource('learn');
+    learnResource.addMethod('GET', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    learnResource.addMethod('POST', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    addCorsOptions(learnResource);
+
+    const chatResource = unifiedApi.root.addResource('chat');
+    chatResource.addMethod('POST', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    addCorsOptions(chatResource);
+
       // === NEW: API Endpoints for Learning Modules ===
       const modulesResource = unifiedApi.root.addResource('learning-modules');
       
@@ -526,6 +594,7 @@ export class FijianRagAppStack extends cdk.Stack {
           'method.request.path.moduleId': true
         }
       });
+      addCorsOptions(moduleResource);
 
       // POST /learning-modules/process (manual trigger)
       const processResource = modulesResource.addResource('process');
@@ -534,6 +603,7 @@ export class FijianRagAppStack extends cdk.Stack {
         authorizer,
         authorizationType: apigateway.AuthorizationType.COGNITO
       });
+      addCorsOptions(processResource);
 
       // === Outputs ===
       new cdk.CfnOutput(this, 'LearningModulesTableName', {
