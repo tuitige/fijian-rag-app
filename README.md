@@ -81,3 +81,17 @@ We welcome grants, public funding, and partnerships with:
 4. Run the test to invoke the lambda. It reads all `.json` files in that folder (except `chapter.json`), merges them, and writes `chapter.json` back to the same path.
 5. The `chapter.json` file automatically triggers the **LoadLearningModuleJsonLambda** to ingest the module into DynamoDB and OpenSearch.
 
+## API Key Configuration
+
+The Angular frontend reads its API key from the `API_KEY` environment variable when the application is built. Provide this value whenever you run the Angular CLI:
+
+```bash
+# Development server
+API_KEY=your-key ng serve
+
+# Production build
+API_KEY=your-key ng build
+```
+
+Set `API_KEY` in your deployment pipeline so the compiled application includes the correct key.
+
