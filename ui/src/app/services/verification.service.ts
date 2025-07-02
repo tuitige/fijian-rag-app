@@ -1,6 +1,5 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { environment } from '../../environments/environment';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { from, Observable } from 'rxjs';
 
@@ -18,8 +17,7 @@ export class VerificationService {
   private async getHeaders(): Promise<HttpHeaders> {
     const token = (await this.oidcSecurityService.getIdToken().toPromise()) || '';
     return new HttpHeaders({
-      Authorization: `Bearer ${token}`,
-      'x-api-key': environment.apiKey
+      Authorization: `Bearer ${token}`
     });
   }
 
@@ -34,14 +32,15 @@ export class VerificationService {
 
 
   getStats() {
-    const headers = new HttpHeaders({ 'x-api-key': environment.apiKey });
-    return this.http.get<{
-      stats: {
-        vocab: { total: number; verified: number };
-        phrase: { total: number; verified: number };
-        paragraph: { total: number; verified: number };
-      };
-    }>(`${this.baseUrl}-items?type=vocab`, { headers });
+    return from(this.getHeaders().then(headers =>
+      this.http.get<{
+        stats: {
+          vocab: { total: number; verified: number };
+          phrase: { total: number; verified: number };
+          paragraph: { total: number; verified: number };
+        };
+      }>(`${this.baseUrl}-items?type=vocab`, { headers }).toPromise()
+    ));
   }
 
 
