@@ -26,7 +26,6 @@
     "angular-auth-oidc-client": "19.0.1",
     "aws-amplify": "^5.3.11",
     "bootstrap": "^5.3.3",
-    "cd": "^0.3.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "ui": "^0.2.4",

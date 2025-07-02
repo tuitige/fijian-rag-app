@@ -21,7 +21,9 @@ export class HomeComponent implements OnInit {
 
 ngOnInit() {
   this.verificationService.getStats().subscribe(res => {
-    this.stats = res.stats;
+    if (res) {
+      this.stats = res.stats;
+    }
   });
 }
 
