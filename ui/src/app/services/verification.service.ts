@@ -40,7 +40,6 @@ export class VerificationService {
     ).then(res => res ?? { count: 0, items: [] })) as Observable<{ count: number; items: any[] }>;
   }
 
-
   getStats(): Observable<StatsResponse> {
     return from(this.getHeaders().then(headers =>
       this.http.get<StatsResponse>(
@@ -48,6 +47,7 @@ export class VerificationService {
         { headers }
       ).toPromise()
     )) as Observable<StatsResponse>;
+
   }
 
 
