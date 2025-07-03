@@ -3,92 +3,164 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { AuthService } from './auth.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TranslationService {
   private apiUrl = environment.apiUrl;
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private auth: AuthService) {}
 
-  translate(text: string, sourceLanguage: 'en' | 'fj'): Observable<any> {
-    return this.http.post(`${this.apiUrl}/translate`, {
+  async translate(text: string, sourceLanguage: 'en' | 'fj'): Promise<any> {
+    const token = await this.auth.getAccessToken();
+    if (!token) throw new Error('No access token available');
+    const result = await this.http.post(`${this.apiUrl}/translate`, {
       sourceText: text,
       sourceLanguage,
       targetLanguage: sourceLanguage === 'en' ? 'fj' : 'en'
-    });
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).toPromise();
+    if (!result) throw new Error('No translation returned');
+    return result;
   }
 
-  verify(id: string, sourceText: string, translatedText: string, sourceLanguage: 'en' | 'fj', verified: boolean = true): Observable<any> {
-    return this.http.post(`${this.apiUrl}/verify`, {
+  async verify(id: string, sourceText: string, translatedText: string, sourceLanguage: 'en' | 'fj', verified: boolean = true): Promise<any> {
+    const token = await this.auth.getAccessToken();
+    if (!token) throw new Error('No access token available');
+    const result = await this.http.post(`${this.apiUrl}/verify`, {
       id,
       sourceText,
       translatedText,
       sourceLanguage,
       verified
-    });
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).toPromise();
+    if (!result) throw new Error('No verification response returned');
+    return result;
   }
 
-  getModule(title: string): Observable<any> {
+  async getModule(title: string): Promise<any> {
     const encodedTitle = encodeURIComponent(title);
-    const path = `/assets/module-mock.json`; // 🔁 Replace this later with real S3 or API path if needed
-    return this.http.get<any>(path);
+    const path = `/assets/module-mock.json`;
+    // This is a local asset, no auth needed
+    const result = await this.http.get<any>(path).toPromise();
+    if (!result) throw new Error('No module returned');
+    return result;
   }
 
-  getModuleFromApi(title: string): Observable<any> {
+  async getModuleFromApi(title: string): Promise<any> {
+    const token = await this.auth.getAccessToken();
+    if (!token) throw new Error('No access token available');
     const encoded = encodeURIComponent(title);
-    return this.http.get<any>(`${this.apiUrl}/module?title=${encoded}`);
+    const result = await this.http.get<any>(`${this.apiUrl}/module?title=${encoded}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).toPromise();
+    if (!result) throw new Error('No module returned');
+    return result;
   }
 
-  verifyModule(module: any): Observable<any> {
-    return this.http.post(`${this.apiUrl}/verify-module`, module);
-  }  
-
-  getParagraphsByTitle(title: string) {
-    return this.http.get<any[]>(`${this.apiUrl}/get-paragraphs?title=${encodeURIComponent(title)}`);
+  async verifyModule(module: any): Promise<any> {
+    const token = await this.auth.getAccessToken();
+    if (!token) throw new Error('No access token available');
+    const result = await this.http.post(`${this.apiUrl}/verify-module`, module, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).toPromise();
+    if (!result) throw new Error('No verification response returned');
+    return result;
   }
 
-  getParagraphsById(articleId: string) {
-    return this.http.get<any[]>(`${this.apiUrl}/get-paragraphs?id=${encodeURIComponent(articleId)}`);
+  async getParagraphsByTitle(title: string): Promise<any[]> {
+    const token = await this.auth.getAccessToken();
+    if (!token) throw new Error('No access token available');
+    const result = await this.http.get<any[]>(`${this.apiUrl}/get-paragraphs?title=${encodeURIComponent(title)}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).toPromise();
+    if (!result) throw new Error('No paragraphs returned');
+    return result;
   }
 
-  verifyParagraph(payload: {
+  async getParagraphsById(articleId: string): Promise<any[]> {
+    const token = await this.auth.getAccessToken();
+    if (!token) throw new Error('No access token available');
+    const result = await this.http.get<any[]>(`${this.apiUrl}/get-paragraphs?id=${encodeURIComponent(articleId)}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).toPromise();
+    if (!result) throw new Error('No paragraphs returned');
+    return result;
+  }
+
+  async verifyParagraph(payload: {
     articleId: string;
     index: number;
     originalParagraph: string;
     translatedParagraph: string;
-  }) {
-    return this.http.post(`${this.apiUrl}/verify-paragraph`, payload);
+  }): Promise<any> {
+    const token = await this.auth.getAccessToken();
+    if (!token) throw new Error('No access token available');
+    const result = await this.http.post(`${this.apiUrl}/verify-paragraph`, payload, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).toPromise();
+    if (!result) throw new Error('No verification response returned');
+    return result;
   }
 
-  getAllArticles() {
-    return this.http.get<any[]>(`${this.apiUrl}/list-articles`);
+  async getAllArticles(): Promise<any[]> {
+    const token = await this.auth.getAccessToken();
+    if (!token) throw new Error('No access token available');
+    const result = await this.http.get<any[]>(`${this.apiUrl}/list-articles`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).toPromise();
+    if (!result) throw new Error('No articles returned');
+    return result;
   }
-  
-  getModuleById(moduleId: string) {
-    return this.http.get<any>(`${this.apiUrl}/get-module?id=${moduleId}`);
+
+  async getModuleById(moduleId: string): Promise<any> {
+    const token = await this.auth.getAccessToken();
+    if (!token) throw new Error('No access token available');
+    const result = await this.http.get<any>(`${this.apiUrl}/get-module?id=${moduleId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).toPromise();
+    if (!result) throw new Error('No module returned');
+    return result;
   }
-  
-  getPhrasesByModuleId(moduleId: string) {
-    return this.http.get<any[]>(`${this.apiUrl}/module-phrases?moduleId=${moduleId}`);
+
+  async getPhrasesByModuleId(moduleId: string): Promise<any[]> {
+    const token = await this.auth.getAccessToken();
+    if (!token) throw new Error('No access token available');
+    const result = await this.http.get<any[]>(`${this.apiUrl}/module-phrases?moduleId=${moduleId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).toPromise();
+    if (!result) throw new Error('No phrases returned');
+    return result;
   }
-  
-  verifyPhraseFromModule(moduleId: string, phrase: any) {
-    return this.http.post(`${this.apiUrl}/verify-phrase`, {
+
+  async verifyPhraseFromModule(moduleId: string, phrase: any): Promise<any> {
+    const token = await this.auth.getAccessToken();
+    if (!token) throw new Error('No access token available');
+    const result = await this.http.post(`${this.apiUrl}/verify-phrase`, {
       moduleId,
       phraseId: phrase.id,
       originalText: phrase.originalText,
-      translatedText: phrase.translatedText
-    });
+      translatedText: phrase.translatedText,
+      verified: true
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).toPromise();
+    if (!result) throw new Error('No verification response returned');
+    return result;
   }
 
-  getAllModules() {
-    return this.http.get<any[]>(`${this.apiUrl}/list-modules`);
-  }
-
-  getVerificationStats(): Promise<any> {
-    // You can pick any type; we just want the stats from the response
-    return this.http.get<any>(`${this.apiUrl}/verify-items?type=vocab`).toPromise();
+  async getVerificationStats(): Promise<any> {
+    const token = await this.auth.getAccessToken();
+    if (!token) throw new Error('No access token available');
+    const result = await this.http.get<any>(`${this.apiUrl}/verify-items?type=vocab`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).toPromise();
+    if (!result) throw new Error('No verification stats returned');
+    return result;
   }
 
 }

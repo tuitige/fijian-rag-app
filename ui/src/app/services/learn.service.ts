@@ -2,6 +2,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
+import { AuthService } from './auth.service';
 
 @Injectable({
   providedIn: 'root'
@@ -9,12 +10,17 @@ import { environment } from '../../environments/environment';
 export class LearnService {
   private apiUrl = environment.apiUrl + '/chat';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private auth: AuthService) {}
 
   async sendMessage(message: string, session: any = {}): Promise<{ reply: string; session: any }> {
+    const token = await this.auth.getAccessToken();
+    if (!token) throw new Error('No access token available');
     const body = { input: message, session };
     const raw = await this.http
-      .post(this.apiUrl, body, { responseType: 'text' })
+      .post(this.apiUrl, body, {
+        responseType: 'text',
+        headers: { Authorization: `Bearer ${token}` }
+      })
       .toPromise();
     let reply = raw || '';
     let newSession = session;

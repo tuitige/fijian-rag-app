@@ -29,7 +29,7 @@ function addCorsOptions(resource: apigateway.IResource) {
           statusCode: '200',
           responseParameters: {
             'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
-            'method.response.header.Access-Control-Allow-Origin': "'*'",
+            'method.response.header.Access-Control-Allow-Origin': "'https://fijian-ai.org'",
             'method.response.header.Access-Control-Allow-Methods': "'GET,POST,OPTIONS'",
           },
         },

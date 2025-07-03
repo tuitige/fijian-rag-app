@@ -315,8 +315,8 @@ function jsonResponse(statusCode: number, body: any) {
   return {
     statusCode,
     headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Allow-Origin': 'https://fijian-ai.org',
+      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key',
       'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
     },
     body: JSON.stringify(body)

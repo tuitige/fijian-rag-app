@@ -23,4 +23,9 @@ export class AuthService {
   logout(): void {
     this.oidcSecurityService.logoff();
   }
+
+  async getAccessToken(): Promise<string | null> {
+    const token = await this.oidcSecurityService.getAccessToken().toPromise();
+    return token || null;
+  }
 }
