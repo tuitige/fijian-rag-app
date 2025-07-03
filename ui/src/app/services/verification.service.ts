@@ -3,6 +3,16 @@ import { Injectable } from '@angular/core';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { from, Observable } from 'rxjs';
 
+interface Stats {
+  vocab: { total: number; verified: number };
+  phrase: { total: number; verified: number };
+  paragraph: { total: number; verified: number };
+}
+
+interface StatsResponse {
+  stats: Stats;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -27,20 +37,17 @@ export class VerificationService {
         `${this.baseUrl}-items?type=${type}`,
         { headers }
       ).toPromise()
-    ).then(res => res ?? { count: 0, items: [] }));
+    ).then(res => res ?? { count: 0, items: [] })) as Observable<{ count: number; items: any[] }>;
   }
 
-
-  getStats() {
+  getStats(): Observable<StatsResponse> {
     return from(this.getHeaders().then(headers =>
-      this.http.get<{
-        stats: {
-          vocab: { total: number; verified: number };
-          phrase: { total: number; verified: number };
-          paragraph: { total: number; verified: number };
-        };
-      }>(`${this.baseUrl}-items?type=vocab`, { headers }).toPromise()
-    ));
+      this.http.get<StatsResponse>(
+        `${this.baseUrl}-items?type=vocab`,
+        { headers }
+      ).toPromise()
+    )) as Observable<StatsResponse>;
+
   }
 
 
