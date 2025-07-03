@@ -13,8 +13,8 @@ export class TranslationService {
   constructor(private http: HttpClient, private auth: AuthService) {}
 
   async translate(text: string, sourceLanguage: 'en' | 'fj'): Promise<any> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const result = await this.http.post(`${this.apiUrl}/translate`, {
       sourceText: text,
       sourceLanguage,
@@ -27,8 +27,8 @@ export class TranslationService {
   }
 
   async verify(id: string, sourceText: string, translatedText: string, sourceLanguage: 'en' | 'fj', verified: boolean = true): Promise<any> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const result = await this.http.post(`${this.apiUrl}/verify`, {
       id,
       sourceText,
@@ -52,8 +52,8 @@ export class TranslationService {
   }
 
   async getModuleFromApi(title: string): Promise<any> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const encoded = encodeURIComponent(title);
     const result = await this.http.get<any>(`${this.apiUrl}/module?title=${encoded}`, {
       headers: { Authorization: `Bearer ${token}` }
@@ -63,8 +63,8 @@ export class TranslationService {
   }
 
   async verifyModule(module: any): Promise<any> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const result = await this.http.post(`${this.apiUrl}/verify-module`, module, {
       headers: { Authorization: `Bearer ${token}` }
     }).toPromise();
@@ -73,8 +73,8 @@ export class TranslationService {
   }
 
   async getParagraphsByTitle(title: string): Promise<any[]> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const result = await this.http.get<any[]>(`${this.apiUrl}/get-paragraphs?title=${encodeURIComponent(title)}`, {
       headers: { Authorization: `Bearer ${token}` }
     }).toPromise();
@@ -83,8 +83,8 @@ export class TranslationService {
   }
 
   async getParagraphsById(articleId: string): Promise<any[]> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const result = await this.http.get<any[]>(`${this.apiUrl}/get-paragraphs?id=${encodeURIComponent(articleId)}`, {
       headers: { Authorization: `Bearer ${token}` }
     }).toPromise();
@@ -98,8 +98,8 @@ export class TranslationService {
     originalParagraph: string;
     translatedParagraph: string;
   }): Promise<any> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const result = await this.http.post(`${this.apiUrl}/verify-paragraph`, payload, {
       headers: { Authorization: `Bearer ${token}` }
     }).toPromise();
@@ -108,8 +108,8 @@ export class TranslationService {
   }
 
   async getAllArticles(): Promise<any[]> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const result = await this.http.get<any[]>(`${this.apiUrl}/list-articles`, {
       headers: { Authorization: `Bearer ${token}` }
     }).toPromise();
@@ -118,8 +118,8 @@ export class TranslationService {
   }
 
   async getModuleById(moduleId: string): Promise<any> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const result = await this.http.get<any>(`${this.apiUrl}/get-module?id=${moduleId}`, {
       headers: { Authorization: `Bearer ${token}` }
     }).toPromise();
@@ -128,8 +128,8 @@ export class TranslationService {
   }
 
   async getPhrasesByModuleId(moduleId: string): Promise<any[]> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const result = await this.http.get<any[]>(`${this.apiUrl}/module-phrases?moduleId=${moduleId}`, {
       headers: { Authorization: `Bearer ${token}` }
     }).toPromise();
@@ -138,8 +138,8 @@ export class TranslationService {
   }
 
   async verifyPhraseFromModule(moduleId: string, phrase: any): Promise<any> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const result = await this.http.post(`${this.apiUrl}/verify-phrase`, {
       moduleId,
       phraseId: phrase.id,
@@ -154,8 +154,8 @@ export class TranslationService {
   }
 
   async getVerificationStats(): Promise<any> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const result = await this.http.get<any>(`${this.apiUrl}/verify-items?type=vocab`, {
       headers: { Authorization: `Bearer ${token}` }
     }).toPromise();

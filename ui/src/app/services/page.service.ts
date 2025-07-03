@@ -14,8 +14,8 @@ export class PageService {
 
   async getPages(title: string): Promise<any> {
     const encoded = encodeURIComponent(title);
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     return this.http.get(`${this.apiUrl}/pages?prefix=${encoded}`, {
       headers: { Authorization: `Bearer ${token}` }
     }).toPromise();

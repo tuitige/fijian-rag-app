@@ -28,4 +28,9 @@ export class AuthService {
     const token = await this.oidcSecurityService.getAccessToken().toPromise();
     return token || null;
   }
+
+  async getIdToken(): Promise<string | null> {
+    const token = await this.oidcSecurityService.getIdToken().toPromise();
+    return token || null;
+  }
 }

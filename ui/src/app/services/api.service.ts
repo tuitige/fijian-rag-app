@@ -41,8 +41,8 @@ export class ApiService {
   constructor(private http: HttpClient, private auth: AuthService) {}
 
   async translate(sourceText: string, sourceLanguage: string): Promise<Translation> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const result = await this.http.post<Translation>(`${this.apiUrl}/translate`, {
       sourceText,
       sourceLanguage
@@ -59,8 +59,8 @@ export class ApiService {
     translatedText: string,
     sourceLanguage: string
   ): Promise<VerificationResponse> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const payload = {
       id,
       sourceText,

@@ -13,8 +13,8 @@ export class LearnService {
   constructor(private http: HttpClient, private auth: AuthService) {}
 
   async sendMessage(message: string, session: any = {}): Promise<{ reply: string; session: any }> {
-    const token = await this.auth.getAccessToken();
-    if (!token) throw new Error('No access token available');
+    const token = await this.auth.getIdToken();
+    if (!token) throw new Error('No id token available');
     const body = { input: message, session };
     const raw = await this.http
       .post(this.apiUrl, body, {
