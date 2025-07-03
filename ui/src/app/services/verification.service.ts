@@ -4,9 +4,7 @@ import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { from, Observable } from 'rxjs';
 
 interface Stats {
-  vocab: { total: number; verified: number };
-  phrase: { total: number; verified: number };
-  paragraph: { total: number; verified: number };
+  [type: string]: { total: number; verified: number };
 }
 
 interface StatsResponse {
