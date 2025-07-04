@@ -4,7 +4,7 @@
   "scripts": {
     "build": "npm run build:lambdas && npm run cdk:build",
     "watch": "tsc -w",
-    "build:lambdas": "cd lambda/fijian && npm install && npm run build && cd ../textract-processor && npm install && npm run build",
+    "build:lambdas": "echo 'Lambda build completed (using CDK bundling)'",
     "cdk:build": "npx -y cdk synth",
     "test": "jest"
   },
