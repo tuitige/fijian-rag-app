@@ -42,8 +42,10 @@ jest.mock('@aws-sdk/client-bedrock-runtime', () => ({
   BedrockRuntimeClient: jest.fn().mockReturnValue({
     send: jest.fn().mockImplementation(() => Promise.resolve({
       body: new TextEncoder().encode(JSON.stringify({
-        content: [{ text: 'This is a summary of the module content.' }]
-      }))
+        content: [{ text: 'This is a test response from Claude.' }],
+        usage: { input_tokens: 10, output_tokens: 15 }
+      })),
+      $metadata: { httpStatusCode: 200 }
     }))
   }),
   InvokeModelCommand: jest.fn()
@@ -80,6 +82,67 @@ describe('Lambda Handler Tests', () => {
 
       const response = await handler(event);
       expect(response.statusCode).toBe(405);
+    });
+  });
+
+  describe('/chat endpoint', () => {
+    it('should process chat messages successfully', async () => {
+      const event = {
+        httpMethod: 'POST',
+        path: '/chat',
+        body: JSON.stringify({ input: 'Hello, how are you?' })
+      } as APIGatewayProxyEvent;
+
+      const response = await handler(event);
+      const body = JSON.parse(response.body);
+
+      expect(response.statusCode).toBe(200);
+      expect(body.response).toBe('This is a test response from Claude.');
+      expect(body.model).toBe('anthropic.claude-3-haiku-20240307-v1:0');
+      expect(body.inputTokens).toBe(10);
+      expect(body.outputTokens).toBe(15);
+    });
+
+    it('should return 400 for empty input', async () => {
+      const event = {
+        httpMethod: 'POST',
+        path: '/chat',
+        body: JSON.stringify({ input: '' })
+      } as APIGatewayProxyEvent;
+
+      const response = await handler(event);
+      const body = JSON.parse(response.body);
+
+      expect(response.statusCode).toBe(400);
+      expect(body.error).toBe('User input is required');
+    });
+
+    it('should return 400 for missing input', async () => {
+      const event = {
+        httpMethod: 'POST',
+        path: '/chat',
+        body: JSON.stringify({})
+      } as APIGatewayProxyEvent;
+
+      const response = await handler(event);
+      const body = JSON.parse(response.body);
+
+      expect(response.statusCode).toBe(400);
+      expect(body.error).toBe('User input is required');
+    });
+
+    it('should handle invalid JSON body', async () => {
+      const event = {
+        httpMethod: 'POST',
+        path: '/chat',
+        body: 'invalid json'
+      } as APIGatewayProxyEvent;
+
+      const response = await handler(event);
+      const body = JSON.parse(response.body);
+
+      expect(response.statusCode).toBe(500);
+      expect(body.error).toBe('Internal server error');
     });
   });
 });
