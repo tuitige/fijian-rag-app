@@ -70,6 +70,29 @@ We welcome grants, public funding, and partnerships with:
 
 🌐 VCs and foundations focused on Indigenous or Ethical AI
 
+## Deployment
+
+The infrastructure is managed using AWS CDK in the `infra/` directory.
+
+### Quick Start
+
+1. Navigate to the infra directory:
+```bash
+cd infra
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Deploy the stack:
+```bash
+npx cdk deploy
+```
+
+For more details, see the [Infrastructure README](./infra/README.md).
+
 ## Merging Page JSON Files
 
 1. Upload your page-level JSON files to a folder inside the S3 content bucket. A typical path looks like `manuals/lesson4.1/`.
