@@ -44,9 +44,8 @@ jest.mock('@aws-sdk/client-bedrock-runtime', () => ({
       body: new TextEncoder().encode(JSON.stringify({
         content: [{ text: 'This is a test response from Claude.' }],
         usage: { input_tokens: 10, output_tokens: 15 }
-      })),
-      $metadata: { httpStatusCode: 200 }
-    }))
+      }))
+    }).then(res => ({ ...res, $metadata: { httpStatusCode: 200 } })))
   }),
   InvokeModelCommand: jest.fn()
 }));
