@@ -1,4 +1,4 @@
-import { handler } from '../lambda/fijian/src/handler';
+import { handler } from '../../lambda/fijian/src/handler';
 import { APIGatewayProxyEvent } from 'aws-lambda';
 
 // Mock AWS SDK clients

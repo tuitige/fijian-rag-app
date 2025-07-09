@@ -1,14 +1,12 @@
 {
-  "name": "fijian-rag-app",
+  "name": "fijian-rag-app-infra",
   "version": "0.1.0",
   "scripts": {
     "build": "npm run build:lambdas && npm run cdk:build",
     "watch": "tsc -w",
     "build:lambdas": "echo 'Lambda build completed (using CDK bundling)'",
-    "cdk:build": "cd infra && npm run cdk:build",
-    "cdk:deploy": "cd infra && npm run cdk:deploy",
-    "cdk:destroy": "cd infra && npx cdk destroy",
-    "cdk:synth": "cd infra && npx cdk synth",
+    "cdk:build": "npx cdk synth",
+    "cdk:deploy": "npx cdk deploy",
     "test": "jest"
   },
   "dependencies": {

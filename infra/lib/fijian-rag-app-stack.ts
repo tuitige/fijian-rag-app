@@ -203,7 +203,7 @@ export class FijianRagAppStack extends cdk.Stack {
 
     // === Lambda: data-ingestion-pipeline ===
     const ingestLambda = new lambdaNodejs.NodejsFunction(this, 'DataIngestionLambda', {
-      entry: path.join(__dirname, '../lambda/data-ingestion-pipeline/index.ts'),
+      entry: path.join(__dirname, '../../lambda/data-ingestion-pipeline/index.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 1024,
@@ -237,7 +237,7 @@ export class FijianRagAppStack extends cdk.Stack {
 
     // === Lambda: ingestion-agent ===
     const ingestionAgent = new lambdaNodejs.NodejsFunction(this, 'IngestionAgentLambda', {
-      entry: path.join(__dirname, '../lambda/ingestion-agent/index.ts'),
+      entry: path.join(__dirname, '../../lambda/ingestion-agent/index.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 512,
@@ -256,7 +256,7 @@ export class FijianRagAppStack extends cdk.Stack {
 
     // === Lambda: verify-handler ===
     const verifyHandler = new lambdaNodejs.NodejsFunction(this, 'VerifyHandlerLambda', {
-      entry: path.join(__dirname, '../lambda/verification-review/index.ts'),
+      entry: path.join(__dirname, '../../lambda/verification-review/index.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 1024,
@@ -309,7 +309,7 @@ export class FijianRagAppStack extends cdk.Stack {
 
     // === NEW: Lambda for Processing Learning Modules ===
     const processLearningModuleLambda = new lambdaNodejs.NodejsFunction(this, 'ProcessLearningModuleLambda', {
-      entry: path.join(__dirname, '../lambda/process-learning-module/index.ts'),
+      entry: path.join(__dirname, '../../lambda/process-learning-module/index.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 2048, // More memory for processing multiple images
@@ -343,7 +343,7 @@ export class FijianRagAppStack extends cdk.Stack {
     });
 
     const loadLearningModuleJsonLambda = new lambdaNodejs.NodejsFunction(this, 'LoadLearningModuleJsonLambda', {
-      entry: path.join(__dirname, '../lambda/load-learning-module-json/index.ts'),
+      entry: path.join(__dirname, '../../lambda/load-learning-module-json/index.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 1024,
@@ -375,7 +375,7 @@ export class FijianRagAppStack extends cdk.Stack {
     });
 
     const mergePagesLambda = new lambdaNodejs.NodejsFunction(this, 'MergePagesLambda', {
-      entry: path.join(__dirname, '../lambda/merge-pages/index.ts'),
+      entry: path.join(__dirname, '../../lambda/merge-pages/index.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 512,
@@ -391,7 +391,7 @@ export class FijianRagAppStack extends cdk.Stack {
 
     // === NEW: Lambda for chat and learn endpoints ===
     const fijianApiLambda = new lambdaNodejs.NodejsFunction(this, 'FijianApiLambda', {
-      entry: path.join(__dirname, '../lambda/fijian/src/handler.ts'),
+      entry: path.join(__dirname, '../../lambda/fijian/src/handler.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 512,
