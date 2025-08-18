@@ -1,0 +1,134 @@
+/* FlashCard component styles */
+.flash-card {
+  width: 100%;
+  max-width: 400px;
+  height: 280px;
+  perspective: 1000px;
+  margin: 0 auto;
+  cursor: pointer;
+  user-select: none;
+}
+
+.flash-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+}
+
+.flash-card.flipped .flash-card-inner {
+  transform: rotateY(180deg);
+}
+
+.flash-card-front,
+.flash-card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-lg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 2px solid var(--color-border);
+}
+
+.flash-card-front {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.flash-card-back {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  transform: rotateY(180deg);
+}
+
+.flash-card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+.flash-card-text {
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.flash-card-context {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  text-align: center;
+  font-style: italic;
+  margin-top: var(--spacing-sm);
+}
+
+.flash-card-audio {
+  margin-top: var(--spacing-sm);
+}
+
+.audio-button {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  font-size: 1.2rem;
+  transition: all 0.2s ease;
+}
+
+.audio-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.audio-button:active {
+  transform: scale(0.95);
+}
+
+.flash-card-instructions {
+  position: absolute;
+  bottom: var(--spacing-sm);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.8rem;
+  opacity: 0.8;
+  text-align: center;
+}
+
+.flash-card.disabled {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .flash-card {
+    max-width: 320px;
+    height: 240px;
+  }
+  
+  .flash-card-text {
+    font-size: 1.3rem;
+  }
+  
+  .flash-card-front,
+  .flash-card-back {
+    padding: var(--spacing-md);
+  }
+}
