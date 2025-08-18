@@ -13,11 +13,10 @@ const api = axios.create({
 // Request interceptor for adding auth headers
 api.interceptors.request.use(
   (config) => {
-    // Add auth headers when implemented
-    // const token = localStorage.getItem('authToken');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => Promise.reject(error)
