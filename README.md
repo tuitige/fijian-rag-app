@@ -1,10 +1,10 @@
-🇫🇯 Fijian AI Project
+# 🇫🇯 Fijian AI Project
 
 ![Public-Benefit Project](https://img.shields.io/badge/public--benefit-Fijian%20AI-blueviolet)
 
 🌍 Empowering Fijians through Language, Culture, and AI
 
-🧠 What is the Fijian AI Project?
+## 🧠 What is the Fijian AI Project?
 
 The Fijian AI Project is a public-benefit initiative that brings the power of Generative AI and language technologies to the Fijian people — and to anyone who wants to learn, preserve, or connect with Fijian culture.
 
@@ -18,31 +18,100 @@ At its core, this project aims to:
 
 🧠 Enrich global AI with underrepresented linguistic data
 
-🔧 Tech Stack: GenAI + RAG + Fine-Tuning
+## 🏗️ Architecture Overview
 
-Generative AI: Powered by Claude (Anthropic) via AWS Bedrock
+This repository contains a clean MVP architecture for the Fijian RAG application:
 
-RAG: Retrieval-Augmented Generation using OpenSearch vector embeddings
+```
+fijian-rag-app/
+├── frontend/                    # React frontend (to be implemented)
+├── backend/
+│   ├── lambdas/
+│   │   ├── chat/               # Core chat & learning endpoints
+│   │   ├── dictionary/         # Learning module processing  
+│   │   ├── rag/                # RAG functionality (to be implemented)
+│   │   └── auth/               # Authentication (to be implemented)
+│   └── shared/                 # Shared utilities
+├── infrastructure/
+│   └── cdk/                    # AWS CDK infrastructure
+└── data-processing/
+    └── dictionary/             # Data processing utilities (to be implemented)
+```
 
-Embedding & Search: High-precision semantic search across verified Fijian-English datasets
+## 🔧 Tech Stack: GenAI + RAG + Fine-Tuning
 
-AWS Infrastructure: Lambda, API Gateway, DynamoDB, OpenSearch, S3
+**Generative AI**: Powered by Claude (Anthropic) via AWS Bedrock
 
-Frontend: Angular + Amplify, designed for mobile and low-bandwidth environments
+**RAG**: Retrieval-Augmented Generation using OpenSearch vector embeddings
 
-❗ Why Fijian Matters in AI
+**Embedding & Search**: High-precision semantic search across verified Fijian-English datasets
+
+**AWS Infrastructure**: Lambda, API Gateway, DynamoDB, OpenSearch, S3
+
+**Frontend**: React (replacing Angular) for modern, responsive UI
+
+## ❗ Why Fijian Matters in AI
 
 Fijian is a low-resource language, meaning:
 
-Very limited high-quality digital content
-
-Minimal representation in large AI models
-
-Few or no TTS or ASR tools
+- Very limited high-quality digital content
+- Minimal representation in large AI models
+- Few or no TTS or ASR tools
 
 By creating structured, verified datasets and an open pipeline, the Fijian AI Project makes the language accessible to AI models — and to future generations.
 
-🚀 Future Roadmap
+## 🚀 Development Setup
+
+### Prerequisites
+
+- Node.js 18+ 
+- AWS CLI configured with appropriate credentials
+- AWS CDK CLI (`npm install -g aws-cdk`)
+
+### Quick Start
+
+1. **Install dependencies**:
+```bash
+npm install
+```
+
+2. **Build the project**:
+```bash
+npm run build
+```
+
+3. **Deploy infrastructure**:
+```bash
+npm run cdk:deploy
+```
+
+### Directory Guide
+
+- **`backend/lambdas/chat/`** - Core RAG chat functionality using Claude 3 Haiku
+- **`backend/lambdas/dictionary/`** - Learning module processing with Textract and OpenSearch  
+- **`backend/shared/`** - Shared utilities across lambda functions
+- **`infrastructure/cdk/`** - AWS CDK infrastructure as code
+- **`frontend/`** - React frontend application (to be implemented)
+
+## 🔄 Migration Notes
+
+This repository has undergone a clean slate migration to establish the MVP architecture. See [CLEANUP.md](./CLEANUP.md) for details on what was removed and preserved during the migration.
+
+### Core Functionality Preserved
+
+✅ Chat interface with Claude 3 Haiku via AWS Bedrock  
+✅ Learning module processing and indexing  
+✅ AWS infrastructure definitions  
+✅ Shared utility functions  
+
+### Legacy Components Removed
+
+❌ Angular frontend (replaced with React)  
+❌ Legacy data ingestion pipelines  
+❌ Human verification workflows  
+❌ Experimental features and POC code  
+
+## 🚀 Future Roadmap
 
 🎤 Train a Fijian Text-to-Speech engine with native voices
 
@@ -52,15 +121,13 @@ By creating structured, verified datasets and an open pipeline, the Fijian AI Pr
 
 🗃️ Create open datasets for fine-tuning multilingual models
 
-💡 A Public-Benefit Mission
+## 💡 A Public-Benefit Mission
 
 This is not a profit-driven SaaS tool. It's a digital preservation project rooted in:
 
-Cultural identity
-
-Linguistic justice
-
-AI inclusion for the Pacific
+- Cultural identity
+- Linguistic justice  
+- AI inclusion for the Pacific
 
 We welcome grants, public funding, and partnerships with:
 
@@ -70,38 +137,10 @@ We welcome grants, public funding, and partnerships with:
 
 🌐 VCs and foundations focused on Indigenous or Ethical AI
 
-## Deployment
+## 📚 Documentation
 
-The infrastructure is managed using AWS CDK in the `infra/` directory.
-
-### Quick Start
-
-1. Navigate to the infra directory:
-```bash
-cd infra
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Deploy the stack:
-```bash
-npx cdk deploy
-```
-
-For more details, see the [Infrastructure README](./infra/README.md).
-
-## Merging Page JSON Files
-
-1. Upload your page-level JSON files to a folder inside the S3 content bucket. A typical path looks like `manuals/lesson4.1/`.
-2. Open the **MergePagesLambda** function in the AWS Lambda console.
-3. Choose **Test** and configure a new event with the following JSON, adjusting the prefix to your folder:
-   ```json
-   { "prefix": "manuals/lesson4.1/" }
-   ```
-4. Run the test to invoke the lambda. It reads all `.json` files in that folder (except `chapter.json`), merges them, and writes `chapter.json` back to the same path.
-5. The `chapter.json` file automatically triggers the **LoadLearningModuleJsonLambda** to ingest the module into DynamoDB and OpenSearch.
+- [Infrastructure README](./infrastructure/cdk/README.md) - AWS CDK deployment guide
+- [Cleanup Documentation](./CLEANUP.md) - Details on clean slate migration
+- [Frontend README](./frontend/README.md) - React frontend setup (to be implemented)
 
 
