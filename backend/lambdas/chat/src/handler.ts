@@ -75,19 +75,96 @@ function extractResponseText(response: any): string {
  * Creates the request payload for Claude model via AWS Bedrock
  * @param userInput - The user's input message
  * @param maxTokens - Maximum tokens to generate (default: MAX_TOKENS)
+ * @param systemPrompt - Optional system prompt for mode-specific behavior
+ * @param context - Optional conversation context
  * @returns The formatted request payload
  */
-function createClaudeRequestPayload(userInput: string, maxTokens: number = MAX_TOKENS) {
-  return {
+function createClaudeRequestPayload(
+  userInput: string, 
+  maxTokens: number = MAX_TOKENS,
+  systemPrompt?: string,
+  context?: Array<{role: string, content: string}>
+) {
+  const messages = [];
+  
+  // Add context messages if provided
+  if (context && context.length > 0) {
+    messages.push(...context);
+  }
+  
+  // Add the current user message
+  messages.push({
+    role: "user",
+    content: userInput
+  });
+
+  const payload: any = {
     anthropic_version: ANTHROPIC_VERSION,
     max_tokens: maxTokens,
-    messages: [
-      {
-        role: "user",
-        content: userInput
-      }
-    ]
+    messages
   };
+
+  // Add system prompt if provided
+  if (systemPrompt) {
+    payload.system = systemPrompt;
+  }
+
+  return payload;
+}
+
+/**
+ * Generate system prompt based on chat mode
+ * @param mode - The chat mode (translation, learning, conversation)
+ * @param direction - Translation direction (for translation mode)
+ * @returns System prompt string
+ */
+function getSystemPrompt(mode: string, direction?: string): string {
+  switch (mode) {
+    case 'translation':
+      const directionText = direction === 'fj-en' ? 'from Fijian to English' :
+                           direction === 'en-fj' ? 'from English to Fijian' :
+                           'automatically detecting the language and translating appropriately';
+      
+      return `You are a professional Fijian-English translator. Your task is to provide accurate translations ${directionText}. 
+
+For each translation:
+1. Provide the main translation
+2. Include confidence level (0-1)
+3. Suggest alternative translations when appropriate
+4. Preserve cultural context and meaning
+5. Handle both formal and colloquial expressions
+
+Response format should include the translated text, confidence score, and any alternatives.`;
+
+    case 'learning':
+      return `You are a Fijian language teacher and cultural expert. Your role is to help learners understand Fijian language, grammar, and culture.
+
+For each query:
+1. Break down grammar structures in simple terms
+2. Explain cultural context when relevant
+3. Provide usage examples
+4. Include pronunciation guidance when helpful
+5. Suggest related vocabulary
+6. Be encouraging and educational
+
+Focus on making Fijian language accessible and culturally respectful.`;
+
+    case 'conversation':
+      return `You are a bilingual conversational partner fluent in both Fijian and English. You help users practice natural conversation in both languages.
+
+Conversation guidelines:
+1. Support code-switching (mixing languages naturally)
+2. Provide gentle corrections without interrupting flow
+3. Offer grammar hints inline when helpful
+4. Maintain context across the conversation
+5. Be culturally appropriate and respectful
+6. Encourage natural language use
+
+Respond naturally and help build confidence in both languages.`;
+
+    default:
+      return 'You are a helpful assistant that can communicate in both Fijian and English.';
+  }
 }
 
 /**
@@ -218,8 +295,14 @@ export const handler = async (
       const body = JSON.parse(event.body || '{}');
       console.log('[handler] Request body:', JSON.stringify(body, null, 2));
       
-      const userInput = body.input || '';
+      const userInput = body.input || body.message || '';
+      const mode = body.mode || 'conversation';
+      const direction = body.direction;
+      const context = body.context || [];
+      
       console.log('[handler] User input:', userInput);
+      console.log('[handler] Mode:', mode);
+      console.log('[handler] Direction:', direction);
       
       // Validate user input
       if (!validateUserInput(userInput)) {
@@ -227,12 +310,22 @@ export const handler = async (
         return jsonResponse(400, { error: 'User input is required' });
       }
 
+      // Validate mode
+      if (!['translation', 'learning', 'conversation'].includes(mode)) {
+        console.log('[handler] Invalid mode:', mode);
+        return jsonResponse(400, { error: 'Invalid mode. Must be translation, learning, or conversation' });
+      }
+
       // Initialize Bedrock client
       const br = new BedrockRuntimeClient({});
       console.log('[handler] Bedrock client initialized');
 
+      // Generate system prompt based on mode
+      const systemPrompt = getSystemPrompt(mode, direction);
+      console.log('[handler] System prompt generated for mode:', mode);
+
       // Prepare the request payload for Claude model via Bedrock
-      const requestPayload = createClaudeRequestPayload(userInput);
+      const requestPayload = createClaudeRequestPayload(userInput, MAX_TOKENS, systemPrompt, context);
       console.log('[handler] Request payload:', JSON.stringify(requestPayload, null, 2));
 
       // Use the correct model ID for Claude 3 Haiku via Bedrock
@@ -266,7 +359,9 @@ export const handler = async (
       }
       
       return jsonResponse(200, { 
-        response: responseText,
+        message: responseText,
+        mode,
+        direction,
         model: CLAUDE_MODEL_ID,
         inputTokens: parsedResponse.usage?.input_tokens || 0,
         outputTokens: parsedResponse.usage?.output_tokens || 0

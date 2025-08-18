@@ -1,4 +1,5 @@
 import React, { KeyboardEvent } from 'react';
+import { ChatMode } from '../../types/llm';
 
 interface MessageInputProps {
   value: string;
@@ -6,6 +7,7 @@ interface MessageInputProps {
   onSend: () => void;
   disabled?: boolean;
   placeholder?: string;
+  mode?: ChatMode;
 }
 
 const MessageInput: React.FC<MessageInputProps> = ({
@@ -13,7 +15,8 @@ const MessageInput: React.FC<MessageInputProps> = ({
   onChange,
   onSend,
   disabled = false,
-  placeholder = "Type your message in English or Fijian..."
+  placeholder,
+  mode = 'conversation'
 }) => {
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -27,6 +30,34 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const handleSend = () => {
     if (value.trim() && !disabled) {
       onSend();
+    }
+  };
+
+  const getPlaceholder = () => {
+    if (placeholder) return placeholder;
+    
+    switch (mode) {
+      case 'translation':
+        return 'Enter text to translate between Fijian and English...';
+      case 'learning':
+        return 'Ask about Fijian grammar, vocabulary, or culture...';
+      case 'conversation':
+        return 'Type your message in English or Fijian...';
+      default:
+        return 'Type your message...';
+    }
+  };
+
+  const getHelpText = () => {
+    switch (mode) {
+      case 'translation':
+        return 'Press Enter to translate, Shift+Enter for new line';
+      case 'learning':
+        return 'Press Enter to learn, Shift+Enter for new line';
+      case 'conversation':
+        return 'Press Enter to send, Shift+Enter for new line';
+      default:
+        return 'Press Enter to send, Shift+Enter for new line';
     }
   };
 
@@ -50,7 +81,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             onChange={(e) => onChange(e.target.value)}
             onKeyPress={handleKeyPress}
             disabled={disabled}
-            placeholder={placeholder}
+            placeholder={getPlaceholder()}
             rows={1}
             style={{
               width: '100%',
@@ -87,7 +118,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             marginTop: 'var(--spacing-xs)',
             textAlign: 'right' as const
           }}>
-            Press Enter to send, Shift+Enter for new line
+            {getHelpText()}
           </div>
         </div>
         
@@ -106,10 +137,16 @@ const MessageInput: React.FC<MessageInputProps> = ({
             justifyContent: 'center',
             gap: 'var(--spacing-xs)'
           }}
-          aria-label="Send message"
+          aria-label={`Send ${mode} message`}
         >
-          <span>Send</span>
-          <span style={{ fontSize: 'var(--font-size-lg)' }}>📤</span>
+          <span>
+            {mode === 'translation' ? 'Translate' : 
+             mode === 'learning' ? 'Learn' : 'Send'}
+          </span>
+          <span style={{ fontSize: 'var(--font-size-lg)' }}>
+            {mode === 'translation' ? '🔄' : 
+             mode === 'learning' ? '📚' : '📤'}
+          </span>
         </button>
       </div>
     </div>

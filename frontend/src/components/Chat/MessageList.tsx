@@ -1,18 +1,24 @@
 import React from 'react';
 import { Message } from '../../types/chat';
+import { StreamChunk } from '../../types/llm';
 import MessageItem from './MessageItem';
+import StreamingMessage from './StreamingMessage';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 interface MessageListProps {
   messages: Message[];
   isLoading: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  streamingChunks?: StreamChunk[];
+  isStreamingActive?: boolean;
 }
 
 const MessageList: React.FC<MessageListProps> = ({ 
   messages, 
   isLoading, 
-  messagesEndRef 
+  messagesEndRef,
+  streamingChunks = [],
+  isStreamingActive = false
 }) => {
   return (
     <div style={{
@@ -22,7 +28,7 @@ const MessageList: React.FC<MessageListProps> = ({
       display: 'flex',
       flexDirection: 'column'
     }}>
-      {messages.length === 0 ? (
+      {messages.length === 0 && !isStreamingActive ? (
         <div style={{
           flex: 1,
           display: 'flex',
@@ -43,7 +49,7 @@ const MessageList: React.FC<MessageListProps> = ({
               Welcome to Fijian AI Chat!
             </h3>
             <p style={{ margin: 0 }}>
-              Start a conversation to learn Fijian language
+              Choose a mode and start a conversation to learn Fijian language
             </p>
           </div>
         </div>
@@ -53,7 +59,33 @@ const MessageList: React.FC<MessageListProps> = ({
             <MessageItem key={message.id} message={message} />
           ))}
           
-          {isLoading && (
+          {/* Streaming message display */}
+          {isStreamingActive && streamingChunks.length > 0 && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-start',
+              marginBottom: 'var(--spacing-md)',
+              padding: '0 var(--spacing-md)'
+            }}>
+              <div style={{
+                backgroundColor: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                borderRadius: 'var(--border-radius-lg)',
+                boxShadow: 'var(--shadow-sm)',
+                maxWidth: '80%',
+                wordWrap: 'break-word' as const
+              }}>
+                <StreamingMessage 
+                  chunks={streamingChunks}
+                  isComplete={false}
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Loading indicator for non-streaming requests */}
+          {isLoading && !isStreamingActive && (
             <div style={{
               display: 'flex',
               justifyContent: 'flex-start',
@@ -75,7 +107,7 @@ const MessageList: React.FC<MessageListProps> = ({
                   color: 'var(--color-text-muted)',
                   fontSize: 'var(--font-size-sm)'
                 }}>
-                  AI is typing...
+                  AI is thinking...
                 </span>
               </div>
             </div>
