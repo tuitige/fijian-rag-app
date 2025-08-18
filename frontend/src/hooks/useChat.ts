@@ -3,6 +3,8 @@ import { Message } from '../types/chat';
 import { ChatService } from '../services/chatService';
 import { LLMService } from '../services/llmService';
 import { useChatMode } from '../contexts/ChatModeContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useProgress } from '../contexts/UserProgressContext';
 import { useApi } from './useApi';
 import { StreamChunk } from '../types/llm';
 
@@ -14,6 +16,8 @@ export function useChat() {
   const sendMessageApi = useApi<any>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { mode, direction, isStreaming } = useChatMode();
+  const { user, isAuthenticated } = useAuth();
+  const { recordChatMessage, recordWordLearned } = useProgress();
 
   // Auto-scroll to bottom when new messages are added
   const scrollToBottom = useCallback(() => {
@@ -41,8 +45,26 @@ export function useChat() {
     };
     
     setMessages(prev => [...prev, newMessage]);
+    
+    // Record progress for authenticated users
+    if (isAuthenticated && role === 'assistant') {
+      const lastUserMessage = messages[messages.length - 1];
+      if (lastUserMessage && lastUserMessage.role === 'user') {
+        recordChatMessage(lastUserMessage.content, content).catch(console.error);
+        
+        // Extract and record new words for learning mode
+        if (mode === 'learning' && metadata?.explanation) {
+          // Simple word extraction - in real app, this would be more sophisticated
+          const fijianWords = extractFijianWords(content);
+          fijianWords.forEach(({ word, translation }) => {
+            recordWordLearned(word, translation).catch(console.error);
+          });
+        }
+      }
+    }
+    
     return newMessage;
-  }, [generateMessageId, mode]);
+  }, [generateMessageId, mode, isAuthenticated, messages, recordChatMessage, recordWordLearned]);
 
   // Get conversation context for LLM
   const getContext = useCallback(() => {
@@ -163,6 +185,33 @@ export function useChat() {
     } catch (error) {
       console.error('Error loading chat history:', error);
     }
+  }, []);
+
+  // Load user's chat history on authentication
+  useEffect(() => {
+    if (isAuthenticated && user && messages.length === 0) {
+      loadHistory(user.id);
+    }
+  }, [isAuthenticated, user, loadHistory, messages.length]);
+
+  // Helper function to extract Fijian words from AI responses
+  const extractFijianWords = useCallback((text: string): Array<{ word: string; translation: string }> => {
+    // Simple regex to find word translations in format "word (translation)" or "word - translation"
+    const wordPattern = /([a-zA-Z]+)\s*[\(\-]\s*([^)\n]+)[\)]?/g;
+    const words: Array<{ word: string; translation: string }> = [];
+    let match;
+    
+    while ((match = wordPattern.exec(text)) !== null) {
+      const word = match[1].trim();
+      const translation = match[2].trim();
+      
+      // Basic validation - word should be reasonable length and translation shouldn't be too long
+      if (word.length >= 2 && word.length <= 20 && translation.length <= 50) {
+        words.push({ word, translation });
+      }
+    }
+    
+    return words;
   }, []);
 
   return {
