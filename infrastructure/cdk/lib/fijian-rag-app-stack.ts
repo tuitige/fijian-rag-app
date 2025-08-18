@@ -123,6 +123,21 @@ export class FijianRagAppStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
+    // === NEW: Dictionary Tables as specified in issue ===
+    const dictionaryTable = new dynamodb.Table(this, 'DictionaryTable', {
+      partitionKey: { name: 'word', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'language', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const userProgressTable = new dynamodb.Table(this, 'UserProgressTable', {
+      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'timestamp', type: dynamodb.AttributeType.NUMBER },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
     // Tracks translation quality metrics used for model selection
     const translationQualityTable = new dynamodb.Table(this, 'TranslationQualityTable', {
       partitionKey: { name: 'metric', type: dynamodb.AttributeType.STRING },
@@ -238,6 +253,8 @@ export class FijianRagAppStack extends cdk.Stack {
         MODULE_VOCABULARY_TABLE: moduleVocabularyTable.tableName,
         VERIFIED_TRANSLATIONS_TABLE: verifiedTranslationsTable.tableName,
         VERIFIED_VOCAB_TABLE: verifiedVocabTable.tableName,
+        DICTIONARY_TABLE: dictionaryTable.tableName,
+        USER_PROGRESS_TABLE: userProgressTable.tableName,
         OS_ENDPOINT: osDomain.domainEndpoint,
         OS_REGION: this.region,
         ANTHROPIC_SECRET_ARN: anthropicApiKeySecret.secretArn,
@@ -259,11 +276,47 @@ export class FijianRagAppStack extends cdk.Stack {
       memorySize: 512,
       timeout: cdk.Duration.seconds(60),
       bundling: {
-        nodeModules: ['@aws-sdk/client-bedrock-runtime']
+        nodeModules: ['@aws-sdk/client-bedrock-runtime', '@aws-sdk/client-dynamodb', '@aws-sdk/util-dynamodb']
+      },
+      environment: {
+        USER_PROGRESS_TABLE: userProgressTable.tableName,
+      },
+    });
+
+    // === NEW: Lambda for RAG queries and dictionary operations ===
+    const ragLambda = new lambdaNodejs.NodejsFunction(this, 'RagLambda', {
+      entry: path.join(__dirname, '../../../backend/lambdas/rag/src/handler.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(120),
+      bundling: {
+        nodeModules: [
+          '@aws-sdk/client-bedrock-runtime',
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/util-dynamodb',
+          '@aws-sdk/credential-provider-node',
+          '@smithy/protocol-http',
+          '@smithy/node-http-handler',
+          '@smithy/signature-v4',
+          '@aws-crypto/sha256-js'
+        ]
+      },
+      environment: {
+        DICTIONARY_TABLE: dictionaryTable.tableName,
+        USER_PROGRESS_TABLE: userProgressTable.tableName,
+        OPENSEARCH_ENDPOINT: osDomain.domainEndpoint,
+        OS_ENDPOINT: osDomain.domainEndpoint,
+        OS_REGION: this.region,
       },
     });
 
     fijianApiLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: ['arn:aws:bedrock:*::foundation-model/*']
+    }));
+
+    ragLambda.addToRolePolicy(new iam.PolicyStatement({
       actions: ['bedrock:InvokeModel'],
       resources: ['arn:aws:bedrock:*::foundation-model/*']
     }));
@@ -273,14 +326,33 @@ export class FijianRagAppStack extends cdk.Stack {
     moduleVocabularyTable.grantReadWriteData(processLearningModuleLambda);
     verifiedTranslationsTable.grantReadWriteData(processLearningModuleLambda);
     verifiedVocabTable.grantReadWriteData(processLearningModuleLambda);
+    dictionaryTable.grantReadWriteData(processLearningModuleLambda);
+    userProgressTable.grantReadWriteData(processLearningModuleLambda);
     contentBucket.grantRead(processLearningModuleLambda);
     anthropicApiKeySecret.grantRead(processLearningModuleLambda);
+
+    // Grant permissions for chat lambda
+    userProgressTable.grantReadWriteData(fijianApiLambda);
+
+    // Grant permissions for RAG lambda
+    dictionaryTable.grantReadWriteData(ragLambda);
+    userProgressTable.grantReadWriteData(ragLambda);
 
     // === REMOVED: Legacy lambda function permissions ===
     // All grant statements and policies for removed lambda functions
 
     // OpenSearch permissions
     processLearningModuleLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'es:ESHttpPost',
+        'es:ESHttpPut',
+        'es:ESHttpGet',
+        'es:ESHttpDelete'
+      ],
+      resources: [`arn:aws:es:${this.region}:${this.account}:domain/${osDomain.domainName}/*`]
+    }));
+
+    ragLambda.addToRolePolicy(new iam.PolicyStatement({
       actions: [
         'es:ESHttpPost',
         'es:ESHttpPut',
@@ -349,6 +421,42 @@ export class FijianRagAppStack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.COGNITO
     });
     addCorsOptions(chatResource);
+
+    // Chat history endpoint: GET /chat/history
+    const chatHistoryResource = chatResource.addResource('history');
+    chatHistoryResource.addMethod('GET', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    addCorsOptions(chatHistoryResource);
+
+    // Dictionary endpoints
+    const dictionaryResource = unifiedApi.root.addResource('dictionary');
+    
+    // GET /dictionary/lookup
+    const dictionaryLookupResource = dictionaryResource.addResource('lookup');
+    dictionaryLookupResource.addMethod('GET', new apigateway.LambdaIntegration(ragLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    addCorsOptions(dictionaryLookupResource);
+
+    // GET /dictionary/search  
+    const dictionarySearchResource = dictionaryResource.addResource('search');
+    dictionarySearchResource.addMethod('GET', new apigateway.LambdaIntegration(ragLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    addCorsOptions(dictionarySearchResource);
+
+    // RAG endpoint: POST /rag/query
+    const ragResource = unifiedApi.root.addResource('rag');
+    const ragQueryResource = ragResource.addResource('query');
+    ragQueryResource.addMethod('POST', new apigateway.LambdaIntegration(ragLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    addCorsOptions(ragQueryResource);
 
       // === NEW: API Endpoints for Learning Modules ===
       const modulesResource = unifiedApi.root.addResource('learning-modules');

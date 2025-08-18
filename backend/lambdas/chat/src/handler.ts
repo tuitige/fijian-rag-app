@@ -14,11 +14,18 @@
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { DynamoDBClient, QueryCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 
 // Configuration constants
 const CLAUDE_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
 const MAX_TOKENS = 100;
 const ANTHROPIC_VERSION = 'bedrock-2023-05-31';
+
+// Environment variables for chat history
+const USER_PROGRESS_TABLE = process.env.USER_PROGRESS_TABLE || '';
+
+const ddbClient = new DynamoDBClient({});
 
 /**
  * Creates a standardized JSON response with CORS headers
@@ -84,6 +91,82 @@ function createClaudeRequestPayload(userInput: string, maxTokens: number = MAX_T
 }
 
 /**
+ * Records a chat message to user progress table
+ */
+async function recordChatMessage(userId: string, message: string, response: string): Promise<void> {
+  if (!USER_PROGRESS_TABLE || !userId) {
+    return; // Skip if no table configured or no user ID
+  }
+  
+  try {
+    const timestamp = Date.now();
+    const params = {
+      TableName: USER_PROGRESS_TABLE,
+      Item: marshall({
+        userId,
+        timestamp,
+        action: 'chat_message',
+        data: {
+          message,
+          response,
+          createdAt: new Date().toISOString()
+        }
+      })
+    };
+
+    await ddbClient.send(new PutItemCommand(params));
+  } catch (error) {
+    console.error('Error recording chat message:', error);
+    // Don't throw - this is a non-critical operation
+  }
+}
+
+/**
+ * Retrieves chat history for a user
+ */
+async function getChatHistory(userId: string, limit: number = 10): Promise<any[]> {
+  if (!USER_PROGRESS_TABLE || !userId) {
+    return [];
+  }
+  
+  try {
+    const params = {
+      TableName: USER_PROGRESS_TABLE,
+      KeyConditionExpression: 'userId = :userId',
+      FilterExpression: '#action = :action',
+      ExpressionAttributeNames: {
+        '#action': 'action'
+      },
+      ExpressionAttributeValues: marshall({
+        ':userId': userId,
+        ':action': 'chat_message'
+      }),
+      ScanIndexForward: false, // Latest first
+      Limit: limit
+    };
+
+    const result = await ddbClient.send(new QueryCommand(params));
+    
+    if (!result.Items) {
+      return [];
+    }
+
+    return result.Items.map(item => {
+      const unmarshalled = unmarshall(item);
+      return {
+        timestamp: unmarshalled.timestamp,
+        message: unmarshalled.data.message,
+        response: unmarshalled.data.response,
+        createdAt: unmarshalled.data.createdAt
+      };
+    }).reverse(); // Oldest first for display
+  } catch (error) {
+    console.error('Error retrieving chat history:', error);
+    return [];
+  }
+}
+
+/**
  * The AWS Lambda handler function
  * Handles both learning module queries and chat interactions
  */
@@ -104,6 +187,28 @@ export const handler = async (
         { title: 'Numbers', pages: 1, summary: 'This is a summary of the module content.' }
       ];
       return jsonResponse(200, { modules });
+    }
+
+    // Handle chat history: GET /chat/history?userId=user123&limit=10
+    if (event.httpMethod === 'GET' && event.path === '/chat/history') {
+      console.log('[handler] Handling GET /chat/history request');
+      
+      const userId = event.queryStringParameters?.userId;
+      const limit = parseInt(event.queryStringParameters?.limit || '10');
+
+      if (!userId) {
+        return jsonResponse(400, { error: 'Missing required parameter: userId' });
+      }
+
+      console.log(`[handler] Retrieving chat history for user: ${userId}, limit: ${limit}`);
+      
+      const history = await getChatHistory(userId, limit);
+      
+      return jsonResponse(200, { 
+        userId,
+        history,
+        total: history.length 
+      });
     }
 
     if (event.httpMethod === 'POST' && event.path === '/chat') {
@@ -153,6 +258,12 @@ export const handler = async (
       // Extract the text content from Claude's response
       const responseText = extractResponseText(parsedResponse);
       console.log('[handler] Final response text:', responseText);
+      
+      // Record chat interaction if userId provided
+      const userId = body.userId;
+      if (userId) {
+        await recordChatMessage(userId, userInput, responseText);
+      }
       
       return jsonResponse(200, { 
         response: responseText,
