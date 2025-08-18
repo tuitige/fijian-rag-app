@@ -10,6 +10,7 @@ cdk.out
 # Ignore all .md files
 *.md
 
-# But not README.md
+# But not README.md and copilot-instructions.md
 !README.md
+!.github/copilot-instructions.md
 
