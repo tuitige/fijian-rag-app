@@ -6,12 +6,35 @@ import {
   ChatHistoryItem 
 } from '../types/chat';
 import { LearningModulesResponse } from '../types/api';
+import { ChatMode, TranslationDirection } from '../types/llm';
 
 export class ChatService {
   /**
-   * Send a chat message to the backend
+   * Send a chat message to the backend with enhanced features
    */
-  static async sendMessage(input: string): Promise<ChatResponse> {
+  static async sendMessage(
+    input: string, 
+    mode: ChatMode = 'conversation',
+    direction?: TranslationDirection,
+    context?: Array<{role: 'user' | 'assistant'; content: string;}>,
+    userId?: string
+  ): Promise<ChatResponse> {
+    const payload: ChatRequest = { 
+      message: input, 
+      input, // Keep for backward compatibility
+      mode,
+      direction,
+      context,
+      userId
+    };
+    const response = await api.post<ChatResponse>('/chat', payload);
+    return response.data;
+  }
+
+  /**
+   * Send a chat message to the backend (legacy support)
+   */
+  static async sendSimpleMessage(input: string): Promise<ChatResponse> {
     const payload: ChatRequest = { input };
     const response = await api.post<ChatResponse>('/chat', payload);
     return response.data;

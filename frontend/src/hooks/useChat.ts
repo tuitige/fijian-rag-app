@@ -1,13 +1,19 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Message } from '../types/chat';
 import { ChatService } from '../services/chatService';
+import { LLMService } from '../services/llmService';
+import { useChatMode } from '../contexts/ChatModeContext';
 import { useApi } from './useApi';
+import { StreamChunk } from '../types/llm';
 
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [streamingChunks, setStreamingChunks] = useState<StreamChunk[]>([]);
+  const [isStreamingActive, setIsStreamingActive] = useState(false);
   const sendMessageApi = useApi<any>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { mode, direction, isStreaming } = useChatMode();
 
   // Auto-scroll to bottom when new messages are added
   const scrollToBottom = useCallback(() => {
@@ -24,19 +30,29 @@ export function useChat() {
   }, []);
 
   // Add a message to the chat
-  const addMessage = useCallback((content: string, role: 'user' | 'assistant') => {
+  const addMessage = useCallback((content: string, role: 'user' | 'assistant', metadata?: any) => {
     const newMessage: Message = {
       id: generateMessageId(),
       content,
       role,
       timestamp: new Date(),
+      mode,
+      metadata
     };
     
     setMessages(prev => [...prev, newMessage]);
     return newMessage;
-  }, [generateMessageId]);
+  }, [generateMessageId, mode]);
 
-  // Send a message
+  // Get conversation context for LLM
+  const getContext = useCallback(() => {
+    return messages.slice(-10).map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+  }, [messages]);
+
+  // Send a message with streaming support
   const sendMessage = useCallback(async (input: string) => {
     if (!input.trim()) return;
 
@@ -45,24 +61,83 @@ export function useChat() {
     setInputValue('');
 
     try {
-      // Send to backend with retry logic
-      const response = await sendMessageApi.execute(() => 
-        ChatService.retryRequest(() => ChatService.sendMessage(input))
-      );
+      const context = getContext();
+      
+      if (isStreaming) {
+        // Use streaming
+        setIsStreamingActive(true);
+        setStreamingChunks([]);
+        
+        const chunks: StreamChunk[] = [];
+        
+        const request = LLMService.createChatRequest(input, mode, direction, context);
+        
+        await LLMService.sendStreamingMessage(
+          request,
+          (chunk: StreamChunk) => {
+            chunks.push(chunk);
+            setStreamingChunks([...chunks]);
+          },
+          () => {
+            // Streaming complete
+            const fullContent = chunks.map(c => c.content).join('');
+            const responseData = LLMService.parseStreamingResponse(chunks, mode);
+            
+            addMessage(fullContent, 'assistant', responseData);
+            setIsStreamingActive(false);
+            setStreamingChunks([]);
+          },
+          (error: Error) => {
+            console.error('Streaming error:', error);
+            setIsStreamingActive(false);
+            setStreamingChunks([]);
+            addMessage('Sorry, I encountered an error with streaming. Please try again.', 'assistant');
+          }
+        );
+      } else {
+        // Use regular request
+        const response = await sendMessageApi.execute(() => 
+          ChatService.retryRequest(() => 
+            ChatService.sendMessage(input, mode, direction, context)
+          )
+        );
 
-      // Add assistant response
-      const responseText = typeof response === 'string' ? response : 
-                          (response as any)?.message || 'Sorry, I could not process your message.';
-      addMessage(responseText, 'assistant');
+        // Parse response based on mode
+        let responseText = '';
+        let metadata: any = {};
+
+        if (typeof response === 'string') {
+          responseText = response;
+        } else if (response && typeof response === 'object') {
+          responseText = response.message || response.response || 'Sorry, I could not process your message.';
+          
+          // Extract metadata based on mode
+          if (mode === 'translation') {
+            metadata.translatedText = response.message;
+            metadata.originalText = input;
+            metadata.confidence = response.confidence;
+            metadata.alternatives = response.alternatives;
+          } else if (mode === 'learning') {
+            metadata.explanation = response.explanation;
+          }
+        } else {
+          responseText = 'Sorry, I could not process your message.';
+        }
+
+        addMessage(responseText, 'assistant', metadata);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       addMessage('Sorry, I encountered an error. Please try again.', 'assistant');
     }
-  }, [addMessage, sendMessageApi]);
+  }, [addMessage, sendMessageApi, getContext, mode, direction, isStreaming]);
 
   // Clear chat history
   const clearChat = useCallback(() => {
     setMessages([]);
+    setStreamingChunks([]);
+    setIsStreamingActive(false);
+    LLMService.stopStreaming();
   }, []);
 
   // Load chat history (for future implementation)
@@ -97,8 +172,10 @@ export function useChat() {
     sendMessage,
     clearChat,
     loadHistory,
-    isLoading: sendMessageApi.loading,
+    isLoading: sendMessageApi.loading || isStreamingActive,
     error: sendMessageApi.error,
     messagesEndRef,
+    streamingChunks,
+    isStreamingActive,
   };
 }
