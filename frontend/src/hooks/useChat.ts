@@ -197,7 +197,7 @@ export function useChat() {
   // Helper function to extract Fijian words from AI responses
   const extractFijianWords = useCallback((text: string): Array<{ word: string; translation: string }> => {
     // Simple regex to find word translations in format "word (translation)" or "word - translation"
-    const wordPattern = /([a-zA-Z]+)\s*[\(\-]\s*([^)\n]+)[\)]?/g;
+    const wordPattern = /([a-zA-Z]+)\s*[(-]\s*([^)\n]+)[)]?/g;
     const words: Array<{ word: string; translation: string }> = [];
     let match;
     
