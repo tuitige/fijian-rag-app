@@ -199,7 +199,6 @@ class AnalyticsService {
     priority: 'high' | 'medium' | 'low';
     actionUrl?: string;
   }>> {
-    const insights = await this.getLearningInsights(userId);
     const patterns = await this.getLearningPatterns(userId);
     const skillLevels = await this.getSkillLevels(userId);
     
