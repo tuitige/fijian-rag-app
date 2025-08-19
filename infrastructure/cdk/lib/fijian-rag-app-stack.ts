@@ -19,47 +19,32 @@ import { CognitoUserPoolsAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as xray from 'aws-cdk-lib/aws-xray';
 
-function addCorsOptions(resource: apigateway.IResource) {
-  resource.addMethod(
-    'OPTIONS',
-    new apigateway.MockIntegration({
-      integrationResponses: [
-        {
-          statusCode: '200',
-          responseParameters: {
-            'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
-            'method.response.header.Access-Control-Allow-Origin': "'https://fijian-ai.org'",
-            'method.response.header.Access-Control-Allow-Methods': "'GET,POST,OPTIONS'",
-          },
-        },
-      ],
-      passthroughBehavior: apigateway.PassthroughBehavior.NEVER,
-      requestTemplates: { 'application/json': '{"statusCode": 200}' },
-    }),
-    {
-      methodResponses: [
-        {
-          statusCode: '200',
-          responseParameters: {
-            'method.response.header.Access-Control-Allow-Headers': true,
-            'method.response.header.Access-Control-Allow-Origin': true,
-            'method.response.header.Access-Control-Allow-Methods': true,
-          },
-        },
-      ],
-    }
-  );
-}
+import { getProductionConfig, SECURITY_HEADERS } from './production-config';
 
 
 export class FijianRagAppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // Get production configuration
+    const config = getProductionConfig(this.node.tryGetContext('env'));
+    
     const userPool = cognito.UserPool.fromUserPoolId(this, 'ExistingUserPool', 'us-west-2_shE3zxrwp');
     const authorizer = new CognitoUserPoolsAuthorizer(this, 'FijianCognitoAuthorizer', {
       cognitoUserPools: [userPool]
+    });
+
+    // === SNS Topics for Alerts ===
+    const alertTopic = new sns.Topic(this, 'ProductionAlerts', {
+      displayName: 'Fijian RAG App Production Alerts',
     });
 
     // === Claude Secret for SDK ===
@@ -70,13 +55,37 @@ export class FijianRagAppStack extends cdk.Stack {
 
     // === S3 Buckets ===
     const contentBucket = new s3.Bucket(this, 'ContentBucket', {
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: !config.isProduction,
+      versioned: config.isProduction,
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      lifecycleRules: config.isProduction ? [
+        {
+          id: 'delete-old-versions',
+          expiredObjectDeleteMarker: true,
+          noncurrentVersionExpiration: cdk.Duration.days(30),
+        }
+      ] : undefined,
+    });
+
+    // Frontend hosting bucket (for CloudFront)
+    const frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: !config.isProduction,
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
     });
 
     const trainingDataBucket = new s3.Bucket(this, 'TrainingDataBucket', {
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: !config.isProduction,
+      versioned: config.isProduction,
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
     });
 
     // === DynamoDB Tables ===
@@ -128,14 +137,18 @@ export class FijianRagAppStack extends cdk.Stack {
       partitionKey: { name: 'word', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'language', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      pointInTimeRecovery: config.backup.enablePointInTimeRecovery,
+      encryption: dynamodb.TableEncryption.AWS_MANAGED,
     });
 
     const userProgressTable = new dynamodb.Table(this, 'UserProgressTable', {
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'timestamp', type: dynamodb.AttributeType.NUMBER },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      pointInTimeRecovery: config.backup.enablePointInTimeRecovery,
+      encryption: dynamodb.TableEncryption.AWS_MANAGED,
     });
 
     // Tracks translation quality metrics used for model selection
@@ -232,6 +245,8 @@ export class FijianRagAppStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 2048, // More memory for processing multiple images
       timeout: cdk.Duration.seconds(900), // 15 minutes for processing full chapters
+      tracing: config.monitoring.enableXRayTracing ? lambda.Tracing.ACTIVE : lambda.Tracing.DISABLED,
+      insightsVersion: config.monitoring.enableDetailedMonitoring ? lambda.LambdaInsightsVersion.VERSION_1_0_229_0 : undefined,
       bundling: {
         nodeModules: [
           '@anthropic-ai/sdk',
@@ -275,11 +290,15 @@ export class FijianRagAppStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 512,
       timeout: cdk.Duration.seconds(60),
+      tracing: config.monitoring.enableXRayTracing ? lambda.Tracing.ACTIVE : lambda.Tracing.DISABLED,
+      insightsVersion: config.monitoring.enableDetailedMonitoring ? lambda.LambdaInsightsVersion.VERSION_1_0_229_0 : undefined,
       bundling: {
         nodeModules: ['@aws-sdk/client-bedrock-runtime', '@aws-sdk/client-dynamodb', '@aws-sdk/util-dynamodb']
       },
       environment: {
         USER_PROGRESS_TABLE: userProgressTable.tableName,
+        ENVIRONMENT: config.stage,
+        ENABLE_XRAY: config.monitoring.enableXRayTracing.toString(),
       },
     });
 
@@ -290,6 +309,8 @@ export class FijianRagAppStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 1024,
       timeout: cdk.Duration.seconds(120),
+      tracing: config.monitoring.enableXRayTracing ? lambda.Tracing.ACTIVE : lambda.Tracing.DISABLED,
+      insightsVersion: config.monitoring.enableDetailedMonitoring ? lambda.LambdaInsightsVersion.VERSION_1_0_229_0 : undefined,
       bundling: {
         nodeModules: [
           '@aws-sdk/client-bedrock-runtime',
@@ -395,7 +416,18 @@ export class FijianRagAppStack extends cdk.Stack {
     const unifiedApi = new apigateway.RestApi(this, 'fijian-ai-api', {
       restApiName: 'Fijian AI API',
       description: 'API for Fijian AI application',
-      deployOptions: { stageName: 'prod' },
+      deployOptions: { 
+        stageName: config.stage,
+        tracingEnabled: config.monitoring.enableXRayTracing,
+        metricsEnabled: config.monitoring.enableDetailedMonitoring,
+        throttlingRateLimit: config.isProduction ? 1000 : 100,
+        throttlingBurstLimit: config.isProduction ? 2000 : 200,
+      },
+      defaultCorsPreflightOptions: {
+        allowOrigins: config.security.corsOrigins,
+        allowMethods: ['GET', 'POST', 'OPTIONS'],
+        allowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key'],
+      },
     });
 
 
@@ -413,14 +445,14 @@ export class FijianRagAppStack extends cdk.Stack {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO
     });
-    addCorsOptions(learnResource);
+    // Built-in CORS is configured above, no need for manual CORS
 
     const chatResource = unifiedApi.root.addResource('chat');
     chatResource.addMethod('POST', new apigateway.LambdaIntegration(fijianApiLambda), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO
     });
-    addCorsOptions(chatResource);
+    // Built-in CORS is configured above, no need for manual CORS
 
     // Chat history endpoint: GET /chat/history
     const chatHistoryResource = chatResource.addResource('history');
@@ -428,7 +460,7 @@ export class FijianRagAppStack extends cdk.Stack {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO
     });
-    addCorsOptions(chatHistoryResource);
+    // Built-in CORS is configured above, no need for manual CORS
 
     // Dictionary endpoints
     const dictionaryResource = unifiedApi.root.addResource('dictionary');
@@ -439,7 +471,7 @@ export class FijianRagAppStack extends cdk.Stack {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO
     });
-    addCorsOptions(dictionaryLookupResource);
+    // Built-in CORS is configured above, no need for manual CORS
 
     // GET /dictionary/search  
     const dictionarySearchResource = dictionaryResource.addResource('search');
@@ -447,7 +479,7 @@ export class FijianRagAppStack extends cdk.Stack {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO
     });
-    addCorsOptions(dictionarySearchResource);
+    // Built-in CORS is configured above, no need for manual CORS
 
     // RAG endpoint: POST /rag/query
     const ragResource = unifiedApi.root.addResource('rag');
@@ -456,7 +488,7 @@ export class FijianRagAppStack extends cdk.Stack {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO
     });
-    addCorsOptions(ragQueryResource);
+    // Built-in CORS is configured above, no need for manual CORS
 
       // === NEW: API Endpoints for Learning Modules ===
       const modulesResource = unifiedApi.root.addResource('learning-modules');
@@ -470,7 +502,7 @@ export class FijianRagAppStack extends cdk.Stack {
           'method.request.path.moduleId': true
         }
       });
-      addCorsOptions(moduleResource);
+      // Built-in CORS is configured above, no need for manual CORS
 
       // POST /learning-modules/process (manual trigger)
       const processResource = modulesResource.addResource('process');
@@ -478,7 +510,118 @@ export class FijianRagAppStack extends cdk.Stack {
         authorizer,
         authorizationType: apigateway.AuthorizationType.COGNITO
       });
-      addCorsOptions(processResource);
+      // Built-in CORS is configured above, no need for manual CORS
+
+    // === CloudFront Distribution (Production Only) ===
+    let cloudFrontDistribution: cloudfront.Distribution | undefined;
+    if (config.security.enableCloudFront) {
+      const responseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeaders', {
+        securityHeadersBehavior: {
+          strictTransportSecurity: {
+            accessControlMaxAge: cdk.Duration.seconds(31536000),
+            includeSubdomains: true,
+            override: true,
+          },
+          contentTypeOptions: { override: true },
+          frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+          xssProtection: { protection: true, modeBlock: true, override: true },
+          referrerPolicy: { referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN, override: true },
+        },
+      });
+
+      cloudFrontDistribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
+        defaultBehavior: {
+          origin: new origins.S3Origin(frontendBucket),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          responseHeadersPolicy,
+          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        },
+        additionalBehaviors: {
+          '/api/*': {
+            origin: new origins.RestApiOrigin(unifiedApi),
+            viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+            cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+            originRequestPolicy: cloudfront.OriginRequestPolicy.CORS_S3_ORIGIN,
+            allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+          },
+        },
+        defaultRootObject: 'index.html',
+        errorResponses: [
+          {
+            httpStatus: 404,
+            responseHttpStatus: 200,
+            responsePagePath: '/index.html',
+            ttl: cdk.Duration.minutes(5),
+          },
+        ],
+      });
+    }
+
+    // === CloudWatch Monitoring & Alarms ===
+    if (config.monitoring.enableDetailedMonitoring) {
+      // API Gateway Alarms
+      new cloudwatch.Alarm(this, 'ApiHighErrorRate', {
+        metric: unifiedApi.metricClientError({
+          statistic: 'Average',
+          period: cdk.Duration.minutes(5),
+        }),
+        threshold: 5, // 5% error rate
+        evaluationPeriods: 2,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: 'API Gateway error rate is too high',
+      });
+
+      new cloudwatch.Alarm(this, 'ApiHighLatency', {
+        metric: unifiedApi.metricLatency({
+          statistic: 'Average',
+          period: cdk.Duration.minutes(5),
+        }),
+        threshold: config.performance.apiResponseTarget,
+        evaluationPeriods: 2,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: 'API Gateway latency is too high',
+      });
+
+      // Lambda Function Alarms
+      [fijianApiLambda, ragLambda, processLearningModuleLambda].forEach((lambdaFunc, index) => {
+        new cloudwatch.Alarm(this, `Lambda${index}Errors`, {
+          metric: lambdaFunc.metricErrors({
+            period: cdk.Duration.minutes(5),
+          }),
+          threshold: 5,
+          evaluationPeriods: 2,
+          treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+          alarmDescription: `${lambdaFunc.functionName} has high error rate`,
+        });
+
+        new cloudwatch.Alarm(this, `Lambda${index}Duration`, {
+          metric: lambdaFunc.metricDuration({
+            period: cdk.Duration.minutes(5),
+          }),
+          threshold: lambdaFunc.timeout!.toMilliseconds() * 0.8, // Alert at 80% of timeout
+          evaluationPeriods: 2,
+          treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+          alarmDescription: `${lambdaFunc.functionName} duration is approaching timeout`,
+        });
+      });
+
+      // DynamoDB Throttling Alarm
+      new cloudwatch.Alarm(this, 'DynamoDBThrottles', {
+        metric: new cloudwatch.Metric({
+          namespace: 'AWS/DynamoDB',
+          metricName: 'ThrottledRequests',
+          dimensionsMap: {
+            TableName: dictionaryTable.tableName,
+          },
+          statistic: 'Sum',
+          period: cdk.Duration.minutes(5),
+        }),
+        threshold: 1,
+        evaluationPeriods: 1,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: 'DynamoDB requests are being throttled',
+      });
+    }
 
       // === Outputs ===
       new cdk.CfnOutput(this, 'LearningModulesTableName', {
@@ -499,6 +642,34 @@ export class FijianRagAppStack extends cdk.Stack {
       new cdk.CfnOutput(this, 'UnifiedApiUrl', {
         value: unifiedApi.url,
         description: 'Base URL for the Unified API'
+      });
+
+      // Production-specific outputs
+      new cdk.CfnOutput(this, 'Environment', {
+        value: config.stage,
+        description: 'Deployment environment'
+      });
+
+      new cdk.CfnOutput(this, 'FrontendBucketName', {
+        value: frontendBucket.bucketName,
+        description: 'S3 bucket for frontend hosting'
+      });
+
+      if (cloudFrontDistribution) {
+        new cdk.CfnOutput(this, 'CloudFrontUrl', {
+          value: `https://${cloudFrontDistribution.distributionDomainName}`,
+          description: 'CloudFront distribution URL'
+        });
+        
+        new cdk.CfnOutput(this, 'CloudFrontDistributionId', {
+          value: cloudFrontDistribution.distributionId,
+          description: 'CloudFront distribution ID for cache invalidation'
+        });
+      }
+
+      new cdk.CfnOutput(this, 'MonitoringEnabled', {
+        value: config.monitoring.enableDetailedMonitoring.toString(),
+        description: 'Whether detailed monitoring is enabled'
       });
   }
 }
