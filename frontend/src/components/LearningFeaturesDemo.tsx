@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import FlashCard from './Learning/SpacedRepetition/FlashCard';
 import MemoryStrengthIndicator from './Learning/SpacedRepetition/MemoryStrengthIndicator';
 import ReviewScheduler from './Learning/SpacedRepetition/ReviewScheduler';
-import ExerciseContainer from './Learning/Exercises/ExerciseContainer';
+// import ExerciseContainer from './Learning/Exercises/ExerciseContainer'; // TODO: Will be used for exercise features
 import MultipleChoice from './Learning/Exercises/MultipleChoice';
 import PronunciationPlayer from './Learning/Audio/PronunciationPlayer';
 import LearningInsights from './Learning/Analytics/LearningInsights';

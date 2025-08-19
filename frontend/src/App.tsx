@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Layout from './components/Layout/Layout';
 import { ChatContainer } from './components/Chat';
-import { Auth, ProtectedRoute } from './components/Auth';
+// import { Auth, ProtectedRoute } from './components/Auth'; // TODO: Will be used for authentication features
 import { UserProfile } from './components/Profile';
 import LearningFeaturesDemo from './components/LearningFeaturesDemo';
 import { ChatModeProvider } from './contexts/ChatModeContext';

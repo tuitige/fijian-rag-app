@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { LearningInsight } from '../../../types/analytics';
 import analyticsService from '../../../services/analyticsService';
 
@@ -17,11 +17,7 @@ const LearningInsights: React.FC<LearningInsightsProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadInsights();
-  }, [userId]);
-
-  const loadInsights = async () => {
+  const loadInsights = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -33,7 +29,11 @@ const LearningInsights: React.FC<LearningInsightsProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId, limit]);
+
+  useEffect(() => {
+    loadInsights();
+  }, [loadInsights]);
 
   const getInsightTypeColor = (type: LearningInsight['type']): string => {
     switch (type) {
@@ -55,12 +55,13 @@ const LearningInsights: React.FC<LearningInsightsProps> = ({
     }
   };
 
-  const formatMetric = (value: number, unit: string): string => {
-    if (unit === '%') return `${value}%`;
-    if (unit === 'days' && value === 1) return '1 day';
-    if (unit === 'words' && value === 1) return '1 word';
-    return `${value} ${unit}`;
-  };
+  // TODO: formatMetric function for future use in displaying formatted metrics
+  // const formatMetric = (value: number, unit: string): string => {
+  //   if (unit === '%') return `${value}%`;
+  //   if (unit === 'days' && value === 1) return '1 day';
+  //   if (unit === 'words' && value === 1) return '1 word';
+  //   return `${value} ${unit}`;
+  // };
 
   if (isLoading) {
     return (
