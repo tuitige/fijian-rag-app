@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import audioService from '../../../services/audioService';
 
 interface PronunciationPlayerProps {
@@ -27,12 +27,6 @@ const PronunciationPlayer: React.FC<PronunciationPlayerProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if (autoPlay && currentAudioUrl) {
-      handlePlay();
-    }
-  }, [autoPlay, currentAudioUrl]);
-
-  useEffect(() => {
     // Clean up audio when component unmounts
     return () => {
       if (audioRef.current) {
@@ -42,7 +36,7 @@ const PronunciationPlayer: React.FC<PronunciationPlayerProps> = ({
     };
   }, []);
 
-  const generateAudioUrl = async (): Promise<string> => {
+  const generateAudioUrl = useCallback(async (): Promise<string> => {
     if (currentAudioUrl) return currentAudioUrl;
     
     try {
@@ -52,9 +46,17 @@ const PronunciationPlayer: React.FC<PronunciationPlayerProps> = ({
     } catch (error) {
       throw new Error('Failed to generate audio');
     }
-  };
+  }, [currentAudioUrl, text, language]);
 
-  const handlePlay = async () => {
+  const handleStop = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    setIsPlaying(false);
+  }, []);
+
+  const handlePlay = useCallback(async () => {
     if (isPlaying) {
       handleStop();
       return;
@@ -95,15 +97,13 @@ const PronunciationPlayer: React.FC<PronunciationPlayerProps> = ({
       setIsPlaying(false);
       setIsLoading(false);
     }
-  };
+  }, [isPlaying, speed, handleStop, generateAudioUrl]);
 
-  const handleStop = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+  useEffect(() => {
+    if (autoPlay && currentAudioUrl) {
+      handlePlay();
     }
-    setIsPlaying(false);
-  };
+  }, [autoPlay, currentAudioUrl, handlePlay]);
 
   const getSizeConfig = () => {
     switch (size) {

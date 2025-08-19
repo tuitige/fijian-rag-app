@@ -264,4 +264,5 @@ class SpacedRepetitionService {
   }
 }
 
-export default new SpacedRepetitionService();
+const spacedRepetitionService = new SpacedRepetitionService();
+export default spacedRepetitionService;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SRSCard } from '../../../types/spaced-repetition';
 import { SpacedRepetitionAlgorithm } from '../../../algorithms/spacedRepetition';
 import MemoryStrengthIndicator from './MemoryStrengthIndicator';
@@ -19,11 +19,7 @@ const ReviewScheduler: React.FC<ReviewSchedulerProps> = ({
   const [upcomingCards, setUpcomingCards] = useState<SRSCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadCards();
-  }, [userId]);
-
-  const loadCards = async () => {
+  const loadCards = useCallback(async () => {
     try {
       setIsLoading(true);
       
@@ -44,7 +40,11 @@ const ReviewScheduler: React.FC<ReviewSchedulerProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    loadCards();
+  }, [loadCards]);
 
   const formatDate = (date: Date): string => {
     const now = new Date();

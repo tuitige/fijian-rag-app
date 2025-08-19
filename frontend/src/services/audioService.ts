@@ -336,4 +336,5 @@ class AudioService implements AudioFeatures {
   }
 }
 
-export default new AudioService();
+const audioService = new AudioService();
+export default audioService;

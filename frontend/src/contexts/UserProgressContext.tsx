@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { UserProgress, ProgressStats, VocabularyItem, Achievement } from '../types/progress';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { UserProgress, ProgressStats } from '../types/progress';
 import { progressService } from '../services/progressService';
 import { useAuth } from './AuthContext';
 
@@ -28,16 +28,7 @@ export const UserProgressProvider: React.FC<UserProgressProviderProps> = ({ chil
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      refreshProgress();
-    } else {
-      setProgress(null);
-      setStats(null);
-    }
-  }, [isAuthenticated, user]);
-
-  const refreshProgress = async (): Promise<void> => {
+  const refreshProgress = useCallback(async (): Promise<void> => {
     if (!isAuthenticated || !user) return;
 
     try {
@@ -57,7 +48,16 @@ export const UserProgressProvider: React.FC<UserProgressProviderProps> = ({ chil
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      refreshProgress();
+    } else {
+      setProgress(null);
+      setStats(null);
+    }
+  }, [isAuthenticated, user, refreshProgress]);
 
   const recordPracticeSession = async (mode: string, duration: number): Promise<void> => {
     if (!isAuthenticated || !user) return;
