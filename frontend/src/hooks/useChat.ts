@@ -33,6 +33,26 @@ export function useChat() {
     return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
+  // Helper function to extract Fijian words from AI responses
+  const extractFijianWords = useCallback((text: string): Array<{ word: string; translation: string }> => {
+    // Simple regex to find word translations in format "word (translation)" or "word - translation"
+    const wordPattern = /([a-zA-Z]+)\s*[(-]\s*([^)\n]+)[)]?/g;
+    const words: Array<{ word: string; translation: string }> = [];
+    let match;
+    
+    while ((match = wordPattern.exec(text)) !== null) {
+      const word = match[1].trim();
+      const translation = match[2].trim();
+      
+      // Basic validation - word should be reasonable length and translation shouldn't be too long
+      if (word.length >= 2 && word.length <= 20 && translation.length <= 50) {
+        words.push({ word, translation });
+      }
+    }
+    
+    return words;
+  }, []);
+
   // Add a message to the chat
   const addMessage = useCallback((content: string, role: 'user' | 'assistant', metadata?: any) => {
     const newMessage: Message = {
@@ -64,7 +84,7 @@ export function useChat() {
     }
     
     return newMessage;
-  }, [generateMessageId, mode, isAuthenticated, messages, recordChatMessage, recordWordLearned]);
+  }, [generateMessageId, mode, isAuthenticated, messages, recordChatMessage, recordWordLearned, extractFijianWords]);
 
   // Get conversation context for LLM
   const getContext = useCallback(() => {
@@ -193,26 +213,6 @@ export function useChat() {
       loadHistory(user.id);
     }
   }, [isAuthenticated, user, loadHistory, messages.length]);
-
-  // Helper function to extract Fijian words from AI responses
-  const extractFijianWords = useCallback((text: string): Array<{ word: string; translation: string }> => {
-    // Simple regex to find word translations in format "word (translation)" or "word - translation"
-    const wordPattern = /([a-zA-Z]+)\s*[(-]\s*([^)\n]+)[)]?/g;
-    const words: Array<{ word: string; translation: string }> = [];
-    let match;
-    
-    while ((match = wordPattern.exec(text)) !== null) {
-      const word = match[1].trim();
-      const translation = match[2].trim();
-      
-      // Basic validation - word should be reasonable length and translation shouldn't be too long
-      if (word.length >= 2 && word.length <= 20 && translation.length <= 50) {
-        words.push({ word, translation });
-      }
-    }
-    
-    return words;
-  }, []);
 
   return {
     messages,
