@@ -1,1 +1,0 @@
-{"ast":null,"code":"function createSchema(schema) {\n  return schema;\n}\nvar t = createSchema;\nexport { createSchema, t };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

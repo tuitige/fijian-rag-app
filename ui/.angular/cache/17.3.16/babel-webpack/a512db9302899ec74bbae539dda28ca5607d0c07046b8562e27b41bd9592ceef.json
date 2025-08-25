@@ -1,1 +1,0 @@
-{"ast":null,"code":"import { getSkewCorrectedDate } from \"./getSkewCorrectedDate\";\nexport var isClockSkewed = function (clockTime, systemClockOffset) {\n  return Math.abs(getSkewCorrectedDate(systemClockOffset).getTime() - clockTime) >= 300000;\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

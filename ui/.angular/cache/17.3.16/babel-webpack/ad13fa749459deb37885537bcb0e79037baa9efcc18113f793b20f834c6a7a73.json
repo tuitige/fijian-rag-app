@@ -1,1 +1,0 @@
-{"ast":null,"code":"import { constructStack } from \"@aws-sdk/middleware-stack\";\nvar Command = function () {\n  function Command() {\n    this.middlewareStack = constructStack();\n  }\n  return Command;\n}();\nexport { Command };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

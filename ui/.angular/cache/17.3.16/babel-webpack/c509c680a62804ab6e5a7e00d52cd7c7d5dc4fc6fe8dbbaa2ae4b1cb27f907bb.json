@@ -1,1 +1,0 @@
-{"ast":null,"code":"export var isFipsRegion = function (region) {\n  return typeof region === \"string\" && (region.startsWith(\"fips-\") || region.endsWith(\"-fips\"));\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

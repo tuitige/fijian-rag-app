@@ -1,1 +1,0 @@
-{"ast":null,"code":"export function extendedEncodeURIComponent(str) {\n  return encodeURIComponent(str).replace(/[!'()*]/g, function (c) {\n    return \"%\" + c.charCodeAt(0).toString(16).toUpperCase();\n  });\n}","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

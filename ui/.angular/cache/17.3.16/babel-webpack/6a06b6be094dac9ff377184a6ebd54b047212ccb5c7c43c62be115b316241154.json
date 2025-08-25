@@ -1,1 +1,0 @@
-{"ast":null,"code":"import { __assign } from \"tslib\";\nexport var resolveEventStreamSerdeConfig = function (input) {\n  return __assign(__assign({}, input), {\n    eventStreamMarshaller: input.eventStreamSerdeProvider(input)\n  });\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

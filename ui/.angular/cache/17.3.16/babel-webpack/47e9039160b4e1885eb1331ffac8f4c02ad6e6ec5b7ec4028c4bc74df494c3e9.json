@@ -1,1 +1,0 @@
-{"ast":null,"code":"import zenObservable from 'zen-observable';\nvar Observable = zenObservable;\nexport default Observable;\nexport { Observable };\n//# sourceMappingURL=bundle.esm.js.map","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

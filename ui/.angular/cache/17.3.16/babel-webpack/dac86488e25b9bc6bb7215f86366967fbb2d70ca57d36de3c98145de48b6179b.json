@@ -1,1 +1,0 @@
-{"ast":null,"code":"export var serializeFloat = function (value) {\n  if (value !== value) {\n    return \"NaN\";\n  }\n  switch (value) {\n    case Infinity:\n      return \"Infinity\";\n    case -Infinity:\n      return \"-Infinity\";\n    default:\n      return value;\n  }\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

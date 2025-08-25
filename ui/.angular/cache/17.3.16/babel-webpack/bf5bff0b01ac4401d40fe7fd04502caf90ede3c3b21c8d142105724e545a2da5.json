@@ -1,1 +1,0 @@
-{"ast":null,"code":"// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.\n// SPDX-License-Identifier: Apache-2.0\nexport { InternalGraphQLAPI, InternalGraphQLAPIClass } from './InternalGraphQLAPI';","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

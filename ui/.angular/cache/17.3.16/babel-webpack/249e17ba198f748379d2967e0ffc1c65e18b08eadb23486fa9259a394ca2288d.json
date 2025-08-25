@@ -1,1 +1,0 @@
-{"ast":null,"code":"export var normalizeProvider = function (input) {\n  if (typeof input === \"function\") return input;\n  var promisified = Promise.resolve(input);\n  return function () {\n    return promisified;\n  };\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

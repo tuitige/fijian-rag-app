@@ -1,1 +1,0 @@
-{"ast":null,"code":"import { __assign } from \"tslib\";\nexport function resolveUserAgentConfig(input) {\n  return __assign(__assign({}, input), {\n    customUserAgent: typeof input.customUserAgent === \"string\" ? [[input.customUserAgent]] : input.customUserAgent\n  });\n}","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

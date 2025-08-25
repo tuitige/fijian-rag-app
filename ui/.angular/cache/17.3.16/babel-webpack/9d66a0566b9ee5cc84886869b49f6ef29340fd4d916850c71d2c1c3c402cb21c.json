@@ -1,1 +1,0 @@
-{"ast":null,"code":"export var escapeUri = function (uri) {\n  return encodeURIComponent(uri).replace(/[!'()*]/g, hexEncode);\n};\nvar hexEncode = function (c) {\n  return \"%\".concat(c.charCodeAt(0).toString(16).toUpperCase());\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

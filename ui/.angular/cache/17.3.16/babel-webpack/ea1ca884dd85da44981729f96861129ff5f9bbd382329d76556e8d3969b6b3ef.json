@@ -1,1 +1,0 @@
-{"ast":null,"code":"// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.\n// SPDX-License-Identifier: Apache-2.0\nimport { Reachability } from '@aws-amplify/core';\nexport var ReachabilityMonitor = new Reachability().networkMonitor();\n//# sourceMappingURL=index.js.map","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

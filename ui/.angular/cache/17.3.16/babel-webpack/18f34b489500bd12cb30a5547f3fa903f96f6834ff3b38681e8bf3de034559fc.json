@@ -1,1 +1,0 @@
-{"ast":null,"code":"const e = {\n  small: {\n    value: \"1.25\"\n  },\n  medium: {\n    value: \"1.5\"\n  },\n  large: {\n    value: \"2\"\n  }\n};\nexport { e as lineHeights };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

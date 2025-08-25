@@ -1,1 +1,0 @@
-{"ast":null,"code":"import { isFipsRegion } from \"./isFipsRegion\";\nexport var getRealRegion = function (region) {\n  return isFipsRegion(region) ? [\"fips-aws-global\", \"aws-fips\"].includes(region) ? \"us-east-1\" : region.replace(/fips-(dkr-|prod-)?|-fips/, \"\") : region;\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

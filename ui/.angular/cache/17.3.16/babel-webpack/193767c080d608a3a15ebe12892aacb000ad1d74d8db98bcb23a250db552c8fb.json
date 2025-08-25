@@ -1,1 +1,0 @@
-{"ast":null,"code":"const e = {\n  small: {\n    value: \"1px\"\n  },\n  medium: {\n    value: \"2px\"\n  },\n  large: {\n    value: \"3px\"\n  }\n};\nexport { e as outlineOffsets };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

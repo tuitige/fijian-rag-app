@@ -1,1 +1,0 @@
-{"ast":null,"code":"const e = {\n  short: {\n    value: \"100ms\"\n  },\n  medium: {\n    value: \"250ms\"\n  },\n  long: {\n    value: \"500ms\"\n  }\n};\nexport { e as time };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

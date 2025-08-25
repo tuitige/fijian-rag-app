@@ -14,3 +14,8 @@ cdk.out
 !README.md
 !.github/copilot-instructions.md
 
+# Ignore Angular build and cache files
+ui/
+.angular/
+.angular/cache/
+

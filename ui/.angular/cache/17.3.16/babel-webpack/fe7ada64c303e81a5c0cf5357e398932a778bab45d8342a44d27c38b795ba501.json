@@ -1,1 +1,0 @@
-{"ast":null,"code":"export { addAuthCategoryToCognitoUserAgent, addFrameworkToCognitoUserAgent } from '../UserAgent';","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

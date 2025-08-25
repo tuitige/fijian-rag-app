@@ -1,1 +1,0 @@
-{"ast":null,"code":"var IS_PRODUCTION = process.env.NODE_ENV === 'production';\nexport { IS_PRODUCTION };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

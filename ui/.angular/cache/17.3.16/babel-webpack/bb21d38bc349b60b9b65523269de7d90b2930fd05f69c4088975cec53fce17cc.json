@@ -1,1 +1,0 @@
-{"ast":null,"code":"export var getSkewCorrectedDate = function (systemClockOffset) {\n  return new Date(Date.now() + systemClockOffset);\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

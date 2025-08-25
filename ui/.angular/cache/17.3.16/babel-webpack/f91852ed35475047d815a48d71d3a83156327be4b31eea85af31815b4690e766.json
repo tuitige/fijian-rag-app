@@ -1,1 +1,0 @@
-{"ast":null,"code":"const e = {\n  alignItems: {\n    value: \"center\"\n  },\n  alignContent: {\n    value: \"center\"\n  },\n  justifyContent: {\n    value: \"flex-start\"\n  }\n};\nexport { e as togglebuttongroup };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

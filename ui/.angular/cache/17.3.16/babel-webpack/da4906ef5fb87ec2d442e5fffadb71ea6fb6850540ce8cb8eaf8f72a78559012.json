@@ -1,1 +1,0 @@
-{"ast":null,"code":"/**\n * Upper case the first character of an input string.\n */\nexport function upperCaseFirst(input) {\n  return input.charAt(0).toUpperCase() + input.substr(1);\n}\n//# sourceMappingURL=index.js.map","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

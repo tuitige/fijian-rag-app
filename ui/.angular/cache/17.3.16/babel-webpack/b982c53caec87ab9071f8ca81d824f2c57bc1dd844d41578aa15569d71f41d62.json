@@ -1,1 +1,0 @@
-{"ast":null,"code":"const e = {\n  lineHeight: {\n    value: 1\n  },\n  height: {\n    value: \"1em\"\n  }\n};\nexport { e as icon };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

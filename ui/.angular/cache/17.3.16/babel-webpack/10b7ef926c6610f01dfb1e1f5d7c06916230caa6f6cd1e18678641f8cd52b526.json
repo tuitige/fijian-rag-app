@@ -1,1 +1,0 @@
-{"ast":null,"code":"const e = {\n  values: {\n    base: 0,\n    small: 480,\n    medium: 768,\n    large: 992,\n    xl: 1280,\n    xxl: 1536\n  },\n  defaultBreakpoint: \"base\"\n};\nexport { e as breakpoints };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

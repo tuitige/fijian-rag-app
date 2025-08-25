@@ -1,1 +1,0 @@
-{"ast":null,"code":"const o = {\n  cameraModule: {\n    backgroundColor: {\n      value: \"{colors.black}\"\n    }\n  }\n};\nexport { o as liveness };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

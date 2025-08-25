@@ -1,1 +1,0 @@
-{"ast":null,"code":"const a = {\n  gap: {\n    value: \"{space.medium.value}\"\n  },\n  justifyContent: {\n    value: \"normal\"\n  },\n  alignItems: {\n    value: \"stretch\"\n  },\n  alignContent: {\n    value: \"normal\"\n  },\n  flexWrap: {\n    value: \"nowrap\"\n  }\n};\nexport { a as flex };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

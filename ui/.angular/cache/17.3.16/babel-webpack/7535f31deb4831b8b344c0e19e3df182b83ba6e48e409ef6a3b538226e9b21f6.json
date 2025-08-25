@@ -1,1 +1,0 @@
-{"ast":null,"code":"import { __assign } from \"tslib\";\nimport { dotCase } from \"dot-case\";\nexport function snakeCase(input, options) {\n  if (options === void 0) {\n    options = {};\n  }\n  return dotCase(input, __assign({\n    delimiter: \"_\"\n  }, options));\n}\n//# sourceMappingURL=index.js.map","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

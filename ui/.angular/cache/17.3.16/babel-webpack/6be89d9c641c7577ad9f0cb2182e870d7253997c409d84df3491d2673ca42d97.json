@@ -1,1 +1,0 @@
-{"ast":null,"code":"export var isArrayBuffer = function (arg) {\n  return typeof ArrayBuffer === \"function\" && arg instanceof ArrayBuffer || Object.prototype.toString.call(arg) === \"[object ArrayBuffer]\";\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

@@ -1,1 +1,0 @@
-{"ast":null,"code":"const e = {\n  alignItems: {\n    value: \"flex-start\"\n  },\n  alignContent: {\n    value: \"center\"\n  },\n  flexDirection: {\n    value: \"column\"\n  },\n  justifyContent: {\n    value: \"center\"\n  }\n};\nexport { e as checkboxfield };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}
