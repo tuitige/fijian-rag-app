@@ -7,6 +7,9 @@ interface AuthContextType extends AuthState {
   signup: (credentials: SignupCredentials) => Promise<void>;
   logout: () => void;
   clearError: () => void;
+  // Cognito-specific methods
+  loginWithCognito: () => void;
+  logoutFromCognito: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,6 +30,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Check for existing auth token on app startup
     const checkAuthStatus = async () => {
       try {
+        // First check for Cognito token from URL hash (after redirect)
+        const tokenFromUrl = authService.parseTokenFromUrl();
+        if (tokenFromUrl) {
+          const user = authService.getCognitoUserInfo();
+          if (user) {
+            setAuthState({
+              user,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+            });
+            return;
+          }
+        }
+
+        // Check for existing Cognito authentication
+        if (authService.isCognitoAuthenticated()) {
+          const user = authService.getCognitoUserInfo();
+          if (user) {
+            setAuthState({
+              user,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+            });
+            return;
+          }
+        }
+
+        // Fallback to legacy token check
         const token = localStorage.getItem('authToken');
         if (token) {
           const user = await authService.getCurrentUser();
@@ -41,9 +74,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        setAuthState(prev => ({ ...prev, isLoading: false }));
+        authService.clearLocalTokens();
+        setAuthState(prev => ({ 
+          ...prev, 
+          isLoading: false,
+          error: error instanceof Error ? error.message : 'Authentication check failed'
+        }));
       }
     };
 
@@ -99,14 +135,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = (): void => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('refreshToken');
+    authService.clearLocalTokens();
     setAuthState({
       user: null,
       isAuthenticated: false,
       isLoading: false,
       error: null,
     });
+  };
+
+  const loginWithCognito = (): void => {
+    setAuthState(prev => ({ ...prev, error: null }));
+    authService.redirectToLogin();
+  };
+
+  const logoutFromCognito = (): void => {
+    setAuthState({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+    });
+    authService.redirectToLogout();
   };
 
   const clearError = (): void => {
@@ -119,6 +169,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signup,
     logout,
     clearError,
+    loginWithCognito,
+    logoutFromCognito,
   };
 
   return (
