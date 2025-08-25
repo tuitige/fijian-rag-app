@@ -38,6 +38,22 @@ export class FijianRagAppStack extends cdk.Stack {
     const config = getProductionConfig(this.node.tryGetContext('env'));
     
     const userPool = cognito.UserPool.fromUserPoolId(this, 'ExistingUserPool', 'us-west-2_shE3zxrwp');
+    
+    // Import existing User Pool Client
+    const userPoolClient = cognito.UserPoolClient.fromUserPoolClientId(
+      this, 
+      'ExistingWebClient', 
+      '4pvrvr5jf8h9bvi59asmlbdjcp'
+    );
+
+    // Create Cognito Domain for Hosted UI (if it doesn't already exist)
+    const userPoolDomain = new cognito.UserPoolDomain(this, 'CognitoDomain', {
+      userPool,
+      cognitoDomain: {
+        domainPrefix: 'fijian-auth', // This creates: fijian-auth.auth.us-west-2.amazoncognito.com
+      },
+    });
+
     const authorizer = new CognitoUserPoolsAuthorizer(this, 'FijianCognitoAuthorizer', {
       cognitoUserPools: [userPool]
     });
@@ -689,6 +705,27 @@ export class FijianRagAppStack extends cdk.Stack {
       new cdk.CfnOutput(this, 'MonitoringEnabled', {
         value: config.monitoring.enableDetailedMonitoring.toString(),
         description: 'Whether detailed monitoring is enabled'
+      });
+
+      // === Cognito Configuration Outputs ===
+      new cdk.CfnOutput(this, 'CognitoUserPoolId', {
+        value: userPool.userPoolId,
+        description: 'Cognito User Pool ID for frontend authentication'
+      });
+
+      new cdk.CfnOutput(this, 'CognitoClientId', {
+        value: '4pvrvr5jf8h9bvi59asmlbdjcp', // Use the existing client ID
+        description: 'Cognito User Pool Client ID for frontend authentication'
+      });
+
+      new cdk.CfnOutput(this, 'CognitoDomainUrl', {
+        value: userPoolDomain.baseUrl(),
+        description: 'Cognito Domain URL for Hosted UI authentication'
+      });
+
+      new cdk.CfnOutput(this, 'CognitoRegion', {
+        value: this.region,
+        description: 'AWS Region for Cognito User Pool'
       });
   }
 }
