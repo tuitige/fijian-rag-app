@@ -40,7 +40,7 @@ jobs:
           aws cloudfront create-invalidation --distribution-id E16GKA7HSOLGFW --paths "/*"
 
   backend-cdk-deploy:
-    if: "!contains(github.event.head_commit.modified, 'frontend/')"
+    if: !contains(github.event.head_commit.modified, 'frontend')
     runs-on: ubuntu-latest
     name: Build & Deploy CDK/Backend
     steps:
@@ -48,11 +48,45 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20.x'
-      - run: npm ci
-      - run: cd infrastructure/cdk && npm ci
-      - run: npm run build
-      - env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: us-west-2
-        run: npm run cdk:deploy
+      jobs:
+        frontend-deploy:
+          runs-on: ubuntu-latest
+          name: Build & Deploy Frontend
+          if: github.ref == 'refs/heads/main'
+          steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                node-version: '20.x'
+            - run: cd frontend && npm ci
+            - run: cd frontend && npm run build
+            - env:
+                AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                AWS_DEFAULT_REGION: us-west-2
+              run: |
+                cd frontend
+                aws s3 sync build/ s3://fijianragappstack-frontendbucketefe2e19c-wlnfr3ejeesy/ --delete
+                aws cloudfront create-invalidation --distribution-id <YOUR_DISTRIBUTION_ID> --paths "/*"
+          paths:
+            - 'frontend/**'
+
+        backend-cdk-deploy:
+          runs-on: ubuntu-latest
+          name: Build & Deploy CDK/Backend
+          if: github.ref == 'refs/heads/main'
+          steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                node-version: '20.x'
+            - run: npm ci
+            - run: cd infrastructure/cdk && npm ci
+            - run: npm run build
+            - env:
+                AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                AWS_DEFAULT_REGION: us-west-2
+              run: npm run cdk:deploy
+          paths-ignore:
+            - 'frontend/**'
