@@ -26,6 +26,13 @@ export interface ProductionConfig {
     corsOrigins: string[];
   };
   
+  // Domain configuration
+  domains: {
+    enableCustomDomains: boolean;
+    customDomains: string[];
+    certificateArn?: string;
+  };
+  
   // Backup settings
   backup: {
     enablePointInTimeRecovery: boolean;
@@ -36,6 +43,9 @@ export interface ProductionConfig {
 export const getProductionConfig = (context?: any): ProductionConfig => {
   const env = context?.env || process.env.NODE_ENV || 'development';
   const isProduction = env === 'production';
+  
+  // Allow disabling custom domains via context parameter
+  const enableCustomDomains = context?.enableCustomDomains !== false && isProduction;
   
   return {
     isProduction,
@@ -59,6 +69,12 @@ export const getProductionConfig = (context?: any): ProductionConfig => {
       corsOrigins: isProduction 
         ? ['https://fijian-ai.org', 'https://www.fijian-ai.org']
         : ['http://localhost:3000', 'https://fijian-ai.org'],
+    },
+    
+    domains: {
+      enableCustomDomains,
+      customDomains: ['fijian-ai.org', 'www.fijian-ai.org'],
+      certificateArn: 'arn:aws:acm:us-east-1:934889091214:certificate/a79e4607-1f82-4ceb-a996-73c9a633e18c',
     },
     
     backup: {

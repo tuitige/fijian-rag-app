@@ -35,7 +35,11 @@ export class FijianRagAppStack extends cdk.Stack {
     super(scope, id, props);
 
     // Get production configuration
-    const config = getProductionConfig(this.node.tryGetContext('env'));
+    const context = {
+      env: this.node.tryGetContext('env'),
+      enableCustomDomains: this.node.tryGetContext('enableCustomDomains')
+    };
+    const config = getProductionConfig(context);
     
     const userPool = cognito.UserPool.fromUserPoolId(this, 'ExistingUserPool', 'us-west-2_shE3zxrwp');
     
@@ -533,12 +537,14 @@ export class FijianRagAppStack extends cdk.Stack {
     // === CloudFront Distribution (Production Only) ===
     let cloudFrontDistribution: cloudfront.Distribution | undefined;
     if (config.security.enableCloudFront) {
-      // Import existing SSL certificate from us-east-1
-      const certificate = acm.Certificate.fromCertificateArn(
-        this, 
-        'ImportedSslCertificate', 
-        'arn:aws:acm:us-east-1:934889091214:certificate/a79e4607-1f82-4ceb-a996-73c9a633e18c'
-      );
+      // Import existing SSL certificate from us-east-1 (only if custom domains are enabled)
+      const certificate = config.domains.enableCustomDomains && config.domains.certificateArn 
+        ? acm.Certificate.fromCertificateArn(
+            this, 
+            'ImportedSslCertificate', 
+            config.domains.certificateArn
+          )
+        : undefined;
 
       const responseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeaders', {
         securityHeadersBehavior: {
@@ -554,9 +560,12 @@ export class FijianRagAppStack extends cdk.Stack {
         },
       });
 
-      cloudFrontDistribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
-        domainNames: ['fijian-ai.org', 'www.fijian-ai.org'],
-        certificate: certificate,
+      // Build CloudFront distribution configuration
+      const distributionConfig: cloudfront.DistributionProps = {
+        ...(config.domains.enableCustomDomains && certificate ? {
+          domainNames: config.domains.customDomains,
+          certificate: certificate,
+        } : {}),
         defaultBehavior: {
           origin: new origins.S3Origin(frontendBucket),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -581,7 +590,9 @@ export class FijianRagAppStack extends cdk.Stack {
             ttl: cdk.Duration.minutes(5),
           },
         ],
-      });
+      };
+
+      cloudFrontDistribution = new cloudfront.Distribution(this, 'FrontendDistribution', distributionConfig);
     }
 
     // === CloudWatch Monitoring & Alarms ===
@@ -705,6 +716,11 @@ export class FijianRagAppStack extends cdk.Stack {
       new cdk.CfnOutput(this, 'MonitoringEnabled', {
         value: config.monitoring.enableDetailedMonitoring.toString(),
         description: 'Whether detailed monitoring is enabled'
+      });
+
+      new cdk.CfnOutput(this, 'CustomDomainsEnabled', {
+        value: config.domains.enableCustomDomains.toString(),
+        description: 'Whether custom domains are enabled for CloudFront'
       });
 
       // === Cognito Configuration Outputs ===
