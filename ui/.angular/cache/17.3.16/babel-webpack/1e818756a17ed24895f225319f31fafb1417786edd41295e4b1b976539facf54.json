@@ -1,0 +1,1 @@
+{"ast":null,"code":"const i = {\n  maxWidth: {\n    value: \"100%\"\n  },\n  height: {\n    value: \"auto\"\n  },\n  objectFit: {\n    value: \"initial\"\n  },\n  objectPosition: {\n    value: \"initial\"\n  }\n};\nexport { i as image };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

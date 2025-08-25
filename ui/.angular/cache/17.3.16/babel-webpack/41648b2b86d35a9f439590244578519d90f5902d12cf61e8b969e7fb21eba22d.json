@@ -1,0 +1,1 @@
+{"ast":null,"code":"import { Logger as m } from \"aws-amplify\";\nconst o = o => new m(`AmplifyUI:${o}`);\nexport { o as getLogger };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

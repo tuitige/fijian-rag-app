@@ -1,0 +1,1 @@
+{"ast":null,"code":"import { MAXIMUM_RETRY_DELAY } from \"./constants\";\nexport var defaultDelayDecider = function (delayBase, attempts) {\n  return Math.floor(Math.min(MAXIMUM_RETRY_DELAY, Math.random() * Math.pow(2, attempts) * delayBase));\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

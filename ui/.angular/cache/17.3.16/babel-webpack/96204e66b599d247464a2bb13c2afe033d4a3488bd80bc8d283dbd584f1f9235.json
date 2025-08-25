@@ -1,0 +1,1 @@
+{"ast":null,"code":"export var USER_AGENT = \"user-agent\";\nexport var X_AMZ_USER_AGENT = \"x-amz-user-agent\";\nexport var SPACE = \" \";\nexport var UA_ESCAPE_REGEX = /[^\\!\\#\\$\\%\\&\\'\\*\\+\\-\\.\\^\\_\\`\\|\\~\\d\\w]/g;","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

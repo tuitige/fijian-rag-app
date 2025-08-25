@@ -1,0 +1,1 @@
+{"ast":null,"code":"const t = t => {\n    var o;\n    return null === (o = t.context.actorRef) || void 0 === o ? void 0 : o.getSnapshot();\n  },\n  o = o => {\n    var n;\n    return null === (n = t(o)) || void 0 === n ? void 0 : n.context;\n  };\nexport { o as getActorContext, t as getActorState };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

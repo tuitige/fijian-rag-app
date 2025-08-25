@@ -1,0 +1,14 @@
+{
+  "FijianRagAppStack": {
+    "MonitoringEnabled": "true",
+    "ManualUploadPath": "s3://fijianragappstack-contentbucket52d4b12c-hnjnz7wa9uyu/manuals/",
+    "UnifiedApiUrl": "https://0wujtxlvc0.execute-api.us-west-2.amazonaws.com/prod/",
+    "CloudFrontUrl": "https://d19gq3ply0621o.cloudfront.net",
+    "FrontendBucketName": "fijianragappstack-frontendbucketefe2e19c-wlnfr3ejeesy",
+    "ModuleVocabularyTableName": "FijianRagAppStack-ModuleVocabularyTable63A265B8-N6W1RS49E3VV",
+    "CloudFrontDistributionId": "E2M7WKH0MXM6FY",
+    "fijianaiapiEndpointC4A3E626": "https://0wujtxlvc0.execute-api.us-west-2.amazonaws.com/prod/",
+    "Environment": "prod",
+    "LearningModulesTableName": "FijianRagAppStack-LearningModulesTable88112A15-11ABGL5PEW6TD"
+  }
+}

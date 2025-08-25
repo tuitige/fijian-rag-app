@@ -1,0 +1,1 @@
+{"ast":null,"code":"export var invalidFunction = function (message) {\n  return function () {\n    throw new Error(message);\n  };\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

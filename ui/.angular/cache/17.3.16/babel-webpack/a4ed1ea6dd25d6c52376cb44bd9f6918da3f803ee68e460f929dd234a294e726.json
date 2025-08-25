@@ -1,0 +1,1 @@
+{"ast":null,"code":"const t = {\n  highlighted: {\n    fontWeight: {\n      value: \"{fontWeights.bold}\"\n    }\n  }\n};\nexport { t as highlightmatch };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

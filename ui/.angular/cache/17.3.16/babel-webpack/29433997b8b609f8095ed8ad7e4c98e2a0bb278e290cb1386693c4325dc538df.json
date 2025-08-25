@@ -1,0 +1,1 @@
+{"ast":null,"code":"import { escapeUri } from \"./escape-uri\";\nexport var escapeUriPath = function (uri) {\n  return uri.split(\"/\").map(escapeUri).join(\"/\");\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

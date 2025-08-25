@@ -1,0 +1,1 @@
+{"ast":null,"code":"const e = {\n  slideX: {\n    small: {\n      value: \"translateX(0.5em)\"\n    },\n    medium: {\n      value: \"translateX(1em)\"\n    },\n    large: {\n      value: \"translateX(2em)\"\n    }\n  }\n};\nexport { e as transforms };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

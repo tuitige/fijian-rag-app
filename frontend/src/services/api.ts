@@ -2,8 +2,11 @@ import axios, { AxiosResponse } from 'axios';
 import { ApiError } from '../types/api';
 
 // Configure axios defaults
+const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || '/api';
+console.log('🔧 API Base URL:', apiBaseUrl);
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE_URL || '/api',
+  baseURL: apiBaseUrl,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -13,6 +16,7 @@ const api = axios.create({
 // Request interceptor for adding auth headers
 api.interceptors.request.use(
   (config) => {
+    console.log('🚀 API Request:', (config.baseURL || '') + (config.url || ''));
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

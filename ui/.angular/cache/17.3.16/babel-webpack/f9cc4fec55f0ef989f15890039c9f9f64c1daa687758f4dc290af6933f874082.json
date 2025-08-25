@@ -1,0 +1,1 @@
+{"ast":null,"code":"// Default behavior is to use the primary auth mode for an API,\n// so we are returning an empty array so that DataStore will default\n// to using the primary auth mode.\nexport var defaultAuthStrategy = function () {\n  return [];\n};\n//# sourceMappingURL=defaultAuthStrategy.js.map","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

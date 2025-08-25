@@ -1,0 +1,1 @@
+{"ast":null,"code":"const e = {\n  height: {\n    value: \"{space.relative.full.value}\"\n  }\n};\nexport { e as dialcodeselect };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

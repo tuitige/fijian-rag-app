@@ -1,0 +1,1 @@
+{"ast":null,"code":"var overArg = require('./_overArg');\n\n/** Built-in value references. */\nvar getPrototype = overArg(Object.getPrototypeOf, Object);\nmodule.exports = getPrototype;","map":null,"metadata":{},"sourceType":"script","externalDependencies":[]}

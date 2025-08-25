@@ -1,0 +1,1 @@
+{"ast":null,"code":"import { tokens as e } from \"./tokens/index.mjs\";\nimport { breakpoints as o } from \"./breakpoints.mjs\";\nconst t = {\n  tokens: e,\n  breakpoints: o,\n  name: \"default-theme\"\n};\nexport { t as defaultTheme };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

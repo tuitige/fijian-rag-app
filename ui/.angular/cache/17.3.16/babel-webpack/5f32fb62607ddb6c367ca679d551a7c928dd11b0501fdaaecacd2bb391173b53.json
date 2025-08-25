@@ -1,0 +1,1 @@
+{"ast":null,"code":"export * from \"./NodeUseDualstackEndpointConfigOptions\";\nexport * from \"./NodeUseFipsEndpointConfigOptions\";\nexport * from \"./resolveCustomEndpointsConfig\";\nexport * from \"./resolveEndpointsConfig\";","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

@@ -1,0 +1,1 @@
+{"ast":null,"code":"import { EventStreamMarshaller } from \"./EventStreamMarshaller\";\nexport var eventStreamSerdeProvider = function (options) {\n  return new EventStreamMarshaller(options);\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

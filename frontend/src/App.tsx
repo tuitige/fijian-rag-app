@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout/Layout';
 import { ChatContainer } from './components/Chat';
 // import { Auth, ProtectedRoute } from './components/Auth'; // TODO: Will be used for authentication features
@@ -13,6 +13,18 @@ import './styles/globals.css';
 const AuthenticatedApp: React.FC = () => {
   const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState<'chat' | 'demo'>('chat');
+
+  // Add deployment info logging
+  useEffect(() => {
+    const buildTime = new Date().toISOString();
+    console.log('🚀 Fijian RAG App - Frontend Build Info:');
+    console.log('  Build deployed at:', buildTime);
+    console.log('  Environment:', process.env.REACT_APP_ENVIRONMENT);
+    console.log('  API URL:', process.env.REACT_APP_API_BASE_URL);
+    console.log('  Version: v2.0-prod-debug');
+  // Unique log for deployment verification
+  console.log('*** Deployment Test: If you see this, the deployment is LIVE! [2025-08-25] ***');
+  }, []);
 
   const renderPage = () => {
     switch (currentPage) {

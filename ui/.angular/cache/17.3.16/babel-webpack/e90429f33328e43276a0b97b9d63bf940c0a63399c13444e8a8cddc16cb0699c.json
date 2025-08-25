@@ -1,0 +1,1 @@
+{"ast":null,"code":"var STATE_DELIMITER = '.';\nvar EMPTY_ACTIVITY_MAP = {};\nvar DEFAULT_GUARD_TYPE = 'xstate.guard';\nvar TARGETLESS_KEY = '';\nexport { DEFAULT_GUARD_TYPE, EMPTY_ACTIVITY_MAP, STATE_DELIMITER, TARGETLESS_KEY };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

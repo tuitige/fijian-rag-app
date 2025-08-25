@@ -1,0 +1,1 @@
+{"ast":null,"code":"export const environment = {\n  production: true,\n  apiUrl: 'https://bv4a86k87j.execute-api.us-west-2.amazonaws.com/prod'\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

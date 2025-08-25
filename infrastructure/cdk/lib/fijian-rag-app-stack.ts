@@ -74,9 +74,11 @@ export class FijianRagAppStack extends cdk.Stack {
     const frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
       removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: !config.isProduction,
-      publicReadAccess: false,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      publicReadAccess: !config.isProduction, // Enable public read for dev
+      blockPublicAccess: config.isProduction ? s3.BlockPublicAccess.BLOCK_ALL : s3.BlockPublicAccess.BLOCK_ACLS,
       encryption: s3.BucketEncryption.S3_MANAGED,
+      websiteIndexDocument: !config.isProduction ? 'index.html' : undefined,
+      websiteErrorDocument: !config.isProduction ? 'index.html' : undefined,
     });
 
     const trainingDataBucket = new s3.Bucket(this, 'TrainingDataBucket', {
@@ -391,7 +393,7 @@ export class FijianRagAppStack extends cdk.Stack {
 
     // === NEW: CloudWatch Dashboard for Monitoring ===
     const dashboard = new cloudwatch.Dashboard(this, 'LearningModulesDashboard', {
-      dashboardName: 'fijian-learning-modules',
+      dashboardName: `fijian-learning-modules-${this.region}`,
     });
 
     dashboard.addWidgets(
@@ -515,6 +517,13 @@ export class FijianRagAppStack extends cdk.Stack {
     // === CloudFront Distribution (Production Only) ===
     let cloudFrontDistribution: cloudfront.Distribution | undefined;
     if (config.security.enableCloudFront) {
+      // Import existing SSL certificate from us-east-1
+      const certificate = acm.Certificate.fromCertificateArn(
+        this, 
+        'ImportedSslCertificate', 
+        'arn:aws:acm:us-east-1:934889091214:certificate/a79e4607-1f82-4ceb-a996-73c9a633e18c'
+      );
+
       const responseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeaders', {
         securityHeadersBehavior: {
           strictTransportSecurity: {
@@ -530,6 +539,8 @@ export class FijianRagAppStack extends cdk.Stack {
       });
 
       cloudFrontDistribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
+        domainNames: ['fijian-ai.org', 'www.fijian-ai.org'],
+        certificate: certificate,
         defaultBehavior: {
           origin: new origins.S3Origin(frontendBucket),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -654,6 +665,14 @@ export class FijianRagAppStack extends cdk.Stack {
         value: frontendBucket.bucketName,
         description: 'S3 bucket for frontend hosting'
       });
+
+      // Add website URL for dev environment
+      if (!config.isProduction) {
+        new cdk.CfnOutput(this, 'FrontendWebsiteUrl', {
+          value: frontendBucket.bucketWebsiteUrl,
+          description: 'S3 website URL for frontend (dev environment)'
+        });
+      }
 
       if (cloudFrontDistribution) {
         new cdk.CfnOutput(this, 'CloudFrontUrl', {

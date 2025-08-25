@@ -1,0 +1,1 @@
+{"ast":null,"code":"const fallbackWindow = {};\nexport function locateWindow() {\n  if (typeof window !== \"undefined\") {\n    return window;\n  } else if (typeof self !== \"undefined\") {\n    return self;\n  }\n  return fallbackWindow;\n}","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

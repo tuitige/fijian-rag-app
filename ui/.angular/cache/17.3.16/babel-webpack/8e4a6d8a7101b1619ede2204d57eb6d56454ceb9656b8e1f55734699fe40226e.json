@@ -1,0 +1,1 @@
+{"ast":null,"code":"const e = {\n  gap: {\n    value: \"{space.zero.value}\"\n  },\n  vertical: {\n    alignItems: {\n      value: \"center\"\n    }\n  },\n  outer: {\n    alignItems: {\n      value: \"center\"\n    }\n  }\n};\nexport { e as fieldgroup };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

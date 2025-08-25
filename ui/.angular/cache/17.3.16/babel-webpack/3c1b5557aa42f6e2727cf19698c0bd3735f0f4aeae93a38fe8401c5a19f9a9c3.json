@@ -1,0 +1,1 @@
+{"ast":null,"code":"export function isValidHostname(hostname) {\n  var hostPattern = /^[a-z0-9][a-z0-9\\.\\-]*[a-z0-9]$/;\n  return hostPattern.test(hostname);\n}","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

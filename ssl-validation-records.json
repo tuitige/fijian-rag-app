@@ -1,0 +1,31 @@
+{
+  "Comment": "Add SSL certificate validation records for fijian-ai.org",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "_05b9fc2bc6418df65a5125986b62decd.fijian-ai.org.",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "_3eebe16ee0b28634915b983cad51b1b6.xlfgrmvvlj.acm-validations.aws."
+          }
+        ]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "_a70efd843f9b9db994088e37b4d320f2.www.fijian-ai.org.",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "_02fea624a8e524008fd3d5491ba706d8.xlfgrmvvlj.acm-validations.aws."
+          }
+        ]
+      }
+    }
+  ]
+}

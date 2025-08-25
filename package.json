@@ -9,6 +9,10 @@
     "cdk:deploy": "cd infrastructure/cdk && npm run cdk:deploy",
     "cdk:destroy": "cd infrastructure/cdk && npx cdk destroy",
     "cdk:synth": "cd infrastructure/cdk && npx cdk synth",
+    "frontend:config": "node scripts/deploy-frontend.js --config-only",
+    "frontend:build": "node scripts/deploy-frontend.js --skip-upload",
+    "frontend:deploy": "node scripts/deploy-frontend.js",
+    "deploy:full": "npm run cdk:deploy && npm run frontend:deploy",
     "test": "jest"
   },
   "dependencies": {

@@ -1,0 +1,1 @@
+{"ast":null,"code":"export const environment = {\n  production: true,\n  apiUrl: 'https://qbfl8hrn0g.execute-api.us-west-2.amazonaws.com/prod',\n  apiKey: 'GtI1FXSndrwoaZWRKfSg2NtuBI4qqJU1gqPVw1H9'\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

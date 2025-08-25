@@ -1,0 +1,1 @@
+{"ast":null,"code":"// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.\n// SPDX-License-Identifier: Apache-2.0\nexport { API, APIClass } from './API';\nexport { graphqlOperation, GraphQLAuthError, GRAPHQL_AUTH_MODE } from '@aws-amplify/api-graphql';","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

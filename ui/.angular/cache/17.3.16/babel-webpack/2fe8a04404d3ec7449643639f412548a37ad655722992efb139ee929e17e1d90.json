@@ -1,0 +1,1 @@
+{"ast":null,"code":"export var getArrayIfSingleItem = function (mayBeArray) {\n  return Array.isArray(mayBeArray) ? mayBeArray : [mayBeArray];\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

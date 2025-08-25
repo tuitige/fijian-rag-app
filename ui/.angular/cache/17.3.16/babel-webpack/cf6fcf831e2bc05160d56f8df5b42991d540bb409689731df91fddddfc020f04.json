@@ -1,0 +1,1 @@
+{"ast":null,"code":"export var fromStatic = function (staticValue) {\n  return function () {\n    return Promise.resolve(staticValue);\n  };\n};","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}

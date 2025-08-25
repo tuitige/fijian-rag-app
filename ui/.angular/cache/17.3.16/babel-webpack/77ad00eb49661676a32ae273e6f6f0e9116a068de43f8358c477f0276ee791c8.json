@@ -1,0 +1,1 @@
+{"ast":null,"code":"import { fileuploader as e } from \"./fileUploader.mjs\";\nconst l = Object.assign(Object.assign({}, e), {\n  filelist: {\n    flexDirection: {\n      value: \"column\"\n    },\n    gap: {\n      value: \"{space.small}\"\n    }\n  }\n});\nexport { l as storagemanager };","map":null,"metadata":{},"sourceType":"module","externalDependencies":[]}
