@@ -2,13 +2,26 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { AuthProvider } from "react-oidc-context";
+
+const cognitoAuthConfig = {
+  authority: "https://cognito-idp.us-west-2.amazonaws.com/us-west-2_shE3zxrwp",
+  client_id: "4pvrvr5jf8h9bvi59asmlbdjcp",
+  redirect_uri: "https://fijian-ai.org",
+  response_type: "code",
+  scope: "email openid profile",
+};
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
+
+// wrap the application with AuthProvider
 root.render(
   <React.StrictMode>
-    <App />
+    <AuthProvider {...cognitoAuthConfig}>
+      <App />
+    </AuthProvider>
   </React.StrictMode>
 );
 
