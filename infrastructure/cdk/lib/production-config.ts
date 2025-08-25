@@ -55,7 +55,7 @@ export const getProductionConfig = (context?: any): ProductionConfig => {
     
     security: {
       enableWAF: isProduction,
-      enableCloudFront: isProduction,
+      enableCloudFront: true, // Always enable CloudFront for production domains
       corsOrigins: isProduction 
         ? ['https://fijian-ai.org', 'https://www.fijian-ai.org']
         : ['http://localhost:3000', 'https://fijian-ai.org'],
