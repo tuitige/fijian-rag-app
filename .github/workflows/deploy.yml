@@ -37,7 +37,7 @@ jobs:
         run: |
           cd frontend
           aws s3 sync build/ s3://fijianragappstack-frontendbucketefe2e19c-wlnfr3ejeesy/ --delete
-          aws cloudfront create-invalidation --distribution-id <YOUR_DISTRIBUTION_ID> --paths "/*"
+          aws cloudfront create-invalidation --distribution-id E16GKA7HSOLGFW --paths "/*"
 
   backend-cdk-deploy:
     if: "!contains(github.event.head_commit.modified, 'frontend/')"
