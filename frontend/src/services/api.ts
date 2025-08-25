@@ -17,10 +17,16 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     console.log('🚀 API Request:', (config.baseURL || '') + (config.url || ''));
-    const token = localStorage.getItem('authToken');
+    
+    // Prefer Cognito ID token, fallback to legacy authToken
+    const cognitoToken = localStorage.getItem('cognitoIdToken');
+    const legacyToken = localStorage.getItem('authToken');
+    
+    const token = cognitoToken || legacyToken;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
     return config;
   },
   (error) => Promise.reject(error)

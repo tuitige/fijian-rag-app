@@ -1,0 +1,99 @@
+.cognito-auth {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  margin-bottom: var(--spacing-lg);
+}
+
+.cognito-auth.loading {
+  justify-content: center;
+  gap: var(--spacing-sm);
+}
+
+.cognito-auth.unauthenticated {
+  flex-direction: column;
+  text-align: center;
+  gap: var(--spacing-md);
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.welcome-text {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.user-email {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.login-prompt h3 {
+  margin: 0 0 var(--spacing-sm) 0;
+  color: var(--color-text-primary);
+}
+
+.login-prompt p {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--color-text-secondary);
+}
+
+.login-btn, .logout-btn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.login-btn {
+  background: var(--color-primary);
+  color: white;
+}
+
+.login-btn:hover {
+  background: var(--color-primary-dark);
+}
+
+.logout-btn {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.logout-btn:hover {
+  background: var(--color-surface-hover);
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-top: 2px solid var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.error-message {
+  padding: var(--spacing-sm);
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 4px;
+  color: #c33;
+  font-size: 0.875rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
