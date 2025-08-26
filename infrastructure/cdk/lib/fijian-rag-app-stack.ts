@@ -484,6 +484,14 @@ export class FijianRagAppStack extends cdk.Stack {
     });
     // Built-in CORS is configured above, no need for manual CORS
 
+    // Chat streaming endpoint: POST /chat/stream
+    const chatStreamResource = chatResource.addResource('stream');
+    chatStreamResource.addMethod('POST', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    // Built-in CORS is configured above, no need for manual CORS
+
     // Dictionary endpoints
     const dictionaryResource = unifiedApi.root.addResource('dictionary');
     

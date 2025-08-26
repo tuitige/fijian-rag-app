@@ -368,6 +368,90 @@ export const handler = async (
       });
     }
 
+    // Handle streaming chat: POST /chat/stream
+    if (event.httpMethod === 'POST' && event.path === '/chat/stream') {
+      console.log('[handler] Handling POST /chat/stream request');
+      
+      // Parse and validate the request body
+      const body = JSON.parse(event.body || '{}');
+      console.log('[handler] Stream request body:', JSON.stringify(body, null, 2));
+      
+      const userInput = body.input || body.message || '';
+      const mode = body.mode || 'conversation';
+      const direction = body.direction;
+      const context = body.context || [];
+      
+      console.log('[handler] Stream user input:', userInput);
+      console.log('[handler] Stream mode:', mode);
+      console.log('[handler] Stream direction:', direction);
+      
+      // Validate user input
+      if (!validateUserInput(userInput)) {
+        console.log('[handler] Invalid or empty user input detected for stream');
+        return jsonResponse(400, { error: 'User input is required' });
+      }
+
+      // Validate mode
+      if (!['translation', 'learning', 'conversation'].includes(mode)) {
+        console.log('[handler] Invalid mode for stream:', mode);
+        return jsonResponse(400, { error: 'Invalid mode. Must be translation, learning, or conversation' });
+      }
+
+      // Initialize Bedrock client
+      const br = new BedrockRuntimeClient({});
+      console.log('[handler] Bedrock client initialized for streaming');
+
+      // Generate system prompt based on mode
+      const systemPrompt = getSystemPrompt(mode, direction);
+      console.log('[handler] System prompt generated for streaming mode:', mode);
+
+      // Prepare the request payload for Claude model via Bedrock
+      const requestPayload = createClaudeRequestPayload(userInput, MAX_TOKENS, systemPrompt, context);
+      console.log('[handler] Stream request payload:', JSON.stringify(requestPayload, null, 2));
+
+      // Use the correct model ID for Claude 3 Haiku via Bedrock
+      console.log('[handler] Using model ID for streaming:', CLAUDE_MODEL_ID);
+
+      // Invoke the model (for now, non-streaming but handled via stream endpoint)
+      const res = await br.send(new InvokeModelCommand({
+        modelId: CLAUDE_MODEL_ID,
+        contentType: 'application/json',
+        accept: 'application/json',
+        body: JSON.stringify(requestPayload)
+      }));
+
+      console.log('[handler] Bedrock stream response status:', res.$metadata.httpStatusCode);
+      
+      // Parse the response
+      const responseBody = Buffer.from(res.body).toString();
+      console.log('[handler] Raw stream response body:', responseBody);
+      
+      const parsedResponse = JSON.parse(responseBody);
+      console.log('[handler] Parsed stream response:', JSON.stringify(parsedResponse, null, 2));
+      
+      // Extract the text content from Claude's response
+      const responseText = extractResponseText(parsedResponse);
+      console.log('[handler] Final stream response text:', responseText);
+      
+      // Record chat interaction if userId provided
+      const userId = body.userId;
+      if (userId) {
+        await recordChatMessage(userId, userInput, responseText);
+      }
+      
+      // For now, return the complete response (not streaming chunks)
+      // The frontend can handle this as a complete response
+      return jsonResponse(200, { 
+        message: responseText,
+        mode,
+        direction,
+        model: CLAUDE_MODEL_ID,
+        inputTokens: parsedResponse.usage?.input_tokens || 0,
+        outputTokens: parsedResponse.usage?.output_tokens || 0,
+        stream: true // Indicate this was from the stream endpoint
+      });
+    }
+
     console.log('[handler] Unsupported method/path combination');
     return jsonResponse(405, { error: 'Method Not Allowed' });
     
