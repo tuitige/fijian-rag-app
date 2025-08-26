@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from "react-oidc-context";
+import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout/Layout';
 import { ChatContainer } from './components/Chat';
 import LearningFeaturesDemo from './components/LearningFeaturesDemo';
@@ -46,7 +46,7 @@ function App() {
           flexDirection: 'column',
           gap: 'var(--spacing-md)'
         }}>
-          <div>Encountering error... {auth.error.message}</div>
+          <div>Encountering error... {auth.error}</div>
         </div>
       </Layout>
     );

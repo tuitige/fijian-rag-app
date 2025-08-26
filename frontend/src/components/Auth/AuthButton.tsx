@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from "react-oidc-context";
+import { useAuth } from '../../contexts/AuthContext';
 
 const AuthButton: React.FC = () => {
   const auth = useAuth();
@@ -18,7 +18,7 @@ const AuthButton: React.FC = () => {
   if (auth.isAuthenticated) {
     return (
       <button 
-        onClick={() => auth.removeUser()}
+        onClick={() => auth.logoutFromCognito()}
         style={{
           padding: 'var(--spacing-sm) var(--spacing-md)',
           backgroundColor: 'var(--color-danger)',
@@ -38,7 +38,7 @@ const AuthButton: React.FC = () => {
   // Show Sign In button when not authenticated
   return (
     <button 
-      onClick={() => auth.signinRedirect()}
+      onClick={() => auth.loginWithCognito()}
       style={{
         padding: 'var(--spacing-sm) var(--spacing-md)',
         backgroundColor: 'var(--color-primary)',
