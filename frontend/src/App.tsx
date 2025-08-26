@@ -11,9 +11,9 @@ function App() {
   const auth = useAuth();
 
   const signOutRedirect = () => {
-    const clientId = "4pvrvr5jf8h9bvi59asmlbdjcp";
-    const logoutUri = "https://fijian-ai.org";
-    const cognitoDomain = "https://fijian-auth.auth.us-west-2.amazoncognito.com";
+    const clientId = process.env.REACT_APP_COGNITO_CLIENT_ID || "4pvrvr5jf8h9bvi59asmlbdjcp";
+    const logoutUri = process.env.REACT_APP_REDIRECT_URI || window.location.origin;
+    const cognitoDomain = `https://${process.env.REACT_APP_COGNITO_DOMAIN || 'fijian-auth.auth.us-west-2.amazoncognito.com'}`;
     window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
   };
 
