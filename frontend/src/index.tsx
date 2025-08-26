@@ -6,8 +6,8 @@ import { AuthProvider } from "react-oidc-context";
 
 const cognitoAuthConfig = {
   authority: "https://cognito-idp.us-west-2.amazonaws.com/us-west-2_shE3zxrwp",
-  client_id: "4pvrvr5jf8h9bvi59asmlbdjcp",
-  redirect_uri: "https://fijian-ai.org",
+  client_id: process.env.REACT_APP_COGNITO_CLIENT_ID || "4pvrvr5jf8h9bvi59asmlbdjcp",
+  redirect_uri: process.env.REACT_APP_REDIRECT_URI || window.location.origin,
   response_type: "code",
   scope: "email openid profile",
 };
