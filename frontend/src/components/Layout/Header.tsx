@@ -1,4 +1,5 @@
 import React from 'react';
+import AuthButton from '../Auth/AuthButton';
 
 const Header: React.FC = () => {
   return (
@@ -24,10 +25,17 @@ const Header: React.FC = () => {
           </h1>
           
           <div style={{
-            fontSize: 'var(--font-size-sm)',
-            color: 'var(--color-text-secondary)'
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--spacing-md)'
           }}>
-            Learn Fijian with AI
+            <div style={{
+              fontSize: 'var(--font-size-sm)',
+              color: 'var(--color-text-secondary)'
+            }}>
+              Learn Fijian with AI
+            </div>
+            <AuthButton />
           </div>
         </div>
       </div>
