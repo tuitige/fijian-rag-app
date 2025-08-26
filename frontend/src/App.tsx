@@ -1,4 +1,3 @@
-// Trigger: Minimal edit to test GitHub Actions frontend deploy workflow
 import React from 'react';
 import { useAuth } from "react-oidc-context";
 import Layout from './components/Layout/Layout';
