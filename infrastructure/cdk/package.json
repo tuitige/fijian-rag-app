@@ -6,7 +6,7 @@
     "watch": "tsc -w",
     "build:lambdas": "echo 'Lambda build completed (using CDK bundling)'",
     "cdk:build": "npx cdk synth",
-    "cdk:deploy": "npx cdk deploy",
+    "cdk:deploy": "npx cdk deploy --require-approval never",
     "test": "jest"
   },
   "dependencies": {
