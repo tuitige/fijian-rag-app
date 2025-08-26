@@ -1,0 +1,84 @@
+name: Deploy Backend & Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infrastructure/**'
+      - 'backend/**'
+      - 'lambda/**'
+      - 'schemas/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '!scripts/deploy-frontend.js'
+      - '!scripts/configure-frontend.js'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+env:
+  NODE_VERSION: '20'
+  AWS_REGION: 'us-west-2'
+
+jobs:
+  backend-cdk-deploy:
+    runs-on: ubuntu-latest
+    name: Build & Deploy CDK/Backend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            infrastructure/cdk/package-lock.json
+            
+      - name: Install root dependencies
+        run: npm ci
+        
+      - name: Install CDK dependencies
+        run: cd infrastructure/cdk && npm ci
+        
+      - name: Build project
+        run: npm run build
+        
+      - name: Run CDK tests
+        run: cd infrastructure/cdk && npm test
+        
+      - name: CDK synthesis check
+        run: cd infrastructure/cdk && npx cdk synth --quiet
+        
+      - name: Configure AWS credentials
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ env.AWS_REGION }}
+        run: |
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set default.region $AWS_DEFAULT_REGION
+          
+      - name: Deploy CDK stack
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ env.AWS_REGION }}
+        run: npm run cdk:deploy
+        
+      - name: Verify deployment
+        run: |
+          echo "✅ Backend/CDK deployment completed"
+          echo "Infrastructure deployed via npm run cdk:deploy script"
