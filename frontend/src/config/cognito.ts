@@ -8,6 +8,6 @@ export const COGNITO_CONFIG = {
 };
 
 export const COGNITO_HOSTED_UI = {
-  signInUrl: `https://${COGNITO_CONFIG.domain}/login?client_id=${COGNITO_CONFIG.clientId}&response_type=code&scope=email+openid+profile&redirect_uri=${encodeURIComponent(process.env.REACT_APP_REDIRECT_URI || (process.env.NODE_ENV === 'production' ? 'https://fijian-ai.org' : window.location.origin))}`,
+  signInUrl: `https://${COGNITO_CONFIG.domain}/login?client_id=${COGNITO_CONFIG.clientId}&response_type=token&scope=email+openid+profile&redirect_uri=${encodeURIComponent(process.env.REACT_APP_REDIRECT_URI || (process.env.NODE_ENV === 'production' ? 'https://fijian-ai.org' : window.location.origin))}`,
   signOutUrl: `https://${COGNITO_CONFIG.domain}/logout?client_id=${COGNITO_CONFIG.clientId}&logout_uri=${encodeURIComponent(process.env.REACT_APP_REDIRECT_URI || (process.env.NODE_ENV === 'production' ? 'https://fijian-ai.org' : window.location.origin))}`,
 };
