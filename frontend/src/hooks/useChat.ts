@@ -3,7 +3,7 @@ import { Message } from '../types/chat';
 import { ChatService } from '../services/chatService';
 import { LLMService } from '../services/llmService';
 import { useChatMode } from '../contexts/ChatModeContext';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { useProgress } from '../contexts/UserProgressContext';
 import { useApi } from './useApi';
 import { StreamChunk } from '../types/llm';
