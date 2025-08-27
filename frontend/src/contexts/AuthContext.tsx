@@ -30,8 +30,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Check for existing auth token on app startup
     const checkAuthStatus = async () => {
       try {
-        // First check for Cognito token from URL hash (after redirect)
-        const tokenFromUrl = authService.parseTokenFromUrl();
+        // First check for Cognito token from URL (after redirect)
+        const tokenFromUrl = await authService.parseTokenFromUrl();
         if (tokenFromUrl) {
           const user = authService.getCognitoUserInfo();
           if (user) {
