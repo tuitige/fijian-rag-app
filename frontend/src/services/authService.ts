@@ -31,20 +31,53 @@ class AuthService {
   }
 
   /**
-   * Parses tokens from URL hash after Cognito redirect
+   * Parses authorization code or tokens from URL after Cognito redirect
+   * Handles both authorization code flow (code) and implicit flow (tokens)
    * Returns the id_token if found, null otherwise
    */
-  parseTokenFromUrl(): string | null {
-    const hash = window.location.hash.substring(1);
-    const params = new URLSearchParams(hash);
-    
-    const idToken = params.get('id_token');
-    const accessToken = params.get('access_token');
-    const error = params.get('error');
+  async parseTokenFromUrl(): Promise<string | null> {
+    // First check for authorization code (new flow)
+    const urlParams = new URLSearchParams(window.location.search);
+    const authCode = urlParams.get('code');
+    const error = urlParams.get('error');
 
     if (error) {
       console.error('Cognito authentication error:', error);
       throw new Error(`Authentication failed: ${error}`);
+    }
+
+    if (authCode) {
+      try {
+        // Exchange authorization code for tokens
+        const tokens = await this.exchangeCodeForTokens(authCode);
+        
+        // Store tokens in localStorage
+        localStorage.setItem('cognitoIdToken', tokens.id_token);
+        if (tokens.access_token) {
+          localStorage.setItem('cognitoAccessToken', tokens.access_token);
+        }
+        
+        // Clear the URL search params
+        window.history.replaceState(null, '', window.location.pathname);
+        
+        return tokens.id_token;
+      } catch (error) {
+        console.error('Error exchanging authorization code:', error);
+        throw new Error('Failed to exchange authorization code for tokens');
+      }
+    }
+
+    // Fallback to implicit flow (legacy support)
+    const hash = window.location.hash.substring(1);
+    const hashParams = new URLSearchParams(hash);
+    
+    const idToken = hashParams.get('id_token');
+    const accessToken = hashParams.get('access_token');
+    const hashError = hashParams.get('error');
+
+    if (hashError) {
+      console.error('Cognito authentication error:', hashError);
+      throw new Error(`Authentication failed: ${hashError}`);
     }
 
     if (idToken) {
@@ -61,6 +94,38 @@ class AuthService {
     }
 
     return null;
+  }
+
+  /**
+   * Exchanges authorization code for tokens using Cognito token endpoint
+   */
+  private async exchangeCodeForTokens(authCode: string): Promise<{id_token: string, access_token: string}> {
+    const tokenEndpoint = `https://${COGNITO_CONFIG.domain}/oauth2/token`;
+    const redirectUri = process.env.REACT_APP_REDIRECT_URI || 
+                       (process.env.NODE_ENV === 'production' ? 'https://fijian-ai.org' : window.location.origin);
+
+    const params = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: COGNITO_CONFIG.clientId,
+      code: authCode,
+      redirect_uri: redirectUri,
+    });
+
+    const response = await fetch(tokenEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Token exchange failed: ${response.status} ${errorData.error || response.statusText}`);
+    }
+
+    const tokens = await response.json();
+    return tokens;
   }
 
   /**
