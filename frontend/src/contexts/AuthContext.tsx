@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { /*User,*/ AuthState, LoginCredentials, SignupCredentials } from '../types/auth';
 import { authService } from '../services/authService';
+import { validateCognitoConfig, validateEnvironmentVariables } from '../utils/authTestUtils';
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -27,6 +28,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   });
 
   useEffect(() => {
+    // Log Cognito configuration on startup for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🚀 Auth Context Initialized');
+      validateCognitoConfig();
+      validateEnvironmentVariables();
+    }
+
     // Check for existing auth token on app startup
     const checkAuthStatus = async () => {
       try {

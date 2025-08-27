@@ -19,6 +19,9 @@ class AuthService {
    * Redirects to Cognito Hosted UI for authentication
    */
   redirectToLogin(): void {
+    console.log('🔐 Cognito Login Flow - Redirecting to:', COGNITO_HOSTED_UI.signInUrl);
+    console.log('🔧 Using domain:', COGNITO_CONFIG.domain);
+    console.log('🔧 Using client ID:', COGNITO_CONFIG.clientId);
     window.location.href = COGNITO_HOSTED_UI.signInUrl;
   }
 
@@ -36,10 +39,15 @@ class AuthService {
    * Returns the id_token if found, null otherwise
    */
   async parseTokenFromUrl(): Promise<string | null> {
+    console.log('🔍 Parsing tokens from URL:', window.location.href);
+    
     // First check for authorization code (new flow)
     const urlParams = new URLSearchParams(window.location.search);
     const authCode = urlParams.get('code');
     const error = urlParams.get('error');
+
+    console.log('🔍 Authorization code found:', authCode ? 'Yes' : 'No');
+    console.log('🔍 Error in URL:', error || 'None');
 
     if (error) {
       console.error('Cognito authentication error:', error);
@@ -48,8 +56,13 @@ class AuthService {
 
     if (authCode) {
       try {
+        console.log('🔄 Exchanging authorization code for tokens...');
         // Exchange authorization code for tokens
         const tokens = await this.exchangeCodeForTokens(authCode);
+        
+        console.log('✅ Tokens received successfully');
+        console.log('🎫 ID Token length:', tokens.id_token?.length || 0);
+        console.log('🎟️ Access Token length:', tokens.access_token?.length || 0);
         
         // Store tokens in localStorage
         localStorage.setItem('cognitoIdToken', tokens.id_token);
@@ -62,7 +75,7 @@ class AuthService {
         
         return tokens.id_token;
       } catch (error) {
-        console.error('Error exchanging authorization code:', error);
+        console.error('❌ Error exchanging authorization code:', error);
         throw new Error('Failed to exchange authorization code for tokens');
       }
     }
