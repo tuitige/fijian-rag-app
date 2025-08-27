@@ -4,7 +4,7 @@ export const COGNITO_CONFIG = {
   userPoolId: 'us-west-2_shE3zxrwp',
   // Use the existing client ID provided by user
   clientId: process.env.REACT_APP_COGNITO_CLIENT_ID || '4pvrvr5jf8h9bvi59asmlbdjcp',
-  domain: process.env.REACT_APP_COGNITO_DOMAIN || 'auth.fijian-ai.org',
+  domain: process.env.REACT_APP_COGNITO_DOMAIN || 'fijian-auth.auth.us-west-2.amazoncognito.com',
 };
 
 export const COGNITO_HOSTED_UI = {

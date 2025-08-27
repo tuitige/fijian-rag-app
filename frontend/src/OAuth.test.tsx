@@ -50,3 +50,17 @@ test('OAuth configuration falls back to defaults when env vars not set', () => {
   expect(cognitoAuthConfig.redirect_uri).toBe('http://localhost');
   expect(cognitoAuthConfig.response_type).toBe('token');
 });
+
+test('Cognito domain configuration uses correct CDK-generated domain', () => {
+  // Clear environment variable to test fallback
+  delete process.env.REACT_APP_COGNITO_DOMAIN;
+  
+  // Clear module cache to get fresh config
+  delete require.cache[require.resolve('./config/cognito')];
+  
+  // Import the actual configuration
+  const { COGNITO_CONFIG } = require('./config/cognito');
+  
+  // Validate that the default domain matches the CDK-generated domain
+  expect(COGNITO_CONFIG.domain).toBe('fijian-auth.auth.us-west-2.amazoncognito.com');
+});
