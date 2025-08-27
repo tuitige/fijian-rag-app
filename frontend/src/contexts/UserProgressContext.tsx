@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { UserProgress, ProgressStats } from '../types/progress';
 import { progressService } from '../services/progressService';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from './AuthContext';
 
 interface UserProgressContextType {
   progress: UserProgress | null;
