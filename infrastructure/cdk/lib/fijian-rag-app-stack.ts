@@ -299,6 +299,39 @@ export class FijianRagAppStack extends cdk.Stack {
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
+    // === NEW: Dedicated Lambda for Dictionary PDF Processing ===
+    const dictionaryPdfProcessingLambda = new lambdaNodejs.NodejsFunction(this, 'DictionaryPdfProcessingLambda', {
+      entry: path.join(__dirname, '../../../backend/lambdas/dictionary-pdf/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 2048, // More memory for PDF processing and vector operations
+      timeout: cdk.Duration.seconds(900), // 15 minutes for large PDF processing
+      tracing: config.monitoring.enableXRayTracing ? lambda.Tracing.ACTIVE : lambda.Tracing.DISABLED,
+      insightsVersion: config.monitoring.enableDetailedMonitoring ? lambda.LambdaInsightsVersion.VERSION_1_0_229_0 : undefined,
+      bundling: {
+        nodeModules: [
+          '@aws-sdk/client-s3',
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/util-dynamodb',
+          '@aws-sdk/client-opensearch',
+          '@aws-sdk/client-textract',
+          '@aws-sdk/credential-provider-node',
+          '@smithy/protocol-http',
+          '@smithy/node-http-handler',
+          '@smithy/signature-v4',
+          '@aws-crypto/sha256-js',
+          'uuid'
+        ]
+      },
+      environment: {
+        CONTENT_BUCKET_NAME: contentBucket.bucketName,
+        DICTIONARY_TABLE: dictionaryTable.tableName,
+        OS_ENDPOINT: osDomain.domainEndpoint,
+        OS_REGION: this.region,
+      },
+      logRetention: logs.RetentionDays.ONE_WEEK,
+    });
+
     // === REMOVED: Legacy load-learning-module-json lambda ===
     // This JSON loading utility was removed during clean slate migration
 
@@ -381,6 +414,11 @@ export class FijianRagAppStack extends cdk.Stack {
     dictionaryTable.grantReadWriteData(ragLambda);
     userProgressTable.grantReadWriteData(ragLambda);
 
+    // Grant permissions for dictionary PDF processing lambda
+    dictionaryTable.grantReadWriteData(dictionaryPdfProcessingLambda);
+    contentBucket.grantRead(dictionaryPdfProcessingLambda);
+    contentBucket.grantWrite(dictionaryPdfProcessingLambda); // For storing processed outputs
+
     // === REMOVED: Legacy lambda function permissions ===
     // All grant statements and policies for removed lambda functions
 
@@ -405,8 +443,37 @@ export class FijianRagAppStack extends cdk.Stack {
       resources: [`arn:aws:es:${this.region}:${this.account}:domain/${osDomain.domainName}/*`]
     }));
 
+    // OpenSearch permissions for dictionary PDF processing lambda
+    dictionaryPdfProcessingLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'es:ESHttpPost',
+        'es:ESHttpPut',
+        'es:ESHttpGet',
+        'es:ESHttpDelete'
+      ],
+      resources: [`arn:aws:es:${this.region}:${this.account}:domain/${osDomain.domainName}/*`]
+    }));
+
+    // Textract permissions for dictionary PDF processing lambda
+    dictionaryPdfProcessingLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'textract:AnalyzeDocument',
+        'textract:DetectDocumentText'
+      ],
+      resources: ['*']
+    }));
+
     // === REMOVED: Legacy lambda OpenSearch permissions ===
     // Removed policies for deleted lambda functions
+
+    // === S3 Event Notification for Dictionary PDF Processing ===
+    contentBucket.addObjectCreatedNotification(
+      new s3n.LambdaDestination(dictionaryPdfProcessingLambda),
+      {
+        prefix: 'dictionary/',
+        suffix: '.pdf'
+      }
+    );
 
     // === REMOVED: S3 Event Notification for legacy lambda ===
     // S3 trigger for deleted load-learning-module-json lambda
@@ -418,17 +485,29 @@ export class FijianRagAppStack extends cdk.Stack {
 
     dashboard.addWidgets(
       new cloudwatch.LogQueryWidget({
-        title: 'Module Processing Status',
+        title: 'Learning Module Processing Status',
         logGroupNames: [
           processLearningModuleLambda.logGroup.logGroupName,
-          // Removed: loadLearningModuleJsonLambda.logGroup.logGroupName
         ],
         queryLines: [
           'fields @timestamp, @message',
-          'filter @message like /Processing complete/',
+          'filter @message like /Learning module processing complete/',
           'stats count() by moduleId'
         ],
-        width: 12,
+        width: 6,
+        height: 6,
+      }),
+      new cloudwatch.LogQueryWidget({
+        title: 'Dictionary PDF Processing Status',
+        logGroupNames: [
+          dictionaryPdfProcessingLambda.logGroup.logGroupName,
+        ],
+        queryLines: [
+          'fields @timestamp, @message',
+          'filter @message like /PDF processing completed/',
+          'stats count() by sourceFile'
+        ],
+        width: 6,
         height: 6,
       })
     );
@@ -529,7 +608,7 @@ export class FijianRagAppStack extends cdk.Stack {
 
     // Dictionary processing endpoint: POST /dictionary/process
     const dictionaryProcessResource = dictionaryResource.addResource('process');
-    dictionaryProcessResource.addMethod('POST', new apigateway.LambdaIntegration(processLearningModuleLambda), {
+    dictionaryProcessResource.addMethod('POST', new apigateway.LambdaIntegration(dictionaryPdfProcessingLambda), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO
     });

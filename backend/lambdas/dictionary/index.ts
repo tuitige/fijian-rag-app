@@ -89,25 +89,23 @@ async function getAnthropicApiKeyFromSecrets(): Promise<string> {
 // ─── Lambda Handler ─────────────────────────────────────────────────────────────
 
 export const handler = async (event: S3Event | any) => {
-  console.log("Event received:", JSON.stringify(event, null, 2));
+  console.log("Learning module processing event received:", JSON.stringify(event, null, 2));
 
   try {
-    // Check if this is an API Gateway event for dictionary processing
-    if (event.httpMethod && event.path) {
-      console.log('API Gateway event detected');
-      // Import and call the dictionary processor handler
-      const { processDictionaryHandler } = await import('./processor');
-      return await processDictionaryHandler(event);
-    }
-    
-    // Original S3 event handling for learning modules
+    // This Lambda now handles only learning module manifests (JSON files)
     if (event.Records && event.Records[0].s3) {
       const bucket = event.Records[0].s3.bucket.name;
       const key = decodeURIComponent(
         event.Records[0].s3.object.key.replace(/\+/g, " ")
       );
 
-      console.log(`Processing manifest from s3://${bucket}/${key}`);
+      console.log(`Processing learning module manifest from s3://${bucket}/${key}`);
+
+      // Only process JSON manifest files for learning modules
+      if (!key.toLowerCase().endsWith('.json')) {
+        console.log('Skipping non-JSON file:', key);
+        return { statusCode: 200, body: 'File skipped - learning module Lambda only processes JSON manifests' };
+      }
 
       // 1) Download manifest JSON
       const manifestContent = await fetchS3ObjectAsString(bucket, key);
@@ -116,15 +114,25 @@ export const handler = async (event: S3Event | any) => {
       // 2) Process entire chapter
       await processChapter(manifest, bucket, key.substring(0, key.lastIndexOf("/")));
 
-      return { statusCode: 200, body: "Processing complete" };
+      return { statusCode: 200, body: "Learning module processing complete" };
     }
 
-    return { statusCode: 400, body: "No valid event detected" };
+    console.warn('Unsupported event type for learning module processing');
+    return { 
+      statusCode: 400, 
+      body: JSON.stringify({
+        error: 'Unsupported event type',
+        message: 'This Lambda only processes learning module JSON manifests from S3'
+      })
+    };
   } catch (error: any) {
-    console.error("Error processing:", error);
+    console.error("Learning module processing error:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Processing failed", details: error.message }),
+      body: JSON.stringify({ 
+        error: "Learning module processing failed", 
+        details: error.message 
+      }),
     };
   }
 };
