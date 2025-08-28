@@ -135,6 +135,40 @@ export class StreamingClient {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      // Check if response is complete JSON (non-streaming) or actual streaming
+      const contentType = response.headers.get('content-type') || '';
+      const isJsonResponse = contentType.includes('application/json');
+      
+      if (isJsonResponse) {
+        // Handle complete JSON response (backend sends complete response, not streaming)
+        try {
+          const responseData = await response.json();
+          console.log('🔄 Received complete response from streaming endpoint:', responseData);
+          
+          // Convert complete response to a single chunk
+          if (responseData.message) {
+            const chunk: StreamChunk = {
+              content: responseData.message,
+              isComplete: true,
+              metadata: {
+                confidence: responseData.confidence,
+                alternatives: responseData.alternatives
+              }
+            };
+            onChunk(chunk);
+          }
+          onComplete();
+          return;
+        } catch (parseError) {
+          console.error('Error parsing complete JSON response:', parseError);
+          if (onError) {
+            onError(new Error('Failed to parse complete response'));
+          }
+          return;
+        }
+      }
+
+      // Handle actual streaming response (SSE format)
       const reader = response.body?.getReader();
       if (!reader) {
         throw new Error('No reader available for response body');
