@@ -520,6 +520,66 @@ export class FijianRagAppStack extends cdk.Stack {
     });
     // Built-in CORS is configured above, no need for manual CORS
 
+    // Progress endpoints
+    const progressResource = unifiedApi.root.addResource('progress');
+    
+    // GET /progress/dashboard
+    const progressDashboardResource = progressResource.addResource('dashboard');
+    progressDashboardResource.addMethod('GET', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    
+    // GET /progress/stats
+    const progressStatsResource = progressResource.addResource('stats');
+    progressStatsResource.addMethod('GET', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    
+    // GET /progress/vocabulary
+    const progressVocabularyResource = progressResource.addResource('vocabulary');
+    progressVocabularyResource.addMethod('GET', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    
+    // GET /progress/achievements
+    const progressAchievementsResource = progressResource.addResource('achievements');
+    progressAchievementsResource.addMethod('GET', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    
+    // GET /progress/streak
+    const progressStreakResource = progressResource.addResource('streak');
+    progressStreakResource.addMethod('GET', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    
+    // POST /progress/practice-session
+    const progressPracticeSessionResource = progressResource.addResource('practice-session');
+    progressPracticeSessionResource.addMethod('POST', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    
+    // POST /progress/word-learned
+    const progressWordLearnedResource = progressResource.addResource('word-learned');
+    progressWordLearnedResource.addMethod('POST', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    
+    // POST /progress/chat-message
+    const progressChatMessageResource = progressResource.addResource('chat-message');
+    progressChatMessageResource.addMethod('POST', new apigateway.LambdaIntegration(fijianApiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    // Built-in CORS is configured above, no need for manual CORS
+
       // === NEW: API Endpoints for Learning Modules ===
       const modulesResource = unifiedApi.root.addResource('learning-modules');
       
