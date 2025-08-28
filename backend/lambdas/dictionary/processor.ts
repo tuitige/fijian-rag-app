@@ -22,6 +22,15 @@ export interface DictionaryEntry {
   examples?: string[];
   pronunciation?: string;
   related?: string[];
+  // Enhanced metadata for complex dictionary entries
+  entryNumber?: number; // For numbered variants like "koko 2."
+  etymology?: string; // e.g., "(Eng.)", "(Lau)"
+  contextualNotes?: string; // Extended usage and cultural context
+  regionalVariations?: string; // Regional usage information
+  crossReferences?: string[]; // References to other entries
+  usageExamples?: string[]; // Examples in context
+  culturalContext?: string; // Cultural and historical background
+  technicalNotes?: string; // Specialized usage notes
 }
 
 export interface StructuredDictionaryEntry {
@@ -37,6 +46,15 @@ export interface StructuredDictionaryEntry {
   source_text?: string;
   page_number?: number;
   parsing_notes?: string[];
+  // Complex dictionary metadata
+  entry_number?: number;
+  etymology?: string;
+  contextual_notes?: string;
+  regional_variations?: string;
+  cross_references?: string[];
+  usage_examples?: string[];
+  cultural_context?: string;
+  technical_notes?: string;
 }
 
 export class FijianDictionaryProcessor {

@@ -29,6 +29,15 @@ export interface NormalizedEntry {
   pronunciation: string | null;
   related_words: string[];
   confidence_score: number;
+  // Enhanced metadata
+  entry_number?: number;
+  etymology?: string;
+  contextual_notes?: string;
+  regional_variations?: string;
+  cross_references?: string[];
+  usage_examples?: string[];
+  cultural_context?: string;
+  technical_notes?: string;
   source_metadata: {
     original_text: string;
     page_number: number;
@@ -169,7 +178,7 @@ export class OutputFormatter {
    */
   private normalizeEntries(entries: ParsedEntry[]): NormalizedEntry[] {
     return entries.map((entry, index) => ({
-      id: `entry_${index + 1}_${entry.fijian.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+      id: `entry_${index + 1}_${entry.fijian.toLowerCase().replace(/[^a-z0-9]/g, '_')}${entry.entryNumber ? `_${entry.entryNumber}` : ''}`,
       headword: entry.fijian.trim(),
       definition: this.cleanDefinition(entry.english),
       part_of_speech: entry.pos || null,
@@ -177,6 +186,15 @@ export class OutputFormatter {
       pronunciation: entry.pronunciation || null,
       related_words: entry.related || [],
       confidence_score: Math.round(entry.confidence * 100) / 100, // Round to 2 decimal places
+      // Enhanced metadata
+      entry_number: entry.entryNumber,
+      etymology: entry.etymology,
+      contextual_notes: entry.contextualNotes ? this.cleanText(entry.contextualNotes) : undefined,
+      regional_variations: entry.regionalVariations ? this.cleanText(entry.regionalVariations) : undefined,
+      cross_references: entry.crossReferences || [],
+      usage_examples: entry.usageExamples || [],
+      cultural_context: entry.culturalContext ? this.cleanText(entry.culturalContext) : undefined,
+      technical_notes: entry.technicalNotes ? this.cleanText(entry.technicalNotes) : undefined,
       source_metadata: {
         original_text: entry.sourceText,
         page_number: entry.pageNumber,
@@ -194,6 +212,15 @@ export class OutputFormatter {
       .replace(/\s+/g, ' ') // Normalize whitespace
       .replace(/^[;,.\s]+/, '') // Remove leading punctuation
       .replace(/[;,.\s]+$/, '') // Remove trailing punctuation
+      .trim();
+  }
+
+  /**
+   * Clean and normalize general text
+   */
+  private cleanText(text: string): string {
+    return text
+      .replace(/\s+/g, ' ') // Normalize whitespace
       .trim();
   }
 
@@ -223,6 +250,14 @@ export class OutputFormatter {
       'pronunciation',
       'related_words',
       'confidence_score',
+      'entry_number',
+      'etymology',
+      'contextual_notes',
+      'regional_variations',
+      'cross_references',
+      'usage_examples',
+      'cultural_context',
+      'technical_notes',
       'original_text',
       'page_number',
       'line_numbers',
@@ -241,6 +276,14 @@ export class OutputFormatter {
         this.escapeCsvValue(entry.pronunciation || ''),
         this.escapeCsvValue(entry.related_words.join('; ')),
         entry.confidence_score.toString(),
+        entry.entry_number?.toString() || '',
+        this.escapeCsvValue(entry.etymology || ''),
+        this.escapeCsvValue(entry.contextual_notes || ''),
+        this.escapeCsvValue(entry.regional_variations || ''),
+        this.escapeCsvValue(entry.cross_references?.join('; ') || ''),
+        this.escapeCsvValue(entry.usage_examples?.join('; ') || ''),
+        this.escapeCsvValue(entry.cultural_context || ''),
+        this.escapeCsvValue(entry.technical_notes || ''),
         this.escapeCsvValue(entry.source_metadata.original_text),
         entry.source_metadata.page_number.toString(),
         this.escapeCsvValue(entry.source_metadata.line_numbers.join('; ')),
@@ -252,7 +295,6 @@ export class OutputFormatter {
     
     return csvRows.join('\n');
   }
-
   /**
    * Escape CSV values with quotes and handle commas/quotes
    */
