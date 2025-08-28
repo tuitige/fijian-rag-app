@@ -3,9 +3,15 @@ import { ApiError } from '../types/api';
 
 // Configure axios defaults
 const rawApiBaseUrl = process.env.REACT_APP_API_BASE_URL || '/api';
-// Remove trailing slash to prevent double slashes in URLs
-const apiBaseUrl = rawApiBaseUrl.endsWith('/') ? rawApiBaseUrl.slice(0, -1) : rawApiBaseUrl;
+
+// Smart API URL resolution: if running on production domain, use /api proxy
+// This ensures we use CloudFront routing instead of direct API Gateway calls
+const isProductionDomain = window.location.hostname === 'fijian-ai.org' || window.location.hostname === 'www.fijian-ai.org';
+const apiBaseUrl = isProductionDomain ? '/api' : 
+  (rawApiBaseUrl.endsWith('/') ? rawApiBaseUrl.slice(0, -1) : rawApiBaseUrl);
+
 console.log('🔧 API Base URL:', apiBaseUrl);
+console.log('🌐 Production domain detected:', isProductionDomain);
 
 const api = axios.create({
   baseURL: apiBaseUrl,

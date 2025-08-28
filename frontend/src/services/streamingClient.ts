@@ -95,13 +95,39 @@ export class StreamingClient {
     onError?: (error: Error) => void
   ): Promise<void> {
     try {
-      const response = await fetch(url, {
+      // Get authentication token (same logic as api.ts interceptor)
+      const cognitoAccessToken = localStorage.getItem('cognitoAccessToken');
+      const cognitoIdToken = localStorage.getItem('cognitoIdToken');
+      const legacyToken = localStorage.getItem('authToken');
+      const token = cognitoAccessToken || cognitoIdToken || legacyToken;
+
+      // Resolve full URL using the same base URL logic as api.ts
+      const rawApiBaseUrl = process.env.REACT_APP_API_BASE_URL || '/api';
+      
+      // Smart API URL resolution: if running on production domain, use /api proxy
+      const isProductionDomain = window.location.hostname === 'fijian-ai.org' || window.location.hostname === 'www.fijian-ai.org';
+      const apiBaseUrl = isProductionDomain ? '/api' : 
+        (rawApiBaseUrl.endsWith('/') ? rawApiBaseUrl.slice(0, -1) : rawApiBaseUrl);
+      
+      // Construct full URL - if url starts with '/', prepend base URL
+      const fullUrl = url.startsWith('/') ? `${apiBaseUrl}${url}` : url;
+      
+      console.log('🚀 Streaming Request:', fullUrl);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'Cache-Control': 'no-cache'
+      };
+
+      // Add Authorization header if token is available
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch(fullUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-          'Cache-Control': 'no-cache'
-        },
+        headers,
         body: JSON.stringify(requestBody)
       });
 
