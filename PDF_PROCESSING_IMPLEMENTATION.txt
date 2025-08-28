@@ -1,0 +1,41 @@
+# PDF Processing Implementation
+
+This document describes the PDF parsing and chunk extraction functionality implemented for the Fijian-English Dictionary (issue #85).
+
+## Components
+
+1. **PDFExtractor**: AWS Textract integration for OCR text extraction
+2. **DictionaryParser**: Intelligent parsing of dictionary entries from extracted text  
+3. **OutputFormatter**: JSONL/CSV export with normalization and quality metrics
+4. **Enhanced FijianDictionaryProcessor**: Complete pipeline orchestration
+
+## Usage
+
+```typescript
+const processor = new FijianDictionaryProcessor('dictionary-table', 'content-bucket');
+const result = await processor.processPdf('/path/to/dictionary.pdf');
+console.log(`Processed ${result.entriesProcessed} entries`);
+```
+
+## Features
+
+- Multi-pattern dictionary entry recognition (5 formats supported)
+- OCR error handling with confidence scoring
+- S3 storage for originals, extractions, and outputs
+- JSONL and CSV export formats
+- Comprehensive quality metrics and error reporting
+- S3 event triggers for automatic processing
+- API Gateway and Lambda integration
+
+## Testing
+
+Run: `node tests/simple-pdf-test.js`
+
+## Output Structure
+
+- JSONL: One JSON entry per line
+- CSV: Structured tabular data with all fields
+- Processing summaries with quality metrics
+- S3 storage in organized folder structure
+
+All files stored with full traceability for downstream RAG processing.
