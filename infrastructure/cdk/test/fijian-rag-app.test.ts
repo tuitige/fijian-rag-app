@@ -126,4 +126,40 @@ describe('Fijian RAG App Stack - Backend Infrastructure', () => {
     
     expect(foundOpenSearchPermission).toBe(true);
   });
+
+  test('Dictionary PDF Processing Lambda Created', () => {
+    // Test that a Lambda function exists with the expected configuration
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Runtime: 'nodejs20.x',
+      Handler: 'index.handler',
+      MemorySize: 2048,
+      Timeout: 900
+    });
+  });
+
+  test('S3 Event Notification for Dictionary PDFs Configured', () => {
+    // Check that Lambda permission for S3 invoke exists
+    template.hasResourceProperties('AWS::Lambda::Permission', {
+      Action: 'lambda:InvokeFunction',
+      Principal: 's3.amazonaws.com'
+    });
+  });
+
+  test('Dictionary PDF Lambda Has Textract Permissions', () => {
+    // Check that dictionary PDF processing lambda has Textract permissions
+    const policies = template.findResources('AWS::IAM::Policy');
+    
+    let foundTextractPermission = false;
+    Object.values(policies).forEach((policy: any) => {
+      const statements = policy.Properties.PolicyDocument.Statement;
+      statements.forEach((statement: any) => {
+        if (Array.isArray(statement.Action) && 
+            statement.Action.some((action: string) => action.startsWith('textract:'))) {
+          foundTextractPermission = true;
+        }
+      });
+    });
+    
+    expect(foundTextractPermission).toBe(true);
+  });
 });
