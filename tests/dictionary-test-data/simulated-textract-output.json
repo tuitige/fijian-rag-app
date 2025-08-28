@@ -1,0 +1,41 @@
+{
+  "DocumentMetadata": {
+    "Pages": 11
+  },
+  "Blocks": [
+    {
+      "BlockType": "PAGE",
+      "Confidence": 99.5,
+      "Page": 1,
+      "Id": "page-1"
+    },
+    {
+      "BlockType": "LINE",
+      "Text": "Page 100 - Fijian-English Dictionary",
+      "Confidence": 98.2,
+      "Page": 1,
+      "Id": "header-1"
+    },
+    {
+      "BlockType": "LINE",
+      "Text": "kana - to eat, food, meal",
+      "Confidence": 96.8,
+      "Page": 1,
+      "Id": "entry-1"
+    },
+    {
+      "BlockType": "LINE",
+      "Text": "kanace - to eat together, share a meal",
+      "Confidence": 95.2,
+      "Page": 1,
+      "Id": "entry-2"
+    },
+    {
+      "BlockType": "LINE",
+      "Text": "kandavu - a type of traditional feast",
+      "Confidence": 94.7,
+      "Page": 1,
+      "Id": "entry-3"
+    }
+  ]
+}

@@ -9,6 +9,9 @@ import { DynamoDBClient, PutItemCommand, BatchWriteItemCommand } from '@aws-sdk/
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { createEmbedding, indexToOpenSearch } from './opensearch';
 import { v4 as uuidv4 } from 'uuid';
+import { PDFExtractor, ExtractionResult } from './pdf-extractor';
+import { DictionaryParser, ParsedEntry, ParsingStats } from './dictionary-parser';
+import { OutputFormatter, OutputMetadata } from './output-formatter';
 
 const ddbClient = new DynamoDBClient({});
 
@@ -19,6 +22,15 @@ export interface DictionaryEntry {
   examples?: string[];
   pronunciation?: string;
   related?: string[];
+  // Enhanced metadata for complex dictionary entries
+  entryNumber?: number; // For numbered variants like "koko 2."
+  etymology?: string; // e.g., "(Eng.)", "(Lau)"
+  contextualNotes?: string; // Extended usage and cultural context
+  regionalVariations?: string; // Regional usage information
+  crossReferences?: string[]; // References to other entries
+  usageExamples?: string[]; // Examples in context
+  culturalContext?: string; // Cultural and historical background
+  technicalNotes?: string; // Specialized usage notes
 }
 
 export interface StructuredDictionaryEntry {
@@ -29,20 +41,184 @@ export interface StructuredDictionaryEntry {
   pronunciation?: string;
   related_words?: string[];
   embedding?: number[];
+  // Enhanced metadata for parsed entries
+  confidence_score?: number;
+  source_text?: string;
+  page_number?: number;
+  parsing_notes?: string[];
+  // Complex dictionary metadata
+  entry_number?: number;
+  etymology?: string;
+  contextual_notes?: string;
+  regional_variations?: string;
+  cross_references?: string[];
+  usage_examples?: string[];
+  cultural_context?: string;
+  technical_notes?: string;
 }
 
 export class FijianDictionaryProcessor {
   private dictionaryTableName: string;
+  private bucketName: string;
+  private pdfExtractor: PDFExtractor;
+  private parser: DictionaryParser;
+  private outputFormatter: OutputFormatter;
   
-  constructor(dictionaryTableName: string) {
+  constructor(dictionaryTableName: string, bucketName?: string) {
     this.dictionaryTableName = dictionaryTableName;
+    this.bucketName = bucketName || process.env.CONTENT_BUCKET_NAME || 'fijian-rag-content';
+    this.pdfExtractor = new PDFExtractor(this.bucketName);
+    this.parser = new DictionaryParser();
+    this.outputFormatter = new OutputFormatter(this.bucketName);
   }
 
   /**
-   * Extracts dictionary entries from processed text
-   * In a real implementation, this would parse PDF content
+   * Extract entries from processed text using enhanced PDF parsing
    */
-  extractEntries(textContent: string): DictionaryEntry[] {
+  async extractEntries(pdfPath: string): Promise<{
+    entries: ParsedEntry[];
+    stats: ParsingStats;
+    extractionResult: ExtractionResult;
+    outputMetadata: {
+      jsonl: OutputMetadata;
+      csv: OutputMetadata;
+      summary: string;
+    };
+  }> {
+    console.log(`Starting enhanced PDF extraction for: ${pdfPath}`);
+    
+    try {
+      // Step 1: Extract text from PDF using Textract
+      const extractionResult = await this.pdfExtractor.extractFromPDF(pdfPath);
+      
+      if (extractionResult.errors.length > 0) {
+        console.warn(`PDF extraction completed with ${extractionResult.errors.length} errors`);
+        extractionResult.errors.forEach(error => console.warn(`  - ${error}`));
+      }
+      
+      // Step 2: Parse the extracted text into dictionary entries
+      const { entries, stats } = await this.parser.parseText(
+        extractionResult.rawText, 
+        extractionResult.metadata.filename
+      );
+      
+      // Step 3: Export entries as JSONL and CSV
+      const sourceFilename = extractionResult.metadata.filename.replace(/\.pdf$/i, '');
+      
+      const jsonlMetadata = await this.outputFormatter.exportAsJSONL(
+        entries, 
+        stats, 
+        sourceFilename
+      );
+      
+      const csvMetadata = await this.outputFormatter.exportAsCSV(
+        entries, 
+        stats, 
+        sourceFilename
+      );
+      
+      const summaryKey = await this.outputFormatter.exportProcessingSummary(
+        entries,
+        stats,
+        sourceFilename,
+        extractionResult.metadata
+      );
+      
+      console.log(`PDF processing completed successfully:`);
+      console.log(`  - Extracted ${entries.length} dictionary entries`);
+      console.log(`  - Average confidence: ${stats.entriesFound > 0 ? 
+        (entries.reduce((sum, e) => sum + e.confidence, 0) / entries.length).toFixed(1) : 0}%`);
+      console.log(`  - Malformed entries: ${stats.malformedEntries}`);
+      console.log(`  - JSONL export: ${jsonlMetadata.s3Key}`);
+      console.log(`  - CSV export: ${csvMetadata.s3Key}`);
+      console.log(`  - Summary report: ${summaryKey}`);
+      
+      return {
+        entries,
+        stats,
+        extractionResult,
+        outputMetadata: {
+          jsonl: jsonlMetadata,
+          csv: csvMetadata,
+          summary: summaryKey
+        }
+      };
+      
+    } catch (error) {
+      console.error(`Enhanced PDF extraction failed for ${pdfPath}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process PDF from S3 location
+   */
+  async extractEntriesFromS3(s3Key: string): Promise<{
+    entries: ParsedEntry[];
+    stats: ParsingStats;
+    extractionResult: ExtractionResult;
+    outputMetadata: {
+      jsonl: OutputMetadata;
+      csv: OutputMetadata;
+      summary: string;
+    };
+  }> {
+    console.log(`Processing PDF from S3: ${s3Key}`);
+    
+    try {
+      // Step 1: Extract text from S3-stored PDF
+      const extractionResult = await this.pdfExtractor.extractFromS3(s3Key);
+      
+      // Step 2: Parse the extracted text
+      const { entries, stats } = await this.parser.parseText(
+        extractionResult.rawText, 
+        extractionResult.metadata.filename
+      );
+      
+      // Step 3: Export results
+      const sourceFilename = extractionResult.metadata.filename.replace(/\.pdf$/i, '');
+      
+      const jsonlMetadata = await this.outputFormatter.exportAsJSONL(
+        entries, 
+        stats, 
+        sourceFilename
+      );
+      
+      const csvMetadata = await this.outputFormatter.exportAsCSV(
+        entries, 
+        stats, 
+        sourceFilename
+      );
+      
+      const summaryKey = await this.outputFormatter.exportProcessingSummary(
+        entries,
+        stats,
+        sourceFilename,
+        extractionResult.metadata
+      );
+      
+      return {
+        entries,
+        stats,
+        extractionResult,
+        outputMetadata: {
+          jsonl: jsonlMetadata,
+          csv: csvMetadata,
+          summary: summaryKey
+        }
+      };
+      
+    } catch (error) {
+      console.error(`S3 PDF processing failed for ${s3Key}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Legacy method - extracts dictionary entries from processed text (deprecated)
+   * @deprecated Use extractEntries() for full PDF processing pipeline
+   */
+  extractEntriesLegacy(textContent: string): DictionaryEntry[] {
     // For now, return mock data for testing
     // In a real implementation, this would parse the PDF content
     return [
@@ -64,17 +240,29 @@ export class FijianDictionaryProcessor {
   }
 
   /**
-   * Structures dictionary entries for storage
+   * Structures dictionary entries for storage (handles both legacy and new formats)
    */
-  structureEntries(entries: DictionaryEntry[]): StructuredDictionaryEntry[] {
-    return entries.map(entry => ({
-      fijian_word: entry.fijian,
-      english_translation: entry.english,
-      part_of_speech: entry.pos,
-      example_sentences: entry.examples,
-      pronunciation: entry.pronunciation,
-      related_words: entry.related
-    }));
+  structureEntries(entries: DictionaryEntry[] | ParsedEntry[]): StructuredDictionaryEntry[] {
+    return entries.map(entry => {
+      // Handle both legacy DictionaryEntry and new ParsedEntry formats
+      const isParsedEntry = 'sourceText' in entry;
+      
+      return {
+        fijian_word: entry.fijian,
+        english_translation: entry.english,
+        part_of_speech: entry.pos,
+        example_sentences: entry.examples,
+        pronunciation: entry.pronunciation,
+        related_words: entry.related,
+        // Add metadata for parsed entries
+        ...(isParsedEntry && {
+          confidence_score: (entry as ParsedEntry).confidence,
+          source_text: (entry as ParsedEntry).sourceText,
+          page_number: (entry as ParsedEntry).pageNumber,
+          parsing_notes: (entry as ParsedEntry).parsingNotes
+        })
+      };
+    });
   }
 
   /**
@@ -192,19 +380,27 @@ export class FijianDictionaryProcessor {
   }
 
   /**
-   * Main processing function that handles the complete pipeline
+   * Main processing function that handles the complete PDF pipeline
    */
-  async processPdf(pdfPath: string): Promise<void> {
-    console.log(`Processing dictionary PDF: ${pdfPath}`);
+  async processPdf(pdfPath: string): Promise<{
+    entriesProcessed: number;
+    outputFiles: {
+      jsonl: string;
+      csv: string;
+      summary: string;
+    };
+    extractionStats: ParsingStats;
+  }> {
+    console.log(`Processing dictionary PDF with enhanced pipeline: ${pdfPath}`);
     
     try {
-      // Step 1: Extract entries from PDF (mock implementation)
-      console.log('Extracting dictionary entries...');
-      const rawEntries = this.extractEntries('mock content');
+      // Step 1: Extract and parse entries from PDF
+      console.log('Extracting dictionary entries from PDF...');
+      const extractionResults = await this.extractEntries(pdfPath);
       
-      // Step 2: Structure the entries
-      console.log('Structuring entries...');
-      const structuredEntries = this.structureEntries(rawEntries);
+      // Step 2: Structure the entries for storage
+      console.log('Structuring entries for database storage...');
+      const structuredEntries = this.structureEntries(extractionResults.entries);
       
       // Step 3: Generate embeddings
       console.log('Generating embeddings...');
@@ -219,9 +415,67 @@ export class FijianDictionaryProcessor {
       await this.indexToOpenSearch(entriesWithEmbeddings);
       
       console.log(`Successfully processed ${entriesWithEmbeddings.length} dictionary entries`);
+      console.log(`Extraction confidence: ${extractionResults.extractionResult.confidence.toFixed(1)}%`);
+      console.log(`Parsing success rate: ${((extractionResults.stats.entriesFound / (extractionResults.stats.entriesFound + extractionResults.stats.malformedEntries)) * 100).toFixed(1)}%`);
+      
+      return {
+        entriesProcessed: entriesWithEmbeddings.length,
+        outputFiles: {
+          jsonl: extractionResults.outputMetadata.jsonl.s3Key,
+          csv: extractionResults.outputMetadata.csv.s3Key,
+          summary: extractionResults.outputMetadata.summary
+        },
+        extractionStats: extractionResults.stats
+      };
       
     } catch (error) {
       console.error('Error processing PDF:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process PDF from S3 location
+   */
+  async processPdfFromS3(s3Key: string): Promise<{
+    entriesProcessed: number;
+    outputFiles: {
+      jsonl: string;
+      csv: string;
+      summary: string;
+    };
+    extractionStats: ParsingStats;
+  }> {
+    console.log(`Processing dictionary PDF from S3: ${s3Key}`);
+    
+    try {
+      // Step 1: Extract and parse entries from S3 PDF
+      const extractionResults = await this.extractEntriesFromS3(s3Key);
+      
+      // Step 2: Structure the entries
+      const structuredEntries = this.structureEntries(extractionResults.entries);
+      
+      // Step 3: Generate embeddings
+      const entriesWithEmbeddings = await this.generateEmbeddings(structuredEntries);
+      
+      // Step 4: Index to DynamoDB
+      await this.indexToDynamoDB(entriesWithEmbeddings);
+      
+      // Step 5: Index to OpenSearch
+      await this.indexToOpenSearch(entriesWithEmbeddings);
+      
+      return {
+        entriesProcessed: entriesWithEmbeddings.length,
+        outputFiles: {
+          jsonl: extractionResults.outputMetadata.jsonl.s3Key,
+          csv: extractionResults.outputMetadata.csv.s3Key,
+          summary: extractionResults.outputMetadata.summary
+        },
+        extractionStats: extractionResults.stats
+      };
+      
+    } catch (error) {
+      console.error('Error processing S3 PDF:', error);
       throw error;
     }
   }
@@ -268,47 +522,37 @@ export class FijianDictionaryProcessor {
 /**
  * Lambda handler for manual dictionary processing
  * Can be triggered via API Gateway to populate dictionary with sample data
+ * or process PDFs from S3 events
  */
 export const processDictionaryHandler = async (event: any) => {
   console.log('Processing dictionary event:', JSON.stringify(event, null, 2));
   
   const dictionaryTableName = process.env.DICTIONARY_TABLE!;
-  const processor = new FijianDictionaryProcessor(dictionaryTableName);
+  const bucketName = process.env.CONTENT_BUCKET_NAME;
+  const processor = new FijianDictionaryProcessor(dictionaryTableName, bucketName);
   
   try {
+    // Check if this is an S3 event (PDF upload)
+    if (event.Records && event.Records[0]?.eventSource === 'aws:s3') {
+      return await handleS3Event(event, processor);
+    }
+    
     // Check if this is an API Gateway event or direct Lambda invoke
     const isApiGateway = event.httpMethod && event.path;
     
     if (isApiGateway) {
-      // Handle API Gateway CORS preflight
-      if (event.httpMethod === 'OPTIONS') {
-        return {
-          statusCode: 200,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'POST,OPTIONS'
-          },
-          body: ''
-        };
-      }
-      
-      if (event.httpMethod !== 'POST') {
-        return {
-          statusCode: 405,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          },
-          body: JSON.stringify({ error: 'Method not allowed' })
-        };
-      }
+      return await handleApiGatewayEvent(event, processor);
     }
     
-    // Process sample dictionary data
+    // Direct Lambda invocation - check for PDF processing request
+    if (event.action === 'process_pdf' && event.s3Key) {
+      return await handleDirectPdfProcessing(event, processor);
+    }
+    
+    // Default: process sample data
     await processor.processSampleData();
     
-    const response = {
+    return {
       statusCode: 200,
       body: JSON.stringify({
         message: 'Dictionary processing completed successfully',
@@ -317,38 +561,198 @@ export const processDictionaryHandler = async (event: any) => {
       })
     };
     
-    // Add CORS headers for API Gateway responses
-    if (isApiGateway) {
-      response.headers = {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'POST,OPTIONS'
-      };
-    }
-    
-    return response;
   } catch (error: any) {
     console.error('Dictionary processing failed:', error);
     
-    const errorResponse = {
+    return {
       statusCode: 500,
       body: JSON.stringify({
         error: 'Dictionary processing failed',
         message: error.message
       })
     };
+  }
+};
+
+/**
+ * Handle S3 event (PDF uploaded)
+ */
+async function handleS3Event(event: any, processor: FijianDictionaryProcessor) {
+  const record = event.Records[0];
+  const bucketName = record.s3.bucket.name;
+  const objectKey = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
+  
+  console.log(`Processing PDF from S3: s3://${bucketName}/${objectKey}`);
+  
+  // Only process PDF files
+  if (!objectKey.toLowerCase().endsWith('.pdf')) {
+    console.log('Skipping non-PDF file:', objectKey);
+    return { statusCode: 200, body: 'File skipped - not a PDF' };
+  }
+  
+  // Skip files not in the expected directory
+  if (!objectKey.includes('dictionary') && !objectKey.includes('pdf')) {
+    console.log('Skipping file outside dictionary processing scope:', objectKey);
+    return { statusCode: 200, body: 'File skipped - outside processing scope' };
+  }
+  
+  try {
+    const result = await processor.processPdfFromS3(objectKey);
     
-    // Add CORS headers for API Gateway responses
-    if (isApiGateway) {
-      errorResponse.headers = {
-        'Content-Type': 'application/json',
+    console.log(`S3 PDF processing completed: ${result.entriesProcessed} entries processed`);
+    
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        message: 'PDF processing completed successfully',
+        entriesProcessed: result.entriesProcessed,
+        outputFiles: result.outputFiles,
+        extractionStats: result.extractionStats,
+        sourceFile: objectKey,
+        timestamp: new Date().toISOString()
+      })
+    };
+    
+  } catch (error: any) {
+    console.error(`S3 PDF processing failed for ${objectKey}:`, error);
+    
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error: 'S3 PDF processing failed',
+        message: error.message,
+        sourceFile: objectKey
+      })
+    };
+  }
+}
+
+/**
+ * Handle API Gateway event
+ */
+async function handleApiGatewayEvent(event: any, processor: FijianDictionaryProcessor) {
+  // Handle CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'POST,OPTIONS'
+      },
+      body: ''
+    };
+  }
+  
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  }
+  
+  // Parse request body
+  let requestBody: any = {};
+  if (event.body) {
+    try {
+      requestBody = JSON.parse(event.body);
+    } catch (error) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ error: 'Invalid JSON in request body' })
       };
     }
-    
-    return errorResponse;
   }
-};
+  
+  // Check if this is a PDF processing request
+  if (requestBody.action === 'process_pdf' && requestBody.s3Key) {
+    try {
+      const result = await processor.processPdfFromS3(requestBody.s3Key);
+      
+      return {
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({
+          message: 'PDF processing completed successfully',
+          entriesProcessed: result.entriesProcessed,
+          outputFiles: result.outputFiles,
+          extractionStats: result.extractionStats,
+          sourceFile: requestBody.s3Key,
+          timestamp: new Date().toISOString()
+        })
+      };
+      
+    } catch (error: any) {
+      return {
+        statusCode: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({
+          error: 'PDF processing failed',
+          message: error.message,
+          sourceFile: requestBody.s3Key
+        })
+      };
+    }
+  }
+  
+  // Default: process sample data
+  await processor.processSampleData();
+  
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    },
+    body: JSON.stringify({
+      message: 'Dictionary processing completed successfully',
+      timestamp: new Date().toISOString(),
+      source: 'sample-data'
+    })
+  };
+}
+
+/**
+ * Handle direct PDF processing invocation
+ */
+async function handleDirectPdfProcessing(event: any, processor: FijianDictionaryProcessor) {
+  try {
+    const result = await processor.processPdfFromS3(event.s3Key);
+    
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        message: 'PDF processing completed successfully',
+        entriesProcessed: result.entriesProcessed,
+        outputFiles: result.outputFiles,
+        extractionStats: result.extractionStats,
+        sourceFile: event.s3Key,
+        timestamp: new Date().toISOString()
+      })
+    };
+    
+  } catch (error: any) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error: 'PDF processing failed',
+        message: error.message,
+        sourceFile: event.s3Key
+      })
+    };
+  }
+}

@@ -1,0 +1,7 @@
+id,headword,definition,part_of_speech,examples,confidence_score,original_text
+entry_100_kana,kana,"to eat, food, meal",verb/noun,"",96.8,"kana - to eat, food, meal"
+entry_100_kanace,kanace,"to eat together, share a meal",verb,"",95.2,"kanace - to eat together, share a meal"
+entry_100_kandavu,kandavu,"a type of traditional feast",noun,"",94.7,"kandavu - a type of traditional feast"
+entry_101_kato,kato,"basket, container made from pandanus",noun,"",97.1,"kato - basket, container made from pandanus"
+entry_101_katuba,katuba,"a large traditional basket",noun,"",96.3,"katuba - a large traditional basket"
+entry_101_kau,kau,"I, me (pronoun)",pronoun,"",98.5,"kau - I, me (pronoun)"
