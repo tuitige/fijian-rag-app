@@ -95,11 +95,11 @@ export class StreamingClient {
     onError?: (error: Error) => void
   ): Promise<void> {
     try {
-      // Get authentication token (same logic as api.ts interceptor)
-      const cognitoAccessToken = localStorage.getItem('cognitoAccessToken');
+      // Get authentication token - prioritize ID token for API Gateway Cognito authorization
       const cognitoIdToken = localStorage.getItem('cognitoIdToken');
+      const cognitoAccessToken = localStorage.getItem('cognitoAccessToken');
       const legacyToken = localStorage.getItem('authToken');
-      const token = cognitoAccessToken || cognitoIdToken || legacyToken;
+      const token = cognitoIdToken || cognitoAccessToken || legacyToken;
 
       // Resolve full URL using the same base URL logic as api.ts
       const rawApiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'https://0wujtxlvc0.execute-api.us-west-2.amazonaws.com/dev';

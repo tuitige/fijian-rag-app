@@ -24,12 +24,13 @@ api.interceptors.request.use(
   (config) => {
     console.log('🚀 API Request:', (config.baseURL || '') + (config.url || ''));
     
-    // Prefer Cognito access token for API Gateway authorization, fallback to ID token, then legacy token
-    const cognitoAccessToken = localStorage.getItem('cognitoAccessToken');
+    // For API Gateway Cognito authorization, use ID token (not access token)
+    // API Gateway Cognito User Pool authorizers require ID tokens for authentication
     const cognitoIdToken = localStorage.getItem('cognitoIdToken');
+    const cognitoAccessToken = localStorage.getItem('cognitoAccessToken');
     const legacyToken = localStorage.getItem('authToken');
     
-    const token = cognitoAccessToken || cognitoIdToken || legacyToken;
+    const token = cognitoIdToken || cognitoAccessToken || legacyToken;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
