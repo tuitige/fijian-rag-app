@@ -2,7 +2,9 @@ import axios, { AxiosResponse } from 'axios';
 import { ApiError } from '../types/api';
 
 // Configure axios defaults
-const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || '/api';
+const rawApiBaseUrl = process.env.REACT_APP_API_BASE_URL || '/api';
+// Remove trailing slash to prevent double slashes in URLs
+const apiBaseUrl = rawApiBaseUrl.endsWith('/') ? rawApiBaseUrl.slice(0, -1) : rawApiBaseUrl;
 console.log('🔧 API Base URL:', apiBaseUrl);
 
 const api = axios.create({

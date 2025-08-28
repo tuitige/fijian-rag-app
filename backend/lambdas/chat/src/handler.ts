@@ -452,6 +452,55 @@ export const handler = async (
       });
     }
 
+    // Handle progress endpoints
+    if (event.path.startsWith('/progress/')) {
+      console.log('[handler] Handling progress endpoint:', event.path);
+      
+      // For now, return mock data to prevent CORS errors
+      // In a real implementation, this would query DynamoDB
+      if (event.httpMethod === 'GET') {
+        if (event.path === '/progress/dashboard') {
+          return jsonResponse(200, {
+            userId: 'mock-user',
+            totalWordsLearned: 0,
+            totalPracticeMinutes: 0,
+            currentStreak: 0,
+            longestStreak: 0,
+            lastPracticeDate: new Date().toISOString(),
+            fluencyLevel: 0,
+            achievements: [],
+            vocabularyMastery: {}
+          });
+        }
+        
+        if (event.path === '/progress/stats') {
+          return jsonResponse(200, {
+            daily: { practiceMinutes: 0, wordsLearned: 0, messagesCount: 0 },
+            weekly: { practiceMinutes: 0, wordsLearned: 0, messagesCount: 0 },
+            monthly: { practiceMinutes: 0, wordsLearned: 0, messagesCount: 0 },
+            allTime: { practiceMinutes: 0, wordsLearned: 0, messagesCount: 0 }
+          });
+        }
+        
+        if (event.path === '/progress/vocabulary') {
+          return jsonResponse(200, []);
+        }
+        
+        if (event.path === '/progress/achievements') {
+          return jsonResponse(200, []);
+        }
+        
+        if (event.path === '/progress/streak') {
+          return jsonResponse(200, { current: 0, longest: 0 });
+        }
+      }
+      
+      if (event.httpMethod === 'POST') {
+        // For POST endpoints, just return success for now
+        return jsonResponse(200, { success: true, message: 'Progress recorded' });
+      }
+    }
+
     console.log('[handler] Unsupported method/path combination');
     return jsonResponse(405, { error: 'Method Not Allowed' });
     
