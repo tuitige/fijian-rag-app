@@ -1,0 +1,97 @@
+{
+  "title": "Fijian Dictionary Test Pages 100-110",
+  "pages": [
+    {
+      "page": 100,
+      "entries": [
+        "kana - to eat, food, meal",
+        "kanace - to eat together, share a meal",
+        "kandavu - a type of traditional feast"
+      ]
+    },
+    {
+      "page": 101,
+      "entries": [
+        "kato - basket, container made from pandanus",
+        "katuba - a large traditional basket",
+        "kau - I, me (pronoun)"
+      ]
+    },
+    {
+      "page": 102,
+      "entries": [
+        "kawa - bitter, sour taste",
+        "kawainima - to taste bitter",
+        "kawi - to carry, to bear"
+      ]
+    },
+    {
+      "page": 103,
+      "entries": [
+        "keba - different, separate, apart",
+        "keimami - we (excluding the person spoken to)",
+        "kemudou - you (plural)"
+      ]
+    },
+    {
+      "page": 104,
+      "entries": [
+        "kena - it should be, ought to be",
+        "kenai - for him/her, belonging to",
+        "keri - to dig, to excavate"
+      ]
+    },
+    {
+      "page": 105,
+      "entries": [
+        "kete - basket, small container",
+        "kila - to know, to recognize",
+        "kilaka - to know well, be familiar with"
+      ]
+    },
+    {
+      "page": 106,
+      "entries": [
+        "kini - skin, bark, peel",
+        "kino - bad, evil, wicked",
+        "kinoya - badness, evil, wickedness"
+      ]
+    },
+    {
+      "page": 107,
+      "entries": [
+        "kisi - to kiss (modern borrowed word)",
+        "kita - to see, to look at",
+        "kitaka - to look after, to watch"
+      ]
+    },
+    {
+      "page": 108,
+      "entries": [
+        "ko - (particle indicating the subject)",
+        "koba - to bend, to curve",
+        "kobo - bent, curved"
+      ]
+    },
+    {
+      "page": 109,
+      "entries": [
+        "koci - small, little, tiny",
+        "koda - friend, companion",
+        "kodro - to be friends with"
+      ]
+    },
+    {
+      "page": 110,
+      "entries": [
+        "koli - dog, puppy",
+        "koro - village, town",
+        "koroi - to throw, to cast"
+      ]
+    }
+  ],
+  "totalEntries": 33,
+  "pageRange": "100-110",
+  "expectedConfidence": "90-95%",
+  "format": "word - definition"
+}
