@@ -44,7 +44,7 @@ export class LLMService {
     try {
       // Use POST streaming for the chat endpoint
       await this.streamingClient.startStreamPost(
-        '/api/chat/stream',
+        '/chat/stream',
         streamRequest,
         onChunk,
         onComplete,

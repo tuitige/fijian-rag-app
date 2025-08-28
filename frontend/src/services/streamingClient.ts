@@ -102,12 +102,12 @@ export class StreamingClient {
       const token = cognitoAccessToken || cognitoIdToken || legacyToken;
 
       // Resolve full URL using the same base URL logic as api.ts
-      const rawApiBaseUrl = process.env.REACT_APP_API_BASE_URL || '/api';
+      const rawApiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'https://0wujtxlvc0.execute-api.us-west-2.amazonaws.com/dev';
       
-      // Smart API URL resolution: if running on production domain, use /api proxy
-      const isProductionDomain = window.location.hostname === 'fijian-ai.org' || window.location.hostname === 'www.fijian-ai.org';
-      const apiBaseUrl = isProductionDomain ? '/api' : 
-        (rawApiBaseUrl.endsWith('/') ? rawApiBaseUrl.slice(0, -1) : rawApiBaseUrl);
+      // For now, always use the direct API Gateway URL since we only have one environment
+      // TODO: Once CloudFront routing for /api/* is verified to work with fijian-ai.org, 
+      // we can enable the production domain logic
+      const apiBaseUrl = rawApiBaseUrl.endsWith('/') ? rawApiBaseUrl.slice(0, -1) : rawApiBaseUrl;
       
       // Construct full URL - if url starts with '/', prepend base URL
       const fullUrl = url.startsWith('/') ? `${apiBaseUrl}${url}` : url;
