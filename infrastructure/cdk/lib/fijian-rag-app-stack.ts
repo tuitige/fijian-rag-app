@@ -527,6 +527,14 @@ export class FijianRagAppStack extends cdk.Stack {
     });
     // Built-in CORS is configured above, no need for manual CORS
 
+    // Dictionary processing endpoint: POST /dictionary/process
+    const dictionaryProcessResource = dictionaryResource.addResource('process');
+    dictionaryProcessResource.addMethod('POST', new apigateway.LambdaIntegration(processLearningModuleLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    // Built-in CORS is configured above, no need for manual CORS
+
     // Progress endpoints
     const progressResource = unifiedApi.root.addResource('progress');
     

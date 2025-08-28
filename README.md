@@ -28,8 +28,8 @@ fijian-rag-app/
 ├── backend/
 │   ├── lambdas/
 │   │   ├── chat/               # Core chat & learning endpoints
-│   │   ├── dictionary/         # Learning module processing  
-│   │   ├── rag/                # RAG functionality (to be implemented)
+│   │   ├── dictionary/         # Dictionary processing & sample data
+│   │   ├── rag/                # RAG query processing with hybrid search
 │   │   └── auth/               # Authentication (to be implemented)
 │   └── shared/                 # Shared utilities
 ├── infrastructure/
@@ -42,9 +42,9 @@ fijian-rag-app/
 
 **Generative AI**: Powered by Claude (Anthropic) via AWS Bedrock
 
-**RAG**: Retrieval-Augmented Generation using OpenSearch vector embeddings
+**RAG**: Complete Retrieval-Augmented Generation system with hybrid search (text + semantic)
 
-**Embedding & Search**: High-precision semantic search across verified Fijian-English datasets
+**Embedding & Search**: Amazon Titan embeddings with OpenSearch vector storage for Fijian-English dictionary
 
 **AWS Infrastructure**: Lambda, API Gateway, DynamoDB, OpenSearch, S3
 
@@ -87,11 +87,29 @@ npm run cdk:deploy
 
 ### Directory Guide
 
-- **`backend/lambdas/chat/`** - Core RAG chat functionality using Claude 3 Haiku
-- **`backend/lambdas/dictionary/`** - Learning module processing with Textract and OpenSearch  
+- **`backend/lambdas/chat/`** - Core chat functionality using Claude 3 Haiku
+- **`backend/lambdas/dictionary/`** - Dictionary processing pipeline with sample Fijian vocabulary
+- **`backend/lambdas/rag/`** - Complete RAG implementation with hybrid search and LLM generation
 - **`backend/shared/`** - Shared utilities across lambda functions
 - **`infrastructure/cdk/`** - AWS CDK infrastructure as code
 - **`frontend/`** - React frontend application (to be implemented)
+
+## 🤖 RAG System
+
+The application now includes a complete Retrieval Augmented Generation system for Fijian language learning:
+
+- **Dictionary API**: Exact word lookups and semantic search
+- **RAG Queries**: Natural language questions answered using dictionary context
+- **Sample Data**: 20+ Fijian vocabulary entries with pronunciation and examples
+- **Hybrid Search**: Combines text matching and vector similarity
+
+See [docs/RAG-SYSTEM.md](./docs/RAG-SYSTEM.md) for detailed documentation.
+
+### Quick RAG Test
+```bash
+# Validate the RAG pipeline structure
+node tests/validate-rag-pipeline.js
+```
 
 ## 🔄 Migration Notes
 
@@ -100,6 +118,7 @@ This repository has undergone a clean slate migration to establish the MVP archi
 ### Core Functionality Preserved
 
 ✅ Chat interface with Claude 3 Haiku via AWS Bedrock  
+✅ Complete RAG pipeline with dictionary integration
 ✅ Learning module processing and indexing  
 ✅ AWS infrastructure definitions  
 ✅ Shared utility functions  
