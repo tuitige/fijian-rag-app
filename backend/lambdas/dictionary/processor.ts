@@ -225,10 +225,49 @@ export class FijianDictionaryProcessor {
       throw error;
     }
   }
+
+  /**
+   * Process sample dictionary data for testing and demonstration
+   */
+  async processSampleData(): Promise<void> {
+    console.log('Processing sample dictionary data...');
+    
+    try {
+      // Import sample data
+      const { SAMPLE_DICTIONARY_ENTRIES } = await import('./sample-data');
+      
+      // Step 1: Use sample entries directly (no PDF extraction needed)
+      console.log('Using sample dictionary entries...');
+      const rawEntries = SAMPLE_DICTIONARY_ENTRIES;
+      
+      // Step 2: Structure the entries
+      console.log('Structuring entries...');
+      const structuredEntries = this.structureEntries(rawEntries);
+      
+      // Step 3: Generate embeddings
+      console.log('Generating embeddings...');
+      const entriesWithEmbeddings = await this.generateEmbeddings(structuredEntries);
+      
+      // Step 4: Index to DynamoDB
+      console.log('Indexing to DynamoDB...');
+      await this.indexToDynamoDB(entriesWithEmbeddings);
+      
+      // Step 5: Index to OpenSearch
+      console.log('Indexing to OpenSearch...');
+      await this.indexToOpenSearch(entriesWithEmbeddings);
+      
+      console.log(`Successfully processed ${entriesWithEmbeddings.length} sample dictionary entries`);
+      
+    } catch (error) {
+      console.error('Error processing sample data:', error);
+      throw error;
+    }
+  }
 }
 
 /**
  * Lambda handler for manual dictionary processing
+ * Can be triggered via API Gateway to populate dictionary with sample data
  */
 export const processDictionaryHandler = async (event: any) => {
   console.log('Processing dictionary event:', JSON.stringify(event, null, 2));
@@ -237,25 +276,79 @@ export const processDictionaryHandler = async (event: any) => {
   const processor = new FijianDictionaryProcessor(dictionaryTableName);
   
   try {
-    // For manual testing, process mock data
-    await processor.processPdf('mock-dictionary.pdf');
+    // Check if this is an API Gateway event or direct Lambda invoke
+    const isApiGateway = event.httpMethod && event.path;
     
-    return {
+    if (isApiGateway) {
+      // Handle API Gateway CORS preflight
+      if (event.httpMethod === 'OPTIONS') {
+        return {
+          statusCode: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+            'Access-Control-Allow-Methods': 'POST,OPTIONS'
+          },
+          body: ''
+        };
+      }
+      
+      if (event.httpMethod !== 'POST') {
+        return {
+          statusCode: 405,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          },
+          body: JSON.stringify({ error: 'Method not allowed' })
+        };
+      }
+    }
+    
+    // Process sample dictionary data
+    await processor.processSampleData();
+    
+    const response = {
       statusCode: 200,
       body: JSON.stringify({
         message: 'Dictionary processing completed successfully',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        source: 'sample-data'
       })
     };
+    
+    // Add CORS headers for API Gateway responses
+    if (isApiGateway) {
+      response.headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'POST,OPTIONS'
+      };
+    }
+    
+    return response;
   } catch (error: any) {
     console.error('Dictionary processing failed:', error);
     
-    return {
+    const errorResponse = {
       statusCode: 500,
       body: JSON.stringify({
         error: 'Dictionary processing failed',
         message: error.message
       })
     };
+    
+    // Add CORS headers for API Gateway responses
+    if (isApiGateway) {
+      errorResponse.headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'POST,OPTIONS'
+      };
+    }
+    
+    return errorResponse;
   }
 };

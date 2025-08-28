@@ -92,7 +92,15 @@ export const handler = async (event: S3Event | any) => {
   console.log("Event received:", JSON.stringify(event, null, 2));
 
   try {
-    // Only handle S3 manifest‐upload events here
+    // Check if this is an API Gateway event for dictionary processing
+    if (event.httpMethod && event.path) {
+      console.log('API Gateway event detected');
+      // Import and call the dictionary processor handler
+      const { processDictionaryHandler } = await import('./processor');
+      return await processDictionaryHandler(event);
+    }
+    
+    // Original S3 event handling for learning modules
     if (event.Records && event.Records[0].s3) {
       const bucket = event.Records[0].s3.bucket.name;
       const key = decodeURIComponent(
@@ -111,7 +119,7 @@ export const handler = async (event: S3Event | any) => {
       return { statusCode: 200, body: "Processing complete" };
     }
 
-    return { statusCode: 400, body: "No valid S3 event" };
+    return { statusCode: 400, body: "No valid event detected" };
   } catch (error: any) {
     console.error("Error processing:", error);
     return {
