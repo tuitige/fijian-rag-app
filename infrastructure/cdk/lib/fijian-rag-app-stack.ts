@@ -448,7 +448,14 @@ export class FijianRagAppStack extends cdk.Stack {
       defaultCorsPreflightOptions: {
         allowOrigins: config.security.corsOrigins,
         allowMethods: ['GET', 'POST', 'OPTIONS'],
-        allowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key'],
+        allowHeaders: [
+          'Content-Type', 
+          'X-Amz-Date', 
+          'Authorization', 
+          'X-Api-Key',
+          'Cache-Control',
+          'Accept'
+        ],
       },
     });
 
