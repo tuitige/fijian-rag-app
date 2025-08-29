@@ -95,22 +95,28 @@ class LLMDictionaryParser {
 
   /**
    * Generate extraction prompt for a dictionary entry chunk
-   * @param {string} entry - Dictionary entry text
+   * @param {string} entry - Dictionary entry text (may contain multiple entries)
    * @returns {string} - LLM prompt
    */
   createExtractionPrompt(entry) {
-    return `Extract the Fijian headword, English definition, and any notes from the following dictionary entry. The headword should always be a Fijian word. Output as JSON:
+    return `Extract ALL Fijian dictionary entries from the following text. Each entry should have a Fijian headword, English definition, and any notes. Output as a JSON array:
 
-{ "headword": "...", "definition": "...", "notes": "..." }
+[
+  { "headword": "...", "definition": "...", "notes": "..." },
+  { "headword": "...", "definition": "...", "notes": "..." }
+]
 
 Rules:
-1. "headword" must be the main Fijian word being defined (not English)
-2. "definition" should be the English translation/explanation
-3. "notes" should include etymology, part of speech, usage examples, or cultural context
-4. If multiple definitions exist for the same headword, create separate entries
-5. Return only valid JSON, no explanations
+1. Extract EVERY dictionary entry you find in the text
+2. "headword" must be the main Fijian word being defined (not English)
+3. "definition" should be the English translation/explanation
+4. "notes" should include etymology, part of speech, usage examples, or cultural context
+5. If multiple definitions exist for the same headword, create separate entries
+6. Skip headers, page numbers, and non-dictionary content
+7. Return only valid JSON array, no explanations
+8. If no entries found, return empty array []
 
-Entry:
+Text:
 ${entry}`;
   }
 
@@ -138,12 +144,14 @@ ${entry}`;
         // Try to parse JSON response
         try {
           const parsed = JSON.parse(content);
-          return parsed;
+          // Ensure result is an array
+          return Array.isArray(parsed) ? parsed : [parsed];
         } catch (parseError) {
           // If JSON parsing fails, try to extract JSON from the response
-          const jsonMatch = content.match(/\{[^}]+\}/);
+          const jsonMatch = content.match(/\[[^\]]*\]|\{[^}]+\}/);
           if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
+            const parsed = JSON.parse(jsonMatch[0]);
+            return Array.isArray(parsed) ? parsed : [parsed];
           }
           throw new Error(`Invalid JSON response: ${content}`);
         }
@@ -172,10 +180,7 @@ ${entry}`;
     
     try {
       const prompt = this.createExtractionPrompt(chunk);
-      const result = await this.callLLM(prompt);
-      
-      // Ensure result is an array
-      const entries = Array.isArray(result) ? result : [result];
+      const entries = await this.callLLM(prompt); // Now returns array directly
       
       // Validate and clean entries
       const validEntries = entries.filter(entry => {
