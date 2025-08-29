@@ -1,0 +1,210 @@
+{
+  "metadata": {
+    "parser": "mock-llm-dictionary-parser",
+    "model": "mock-claude-3-haiku",
+    "totalChunks": 21,
+    "processedChunks": 21,
+    "entriesExtracted": 21,
+    "errors": [],
+    "timestamp": "2025-08-29T03:24:42.065Z"
+  },
+  "entries": [
+    {
+      "headword": "koko",
+      "definition": "2. (Eng.) n. cocoa. There are efforts to revive the industry. The problems have been a severely fluctuating world price, black pod disease in rainy areas, and a lack of disciplined care for the trees. There has been a lack of organised, equitable and competent marketing for export.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 0,
+      "rawChunk": "koko 2. (Eng.) n. cocoa. There are efforts to revive the industry. The problems have been a severely\nfluctuating world price, black pod disease in rainy areas, and a lack of disciplined care for the t...",
+      "extractionTimestamp": "2025-08-29T03:24:40.048Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "koko",
+      "definition": "3. n. Fijian pudding of grated ivi fruit (Polynesian chestnut), baked in earth oven. This is a regional food of Rewa, where the tree has been common; it grows in low-lying, wet areas. Also a food specialty of Beqa Island.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 1,
+      "rawChunk": "koko 3. n. Fijian pudding of grated ivi fruit (Polynesian chestnut), baked in earth oven. This is a\nregional food of Rewa, where the tree has been common; it grows in low-lying, wet areas. Also a food...",
+      "extractionTimestamp": "2025-08-29T03:24:40.149Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "koko",
+      "definition": "4. (Eng.) n. cork usually used as float for fishing line or stopper for a bottle. A piece of coconut husk (qanibulu) often serves as a bottle stopper.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 2,
+      "rawChunk": "koko 4. (Eng.) n. cork usually used as float for fishing line or stopper for a bottle. A piece of coconut\nhusk (qanibulu) often serves as a bottle stopper.",
+      "extractionTimestamp": "2025-08-29T03:24:40.250Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "koko",
+      "definition": "to crow, cackle, croak, of hen, frog, parrot.",
+      "notes": "Part of speech: v.; Entry number: 5",
+      "sourceChunk": 3,
+      "rawChunk": "koko 5. v. to crow, cackle, croak, of hen, frog, parrot.",
+      "extractionTimestamp": "2025-08-29T03:24:40.351Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kokoraki",
+      "definition": "v. to clear the throat with a kind of cough.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 4,
+      "rawChunk": "kokoraki v. to clear the throat with a kind of cough.",
+      "extractionTimestamp": "2025-08-29T03:24:40.452Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kokoroti",
+      "definition": "(Eng.) n. cockroach.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 5,
+      "rawChunk": "kokoroti (Eng.) n. cockroach.",
+      "extractionTimestamp": "2025-08-29T03:24:40.553Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kokosi",
+      "definition": "(Eng.) n. goose, also now applied to a native bird, Fiji Shrikebill. Geese are rarely kept in Fiji.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 6,
+      "rawChunk": "kokosi (Eng.) n. goose, also now applied to a native bird, Fiji Shrikebill. Geese are rarely kept in Fiji.",
+      "extractionTimestamp": "2025-08-29T03:24:40.654Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kokosi",
+      "definition": "(Lau) to be playful, play a game. Kakua ni kokosi! Stop playing!",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 7,
+      "rawChunk": "kokosi (Lau) to be playful, play a game. Kakua ni kokosi! Stop playing!",
+      "extractionTimestamp": "2025-08-29T03:24:40.755Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kokovu",
+      "definition": "v., n. about to burst, of boil, pimple, blister. kovu bud.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 8,
+      "rawChunk": "kokovu v., n. about to burst, of boil, pimple, blister. kovu bud.",
+      "extractionTimestamp": "2025-08-29T03:24:40.855Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kola",
+      "definition": "kola or kolata v. to split wood, coconut, dalo with something sharp. kola rua split in two. May apply to cutting up of kava, especially the way the basal stem (lewena) is chopped up into pieces for drying. kola musu, kolamusutaka v. to cut up in pieces.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 9,
+      "rawChunk": "kola, kola or kolata v. to split wood, coconut, dalo with something sharp. kola rua split in two. May\napply to cutting up of kava, especially the way the basal stem (lewena) is chopped up into pieces ...",
+      "extractionTimestamp": "2025-08-29T03:24:40.957Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kolarua",
+      "definition": "kolaruataka v. to split into two pieces. Similarly, this can be extended to more pieces, as in kolatolu three pieces, kolava four pieces, etc.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 10,
+      "rawChunk": "kolarua, kolaruataka v. to split into two pieces. Similarly, this can be extended to more pieces, as in\nkolatolu three pieces, kolava four pieces, etc.",
+      "extractionTimestamp": "2025-08-29T03:24:41.058Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kola",
+      "definition": "(Eng.) n. collar. Idiom: kola up, means to go about in a challenging, proud manner, often said of hoodlums, pretentious youths, ready to make trouble.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 11,
+      "rawChunk": "kola (Eng.) n. collar. Idiom: kola up, means to go about in a challenging, proud manner, often said of\nhoodlums, pretentious youths, ready to make trouble.",
+      "extractionTimestamp": "2025-08-29T03:24:41.158Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kolai",
+      "definition": "root word, used as a prefix that implies something close to happening (but usually used as an exaggeration: kolai mate see below.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 12,
+      "rawChunk": "kolai root word, used as a prefix that implies something close to happening (but usually used as an\nexaggeration: kolai mate see below.",
+      "extractionTimestamp": "2025-08-29T03:24:41.259Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kolai",
+      "definition": "mate Idiom, lit. close to death, or figuratively to be \"dying\" with desire, as to see someone, or to eat some savoured food. Syn. kolai ciba.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 13,
+      "rawChunk": "kolai mate Idiom, lit. close to death, or figuratively to be \"dying\" with desire, as to see someone, or to\neat some savoured food. Syn. kolai ciba.",
+      "extractionTimestamp": "2025-08-29T03:24:41.360Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "koli",
+      "definition": "n. dog. The term does not derive from English \"collie\". Polynesians raised dogs, fed them a vegetable starch diet, and ate them. Some still eat dogs, as I have recorded from Lakeba, Vanua Balavu, and Gau Island. Killing was by strangulation. But the dog is sacred in quite a number of places, as with the clan Nanuku-ira of the DauLakeba tribe, who have a black dog as their founding spirit. A dog is the iconic animal of a fair number of tribes. Fiji Melanesians have no tradition of keeping dogs for eating but highlanders would eat almost any living thing they could catch and that includes feral dogs and cats, introduced by Europeans. Dogs are often kept to help them in hunting pigs. Fijians have almost never kept dogs (or cats) as close members of the family, as the British do. Caution: in Macuata, koli can refer to fish. Feral or domestic dogs in Fiji are sometimes subject to mange caused by the scabies mite, Sarcoptes scabiei, which can be treated with pyrethrin, or its synthetic equivalent, permethrin. Heartworm is also a problem for dogs. Idiom: Lesu na koli ki na nona lua. lit. The dog returns to his vomit. i.e. the criminal returns to his crime. Idiom: Sa moce na koli e matadravu. Lit. the dog sleep in the fireplace (where food is cooked). There is no food at home. Idiom: vesu koli extremely hungry. Idiom: koli ni koro lit. village dog, a person who always stays around in the village.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 14,
+      "rawChunk": "koli n. dog. The term does not derive from English \"collie\". Polynesians raised dogs, fed them a\nvegetable starch diet, and ate them. Some still eat dogs, as I have recorded from Lakeba, Vanua\nBalavu,...",
+      "extractionTimestamp": "2025-08-29T03:24:41.461Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "koli",
+      "definition": "archaic honorific warrior title, now a common name, sometimes also an abbrev. for Kolinio (Colin).",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 15,
+      "rawChunk": "Koli archaic honorific warrior title, now a common name, sometimes also an abbrev. for Kolinio (Colin).",
+      "extractionTimestamp": "2025-08-29T03:24:41.562Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "koliji",
+      "definition": "(Eng.) college.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 16,
+      "rawChunk": "koliji (Eng.) college.",
+      "extractionTimestamp": "2025-08-29T03:24:41.662Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kolo",
+      "definition": "n. a \"Fijian sickness\", not readily identified in western medicine, often involving a persistent backache, or for women, a hardness in the abdomen, usually attributed to being chilled by being wet and cold around water, fishing or washing clothes. May involve a headache. Lumbago (keke) may be part of the problem.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 17,
+      "rawChunk": "kolo n. a \"Fijian sickness\", not readily identified in western medicine, often involving a persistent\nbackache, or for women, a hardness in the abdomen, usually attributed to being chilled by being we...",
+      "extractionTimestamp": "2025-08-29T03:24:41.763Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kolo",
+      "definition": "kolova, kolotaka v. to hurl (kolotaka) a stick or club (ikolo the object thrown) with a sweeping, almost horizontal motion, usually now to bring down (kolova) fruit from a tree, or to hit a fruit bat with a short stick, for food. Previously certain types of war-club were thrown this way in combat. kolokolotaka throw (them) repeatedly, many times. kolotaka na tauwelu v. to quit, to throw in the towel, as in boxing, to have had enough and admit defeat, an Anglicism, of course. ikolo ni matanisiga Idiom: to drink kava in the morning, lit. as if a stick were being thrown at the sun, a waste of time. ikolo ni bogi the same, in the evening, night-time.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 18,
+      "rawChunk": "kolo, kolova, kolotaka v. to hurl (kolotaka) a stick or club (ikolo the object thrown) with a sweeping,\nalmost horizontal motion, usually now to bring down (kolova) fruit from a tree, or to hit a frui...",
+      "extractionTimestamp": "2025-08-29T03:24:41.863Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "koloni",
+      "definition": "colony. ena gauna vakoloni in colonial times.",
+      "notes": "Etymology: Eng.; Entry number: 1",
+      "sourceChunk": 19,
+      "rawChunk": "koloni 1. (Eng.) colony. ena gauna vakoloni in colonial times.",
+      "extractionTimestamp": "2025-08-29T03:24:41.964Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "koloni",
+      "definition": "colon, as a punctuation mark; a newly invented word",
+      "notes": "Etymology: Eng.; Entry number: 2",
+      "sourceChunk": 20,
+      "rawChunk": "koloni 2. (Eng.) colon, as a punctuation mark; a newly invented word",
+      "extractionTimestamp": "2025-08-29T03:24:42.065Z",
+      "parserType": "mock-llm"
+    }
+  ],
+  "stats": {
+    "totalChunks": 21,
+    "processedChunks": 21,
+    "entriesExtracted": 21,
+    "errors": [],
+    "model": "mock-claude-3-haiku",
+    "timestamp": "2025-08-29T03:24:42.065Z"
+  }
+}
