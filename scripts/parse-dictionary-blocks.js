@@ -139,7 +139,6 @@ class DictionaryBlockParser {
    * Parse a single text block into dictionary entries
    */
   parseBlock(blockText, blockIndex) {
-    console.log('🔧 DEBUG parseBlock called with:', typeof blockText, blockText);
     const lines = blockText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
     const entries = [];
     const errors = [];
