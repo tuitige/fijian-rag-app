@@ -7,6 +7,12 @@ node_modules
 .cdk.staging
 cdk.out
 
+# Test files for parser development
+count-*.js
+test-*.js
+*-test-*.json
+fijian-dict-test.txt
+
 # Ignore all .md files
 *.md
 
