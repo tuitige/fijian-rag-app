@@ -1,0 +1,93 @@
+{
+  "metadata": {
+    "parser": "mock-llm-dictionary-parser",
+    "model": "mock-claude-3-haiku",
+    "totalChunks": 8,
+    "processedChunks": 8,
+    "entriesExtracted": 8,
+    "errors": [],
+    "timestamp": "2025-08-29T02:50:09.675Z"
+  },
+  "entries": [
+    {
+      "headword": "koko",
+      "definition": "cocoa. There are efforts to revive the industry. The problems have been a severely fluctuating world price, black pod disease in rainy areas, and a lack of disciplined care for the trees.",
+      "notes": "Etymology: Eng.; Part of speech: n.; Entry number: 2",
+      "sourceChunk": 0,
+      "rawChunk": "koko 2. (Eng.) n. cocoa. There are efforts to revive the industry. The problems have been a severely fluctuating world price, black pod disease in rainy areas, and a lack of disciplined care for the t...",
+      "extractionTimestamp": "2025-08-29T02:50:08.970Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "koko",
+      "definition": "Fijian pudding of grated ivi fruit (Polynesian chestnut), baked in earth oven. This is a regional food of Rewa, where the tree has been common; it grows in low-lying, wet areas.",
+      "notes": "Part of speech: n.; Entry number: 3",
+      "sourceChunk": 1,
+      "rawChunk": "koko 3. n. Fijian pudding of grated ivi fruit (Polynesian chestnut), baked in earth oven. This is a regional food of Rewa, where the tree has been common; it grows in low-lying, wet areas.",
+      "extractionTimestamp": "2025-08-29T02:50:09.071Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kana",
+      "definition": "to eat, food, meal",
+      "notes": "",
+      "sourceChunk": 2,
+      "rawChunk": "kana - to eat, food, meal",
+      "extractionTimestamp": "2025-08-29T02:50:09.172Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "kanace",
+      "definition": "to eat together, share a meal",
+      "notes": "",
+      "sourceChunk": 3,
+      "rawChunk": "kanace - to eat together, share a meal",
+      "extractionTimestamp": "2025-08-29T02:50:09.272Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "bose",
+      "definition": "n. council, meeting. Traditional Fijian governance structure. Also: bose levu (great council), bose ni koro (village council). Syn. veibose.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 4,
+      "rawChunk": "bose n. council, meeting. Traditional Fijian governance structure. Also: bose levu (great council), bose ni koro (village council). Syn. veibose.",
+      "extractionTimestamp": "2025-08-29T02:50:09.373Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "matanitu",
+      "definition": "n. 1. government, state, kingdom. 2. (archaic) traditional confederacy of tribes. From mata (face, front) + nitu (ghost, spirit).",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 5,
+      "rawChunk": "matanitu n. 1. government, state, kingdom. 2. (archaic) traditional confederacy of tribes. From mata (face, front) + nitu (ghost, spirit).",
+      "extractionTimestamp": "2025-08-29T02:50:09.473Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "tabu",
+      "definition": "(Lau) adj., n. 1. forbidden, sacred, taboo. 2. restriction, prohibition. Cultural concept central to Fijian society. Var: tabu, kabu.",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 6,
+      "rawChunk": "tabu (Lau) adj., n. 1. forbidden, sacred, taboo. 2. restriction, prohibition. Cultural concept central to Fijian society. Var: tabu, kabu.",
+      "extractionTimestamp": "2025-08-29T02:50:09.574Z",
+      "parserType": "mock-llm"
+    },
+    {
+      "headword": "page",
+      "definition": "125 FIJIAN-ENGLISH DICTIONARY R. GATTY vatu n. stone, rock vatu balavu long stone, standing stone vatu ni masima coral rock",
+      "notes": "Fallback parsing used",
+      "sourceChunk": 7,
+      "rawChunk": "Page 125\nFIJIAN-ENGLISH DICTIONARY\nR. GATTY\nvatu n. stone, rock\nvatu balavu long stone, standing stone\nvatu ni masima coral rock",
+      "extractionTimestamp": "2025-08-29T02:50:09.674Z",
+      "parserType": "mock-llm"
+    }
+  ],
+  "stats": {
+    "totalChunks": 8,
+    "processedChunks": 8,
+    "entriesExtracted": 8,
+    "errors": [],
+    "model": "mock-claude-3-haiku",
+    "timestamp": "2025-08-29T02:50:09.675Z"
+  }
+}
