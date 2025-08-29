@@ -18,7 +18,8 @@
  *   - Text file with dictionary entries (one per line or paragraph)
  *   - JSON file from extract-pdf-text.js with text blocks
  * Output: 
- *   - Structured JSON entries with Fijian headwords, definitions, and notes
+ *   - Structured JSON entries formatted for RAG ingestion with DictionaryEntry schema
+ *   - Includes parsed fields: fijian, english, pos, examples, etymology, etc.
  * 
  * Requirements:
  *   - ANTHROPIC_API_KEY environment variable set
@@ -99,22 +100,41 @@ class LLMDictionaryParser {
    * @returns {string} - LLM prompt
    */
   createExtractionPrompt(entry) {
-    return `Extract ALL Fijian dictionary entries from the following text. Each entry should have a Fijian headword, English definition, and any notes. Output as a JSON array:
+    return `Extract ALL Fijian dictionary entries from the following text and structure them for RAG/LLM ingestion. Output as a JSON array matching this schema:
 
 [
-  { "headword": "...", "definition": "...", "notes": "..." },
-  { "headword": "...", "definition": "...", "notes": "..." }
+  {
+    "fijian": "headword",
+    "english": "main definition/translation",
+    "pos": "part of speech (n., v., adj., etc.)",
+    "examples": ["usage example 1", "usage example 2"],
+    "pronunciation": "pronunciation guide if available",
+    "related": ["related word 1", "related word 2"],
+    "entryNumber": 1,
+    "etymology": "etymology information (e.g., Eng., Lau)",
+    "contextualNotes": "cultural and contextual information",
+    "regionalVariations": "regional usage information",
+    "crossReferences": ["cross-referenced terms"],
+    "usageExamples": ["example sentences in context"],
+    "culturalContext": "cultural significance and background",
+    "technicalNotes": "technical or specialized usage notes"
+  }
 ]
 
-Rules:
+Extraction Rules:
 1. Extract EVERY dictionary entry you find in the text
-2. "headword" must be the main Fijian word being defined (not English)
-3. "definition" should be the English translation/explanation
-4. "notes" should include etymology, part of speech, usage examples, or cultural context
-5. If multiple definitions exist for the same headword, create separate entries
-6. Skip headers, page numbers, and non-dictionary content
-7. Return only valid JSON array, no explanations
-8. If no entries found, return empty array []
+2. "fijian" must be the main Fijian word being defined (not English)
+3. "english" should be the core English translation/explanation
+4. Extract "pos" (part of speech) from abbreviations like n., v., adj., adv., etc.
+5. Parse "entryNumber" from numbered entries like "koko 2." → entryNumber: 2
+6. Extract "etymology" from parenthetical notes like "(Eng.)", "(Lau)"
+7. Split long definitions to separate examples, cultural context, and technical notes
+8. Identify related words mentioned in definitions (synonyms, variants)
+9. Extract usage examples and cultural information into separate fields
+10. If a field has no content, omit it or set to null
+11. Skip headers, page numbers, and non-dictionary content
+12. Return only valid JSON array, no explanations
+13. If no entries found, return empty array []
 
 Text:
 ${entry}`;
@@ -182,25 +202,33 @@ ${entry}`;
       const prompt = this.createExtractionPrompt(chunk);
       const entries = await this.callLLM(prompt); // Now returns array directly
       
-      // Validate and clean entries
+      // Validate and clean entries (now expecting DictionaryEntry format)
       const validEntries = entries.filter(entry => {
-        if (!entry.headword || !entry.definition) {
+        // Check for required fields in new schema
+        if (!entry.fijian || !entry.english) {
           console.log(`⚠️  Skipping invalid entry: ${JSON.stringify(entry)}`);
           return false;
         }
         
-        // Ensure headword looks like a Fijian word (basic validation)
-        if (!/^[a-zA-Z]+$/.test(entry.headword)) {
-          console.log(`⚠️  Skipping non-Fijian headword: ${entry.headword}`);
+        // Ensure fijian word looks valid (basic validation)
+        if (!/^[a-zA-Z]+$/.test(entry.fijian)) {
+          console.log(`⚠️  Skipping non-Fijian word: ${entry.fijian}`);
           return false;
         }
         
         return true;
       }).map(entry => ({
         ...entry,
+        // Add metadata for traceability
         sourceChunk: index,
         rawChunk: chunk.substring(0, 200) + (chunk.length > 200 ? '...' : ''),
-        extractionTimestamp: new Date().toISOString()
+        extractionTimestamp: new Date().toISOString(),
+        
+        // Ensure arrays are properly initialized
+        examples: entry.examples || [],
+        related: entry.related || [],
+        crossReferences: entry.crossReferences || [],
+        usageExamples: entry.usageExamples || []
       }));
       
       console.log(`✅ Extracted ${validEntries.length} valid entries from chunk ${index + 1}`);
@@ -348,8 +376,10 @@ Environment:
 
 Features:
   - Uses Claude 3 Haiku for accurate Fijian dictionary entry extraction
+  - Outputs structured DictionaryEntry format for RAG/LLM ingestion
+  - Extracts part of speech, etymology, examples, and cultural context
   - Intelligent text chunking for optimal processing
-  - Validates Fijian headwords and English definitions
+  - Validates Fijian words and English definitions
   - Handles multiple entry formats and complex structures
   - Provides detailed statistics and error reporting
   - Cost-effective with retry logic and rate limiting
@@ -417,8 +447,9 @@ async function main() {
 
     console.log('\n💡 Next steps:');
     console.log('   - Review the extracted entries for quality');
-    console.log('   - Compare with regex-based parser results');
-    console.log('   - Use structured JSON for further processing');
+    console.log('   - Entries are now in DictionaryEntry format for RAG ingestion');
+    console.log('   - Use structured JSON with existing dictionary processor');
+    console.log('   - Import entries into DynamoDB and OpenSearch indexes');
 
   } catch (error) {
     console.error('\n❌ Parsing failed:');
