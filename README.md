@@ -93,6 +93,29 @@ npm run cdk:deploy
 - **`backend/shared/`** - Shared utilities across lambda functions
 - **`infrastructure/cdk/`** - AWS CDK infrastructure as code
 - **`frontend/`** - React frontend application (to be implemented)
+- **`scripts/`** - Local utility scripts for data processing and development
+
+## 🔧 Local Tools & Scripts
+
+### PDF Text Extraction
+
+For processing text-selectable dictionary PDFs locally:
+
+```bash
+# Extract text from PDF into .txt and .json formats
+node scripts/extract-pdf-text.js input.pdf [output-prefix]
+
+# Example with the test dictionary
+node scripts/extract-pdf-text.js ./data-processing/docs/Fijian-English_Dictionary.pdf fijian-dict
+```
+
+This local script provides an alternative to cloud-based OCR for text-selectable PDFs:
+- **Fast & Accurate**: Near 100% accuracy for text-selectable PDFs
+- **Offline Processing**: No AWS dependencies or API costs
+- **Structured Output**: Both raw text and JSON blocks ready for LLM processing
+- **Cross-Platform**: Works on Windows, macOS, and Linux
+
+See [scripts/README-pdf-extraction.md](./scripts/README-pdf-extraction.md) for detailed usage instructions.
 
 ## 🤖 RAG System
 

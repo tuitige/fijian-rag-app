@@ -44,6 +44,7 @@
     "constructs": "^10.4.2",
     "dotenv": "^16.4.7",
     "esbuild": "^0.25.2",
+    "pdf-parse": "^1.1.1",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
