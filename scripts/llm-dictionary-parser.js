@@ -161,19 +161,11 @@ ${entry}`;
 
         const content = response.content[0].text.trim();
         
-        // Try to parse JSON response
+        // Use improved JSON parsing that handles common LLM formatting issues
         try {
-          const parsed = JSON.parse(content);
-          // Ensure result is an array
-          return Array.isArray(parsed) ? parsed : [parsed];
+          return this.parseJsonResponse(content);
         } catch (parseError) {
-          // If JSON parsing fails, try to extract JSON from the response
-          const jsonMatch = content.match(/\[[^\]]*\]|\{[^}]+\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            return Array.isArray(parsed) ? parsed : [parsed];
-          }
-          throw new Error(`Invalid JSON response: ${content}`);
+          throw new Error(`Invalid JSON response: ${parseError.message}. Content: ${content.substring(0, 500)}...`);
         }
         
       } catch (error) {
@@ -187,6 +179,168 @@ ${entry}`;
         await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
       }
     }
+  }
+
+  /**
+   * Parse JSON response from LLM with robust error handling
+   * @param {string} content - Raw LLM response content
+   * @returns {Array} - Array of parsed dictionary entries
+   */
+  parseJsonResponse(content) {
+    if (!content || typeof content !== 'string') {
+      throw new Error('Content must be a non-empty string');
+    }
+    
+    let originalContent = content.trim();
+    
+    // First, try direct parsing (for well-formed JSON)
+    try {
+      const parsed = JSON.parse(originalContent);
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch (directError) {
+      // Continue to more robust parsing
+    }
+    
+    // Clean and normalize the content
+    let cleanedContent = originalContent;
+    
+    // Remove explanatory text before and after JSON
+    cleanedContent = cleanedContent.replace(/^[^[\{]*(?=[\[\{])/s, '');
+    cleanedContent = cleanedContent.replace(/(?<=[\]\}])[^[\{]*$/s, '');
+    
+    // Normalize whitespace while preserving JSON structure
+    cleanedContent = cleanedContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    
+    // Try to find the main JSON array
+    const arrayPattern = /\[[\s\S]*?\]/g;
+    const arrayMatches = [...cleanedContent.matchAll(arrayPattern)];
+    
+    for (const match of arrayMatches) {
+      try {
+        let jsonText = match[0];
+        jsonText = this.fixJsonFormatting(jsonText);
+        
+        const parsed = JSON.parse(jsonText);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch (error) {
+        continue; // Try next match
+      }
+    }
+    
+    // Try to find individual JSON objects and combine them
+    const objectPattern = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
+    const objectMatches = [...cleanedContent.matchAll(objectPattern)];
+    
+    if (objectMatches.length > 0) {
+      const validObjects = [];
+      
+      for (const match of objectMatches) {
+        try {
+          let jsonText = match[0];
+          jsonText = this.fixJsonFormatting(jsonText);
+          
+          const parsed = JSON.parse(jsonText);
+          validObjects.push(parsed);
+        } catch (error) {
+          continue; // Skip invalid objects
+        }
+      }
+      
+      if (validObjects.length > 0) {
+        return validObjects;
+      }
+    }
+    
+    // Last resort: try to construct valid JSON from fragments
+    try {
+      return this.parseJsonFragments(cleanedContent);
+    } catch (fragmentError) {
+      throw new Error(`Unable to parse JSON from LLM response. Tried multiple parsing strategies. Original content: ${originalContent.substring(0, 200)}...`);
+    }
+  }
+
+  /**
+   * Fix common JSON formatting issues in LLM responses
+   * @param {string} jsonText - Raw JSON text
+   * @returns {string} - Fixed JSON text
+   */
+  fixJsonFormatting(jsonText) {
+    let fixed = jsonText;
+    
+    // Fix literal newlines within string values
+    fixed = fixed.replace(/"([^"]*?)\n([^"]*?)"/g, (match, p1, p2) => {
+      return `"${p1}\\n${p2}"`;
+    });
+    
+    // Fix unescaped quotes within string values
+    fixed = fixed.replace(/"([^"\\]*?)"([^"\\]*?)"([^"\\]*?)":/g, '"$1\\"$2\\"$3":');
+    
+    // Fix missing commas between array elements (objects)
+    fixed = fixed.replace(/}\s*\n\s*{/g, '},{');
+    fixed = fixed.replace(/}\s+{/g, '},{');
+    
+    // Fix missing commas between object properties
+    fixed = fixed.replace(/"\s*\n\s*"/g, '",\n"');
+    
+    // Remove trailing commas
+    fixed = fixed.replace(/,(\s*[}\]])/g, '$1');
+    
+    // Ensure proper array structure
+    if (fixed.includes('{') && !fixed.trim().startsWith('[')) {
+      // If we have objects but no array wrapper, wrap in array
+      const objectPattern = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
+      const objects = [...fixed.matchAll(objectPattern)];
+      if (objects.length > 1) {
+        fixed = '[' + objects.map(m => m[0]).join(',') + ']';
+      }
+    }
+    
+    return fixed;
+  }
+
+  /**
+   * Parse JSON fragments and try to reconstruct valid JSON
+   * @param {string} content - Content with JSON fragments
+   * @returns {Array} - Array of parsed entries
+   */
+  parseJsonFragments(content) {
+    const entries = [];
+    
+    // Pattern to match Fijian dictionary entries
+    const entryPattern = /"fijian":\s*"([^"]+)"[\s\S]*?"english":\s*"([^"]+)"/g;
+    const matches = [...content.matchAll(entryPattern)];
+    
+    for (const match of matches) {
+      const entry = {
+        fijian: match[1],
+        english: match[2]
+      };
+      
+      // Try to extract additional fields from the surrounding context
+      const contextStart = Math.max(0, match.index - 200);
+      const contextEnd = Math.min(content.length, match.index + match[0].length + 200);
+      const context = content.substring(contextStart, contextEnd);
+      
+      // Extract POS if available
+      const posMatch = context.match(/"pos":\s*"([^"]+)"/);
+      if (posMatch) entry.pos = posMatch[1];
+      
+      // Extract etymology if available
+      const etymologyMatch = context.match(/"etymology":\s*"([^"]+)"/);
+      if (etymologyMatch) entry.etymology = etymologyMatch[1];
+      
+      // Extract entry number if available
+      const entryNumberMatch = context.match(/"entryNumber":\s*(\d+)/);
+      if (entryNumberMatch) entry.entryNumber = parseInt(entryNumberMatch[1]);
+      
+      entries.push(entry);
+    }
+    
+    if (entries.length > 0) {
+      return entries;
+    }
+    
+    throw new Error('No valid dictionary entries found in content');
   }
 
   /**
