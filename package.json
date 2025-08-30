@@ -13,6 +13,8 @@
     "frontend:build": "node scripts/deploy-frontend.js --skip-upload",
     "frontend:deploy": "node scripts/deploy-frontend.js",
     "deploy:full": "npm run cdk:deploy && npm run frontend:deploy",
+    "deploy:dictionary": "node scripts/deploy-dictionary.js",
+    "deploy:dictionary:dry-run": "node scripts/deploy-dictionary.js --dry-run",
     "test": "jest"
   },
   "dependencies": {
