@@ -13,6 +13,7 @@ import { DynamoDBClient, GetItemCommand, PutItemCommand, UpdateItemCommand } fro
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { createHash } from 'crypto';
 
 const ddbClient = new DynamoDBClient({});
 
@@ -27,6 +28,21 @@ interface VocabularyRecord {
   lastSeen: string;
   definition?: string;
   context?: string;
+  articleIds?: string[]; // New: Reference to articles containing this word
+}
+
+interface ArticleRecord {
+  articleId: string;
+  url: string;
+  title?: string;
+  content: string;
+  paragraphs: string[];
+  processedAt: string;
+  source?: string;
+  language: string;
+  wordCount: number;
+  vocabularyWords: string[];
+  metadata?: { [key: string]: any };
 }
 
 interface WordFrequency {
@@ -34,7 +50,132 @@ interface WordFrequency {
     count: number;
     sources: Set<string>;
     contexts: string[];
+    articleIds: Set<string>; // New: Track which articles contain this word
   };
+}
+
+/**
+ * Generate a unique article ID from URL
+ */
+function generateArticleId(url: string): string {
+  return createHash('md5').update(url).digest('hex');
+}
+
+/**
+ * Extract article title from HTML
+ */
+function extractArticleTitle(html: string): string | undefined {
+  const $ = cheerio.load(html);
+  
+  // Try various title selectors
+  const titleSelectors = [
+    'h1.article-title',
+    'h1.post-title',
+    'h1.entry-title',
+    '.article-header h1',
+    'article h1',
+    'h1',
+    'title'
+  ];
+  
+  for (const selector of titleSelectors) {
+    const element = $(selector).first();
+    if (element.length > 0) {
+      const title = element.text().trim();
+      if (title && title.length > 0 && title.length < 200) {
+        return title;
+      }
+    }
+  }
+  
+  return undefined;
+}
+
+/**
+ * Extract source/publication name from URL
+ */
+function extractSourceFromUrl(url: string): string {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    
+    // Map known Fijian news sources
+    const sourceMap: { [key: string]: string } = {
+      'nailalakai.com.fj': 'Nai Lalakai',
+      'fijitimes.com': 'Fiji Times',
+      'fijivillage.com': 'FijiVillage',
+      'fbcnews.com.fj': 'FBC News',
+      'fijisun.com.fj': 'Fiji Sun'
+    };
+    
+    // Check exact matches first
+    if (sourceMap[hostname]) {
+      return sourceMap[hostname];
+    }
+    
+    // Extract domain name as fallback
+    const parts = hostname.split('.');
+    if (parts.length >= 2) {
+      return parts[parts.length - 2].charAt(0).toUpperCase() + parts[parts.length - 2].slice(1);
+    }
+    
+    return hostname;
+  } catch (error) {
+    return 'Unknown Source';
+  }
+}
+
+/**
+ * Split text into paragraphs for granular learning
+ */
+function extractParagraphs(text: string): string[] {
+  return text
+    .split(/\n\s*\n/) // Split on double newlines
+    .map(p => p.trim())
+    .filter(p => p.length > 20) // Filter out very short paragraphs
+    .slice(0, 50); // Limit to 50 paragraphs to avoid DynamoDB size limits
+}
+
+/**
+ * Store article content in DynamoDB
+ */
+async function storeArticleContent(
+  articleId: string,
+  url: string,
+  title: string | undefined,
+  content: string,
+  vocabularyWords: string[]
+): Promise<void> {
+  try {
+    const paragraphs = extractParagraphs(content);
+    const source = extractSourceFromUrl(url);
+    const now = new Date().toISOString();
+    
+    const articleRecord: ArticleRecord = {
+      articleId,
+      url,
+      title,
+      content,
+      paragraphs,
+      processedAt: now,
+      source,
+      language: 'fijian',
+      wordCount: content.split(/\s+/).length,
+      vocabularyWords,
+      metadata: {
+        paragraphCount: paragraphs.length,
+        extractedTitle: !!title
+      }
+    };
+    
+    await ddbClient.send(new PutItemCommand({
+      TableName: process.env.ARTICLE_CONTENT_TABLE!,
+      Item: marshall(articleRecord)
+    }));
+    
+    console.log(`Stored article content: ${articleId} (${content.length} chars, ${paragraphs.length} paragraphs)`);
+  } catch (error) {
+    console.error(`Error storing article content for ${articleId}:`, error);
+  }
 }
 
 /**
@@ -113,7 +254,7 @@ export function extractTextFromHtml(html: string): string {
 /**
  * Fetch article content from URL
  */
-async function fetchArticleContent(url: string): Promise<string> {
+async function fetchArticleContent(url: string): Promise<{ content: string; title?: string; html: string }> {
   try {
     console.log(`Fetching article: ${url}`);
     
@@ -124,13 +265,16 @@ async function fetchArticleContent(url: string): Promise<string> {
       }
     });
     
-    const text = extractTextFromHtml(response.data);
-    console.log(`Extracted ${text.length} characters from ${url}`);
+    const html = response.data;
+    const content = extractTextFromHtml(html);
+    const title = extractArticleTitle(html);
     
-    return text;
+    console.log(`Extracted ${content.length} characters from ${url}${title ? ` (title: ${title})` : ''}`);
+    
+    return { content, title, html };
   } catch (error) {
     console.error(`Error fetching ${url}:`, error);
-    return '';
+    return { content: '', html: '' };
   }
 }
 
@@ -165,7 +309,13 @@ async function lookupWordInDictionary(word: string): Promise<{ definition?: stri
 /**
  * Update vocabulary frequency record in DynamoDB
  */
-async function updateVocabularyRecord(word: string, frequency: number, sources: string[], contexts: string[]): Promise<void> {
+async function updateVocabularyRecord(
+  word: string, 
+  frequency: number, 
+  sources: string[], 
+  contexts: string[],
+  articleIds: string[]
+): Promise<void> {
   try {
     // Look up dictionary definition
     const dictEntry = await lookupWordInDictionary(word);
@@ -183,14 +333,15 @@ async function updateVocabularyRecord(word: string, frequency: number, sources: 
       // Update existing record
       const existing = unmarshall(existingResult.Item) as VocabularyRecord;
       
-      // Merge sources (deduplicate)
+      // Merge sources and articleIds (deduplicate)
       const mergedSources = Array.from(new Set([...existing.sources, ...sources]));
+      const mergedArticleIds = Array.from(new Set([...(existing.articleIds || []), ...articleIds]));
       const newFrequency = existing.frequency + frequency;
       
       await ddbClient.send(new UpdateItemCommand({
         TableName: process.env.VOCABULARY_FREQUENCY_TABLE!,
         Key: marshall({ word }),
-        UpdateExpression: 'SET frequency = :freq, sources = :sources, lastSeen = :lastSeen' + 
+        UpdateExpression: 'SET frequency = :freq, sources = :sources, lastSeen = :lastSeen, articleIds = :articleIds' + 
                          (dictEntry.definition ? ', definition = :def' : '') +
                          (dictEntry.context ? ', context = :ctx' : '') +
                          (contextSnippet ? ', articleContext = :artCtx' : ''),
@@ -198,13 +349,14 @@ async function updateVocabularyRecord(word: string, frequency: number, sources: 
           ':freq': newFrequency,
           ':sources': mergedSources,
           ':lastSeen': now,
+          ':articleIds': mergedArticleIds,
           ...(dictEntry.definition && { ':def': dictEntry.definition }),
           ...(dictEntry.context && { ':ctx': dictEntry.context }),
           ...(contextSnippet && { ':artCtx': contextSnippet })
         })
       }));
       
-      console.log(`Updated ${word}: frequency ${existing.frequency} -> ${newFrequency}`);
+      console.log(`Updated ${word}: frequency ${existing.frequency} -> ${newFrequency}, articles: ${mergedArticleIds.length}`);
     } else {
       // Create new record
       const record: VocabularyRecord = {
@@ -212,6 +364,7 @@ async function updateVocabularyRecord(word: string, frequency: number, sources: 
         frequency,
         sources,
         lastSeen: now,
+        articleIds,
         ...(dictEntry.definition && { definition: dictEntry.definition }),
         ...(dictEntry.context && { context: dictEntry.context })
       };
@@ -226,7 +379,7 @@ async function updateVocabularyRecord(word: string, frequency: number, sources: 
         Item: item
       }));
       
-      console.log(`Created new record for ${word}: frequency ${frequency}`);
+      console.log(`Created new record for ${word}: frequency ${frequency}, articles: ${articleIds.length}`);
     }
   } catch (error) {
     console.error(`Error updating vocabulary record for ${word}:`, error);
@@ -236,20 +389,27 @@ async function updateVocabularyRecord(word: string, frequency: number, sources: 
 /**
  * Process articles and update vocabulary frequencies
  */
-async function processArticles(urls: string[]): Promise<{ processed: number; totalWords: number; uniqueWords: number }> {
+async function processArticles(urls: string[]): Promise<{ 
+  processed: number; 
+  totalWords: number; 
+  uniqueWords: number; 
+  articlesStored: number 
+}> {
   const wordFrequencies: WordFrequency = {};
   let processedCount = 0;
+  let articlesStored = 0;
   
   // Process each article
   for (const url of urls) {
     try {
-      const content = await fetchArticleContent(url);
-      if (!content) {
+      const articleData = await fetchArticleContent(url);
+      if (!articleData.content) {
         console.log(`Skipping ${url} - no content extracted`);
         continue;
       }
       
-      const words = tokenizeFijianText(content);
+      const articleId = generateArticleId(url);
+      const words = tokenizeFijianText(articleData.content);
       console.log(`Extracted ${words.length} Fijian words from ${url}`);
       
       // Count word frequencies for this article
@@ -258,28 +418,40 @@ async function processArticles(urls: string[]): Promise<{ processed: number; tot
           wordFrequencies[word] = {
             count: 0,
             sources: new Set(),
-            contexts: []
+            contexts: [],
+            articleIds: new Set()
           };
         }
         
         wordFrequencies[word].count++;
         wordFrequencies[word].sources.add(url);
+        wordFrequencies[word].articleIds.add(articleId);
         
         // Store context snippet (sentence containing the word)
-        const sentences = content.split(/[.!?]+/);
+        const sentences = articleData.content.split(/[.!?]+/);
         const contextSentence = sentences.find(s => s.toLowerCase().includes(word));
         if (contextSentence && wordFrequencies[word].contexts.length < 3) {
           wordFrequencies[word].contexts.push(contextSentence.trim());
         }
       }
       
+      // Store the article content
+      await storeArticleContent(
+        articleId,
+        url,
+        articleData.title,
+        articleData.content,
+        [...new Set(words)] // Unique words found in this article
+      );
+      
+      articlesStored++;
       processedCount++;
     } catch (error) {
       console.error(`Error processing article ${url}:`, error);
     }
   }
   
-  // Update DynamoDB records
+  // Update DynamoDB vocabulary records
   const uniqueWords = Object.keys(wordFrequencies).length;
   let totalWords = 0;
   
@@ -291,14 +463,16 @@ async function processArticles(urls: string[]): Promise<{ processed: number; tot
       word, 
       data.count, 
       Array.from(data.sources), 
-      data.contexts
+      data.contexts,
+      Array.from(data.articleIds)
     );
   }
   
   return {
     processed: processedCount,
     totalWords,
-    uniqueWords
+    uniqueWords,
+    articlesStored
   };
 }
 
@@ -353,6 +527,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           articlesProcessed: results.processed,
           totalWordsFound: results.totalWords,
           uniqueWordsFound: results.uniqueWords,
+          articlesStored: results.articlesStored,
           urlsRequested: request.urls.length
         }
       })

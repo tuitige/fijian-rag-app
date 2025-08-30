@@ -232,6 +232,30 @@ export class FijianRagAppStack extends cdk.Stack {
       encryption: dynamodb.TableEncryption.AWS_MANAGED,
     });
 
+    // === NEW: Article Content Table for RAG Learning Use Cases ===
+    const articleContentTable = new dynamodb.Table(this, 'ArticleContentTable', {
+      partitionKey: { name: 'articleId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      pointInTimeRecovery: config.backup.enablePointInTimeRecovery,
+      encryption: dynamodb.TableEncryption.AWS_MANAGED,
+    });
+
+    // Add GSI for looking up articles by URL
+    articleContentTable.addGlobalSecondaryIndex({
+      indexName: 'GSI_ArticleByUrl',
+      partitionKey: { name: 'url', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // Add GSI for looking up articles by source
+    articleContentTable.addGlobalSecondaryIndex({
+      indexName: 'GSI_ArticleBySource',
+      partitionKey: { name: 'source', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'processedAt', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
     // === OpenSearch Serverless Collection ===
     const osDomain = new opensearch.Domain(this, 'FijianRagCollection', {
       version: opensearch.EngineVersion.OPENSEARCH_2_11,
@@ -415,6 +439,7 @@ export class FijianRagAppStack extends cdk.Stack {
       environment: {
         VOCABULARY_FREQUENCY_TABLE: vocabularyFrequencyTable.tableName,
         DICTIONARY_TABLE: dictionaryTable.tableName,
+        ARTICLE_CONTENT_TABLE: articleContentTable.tableName,
       },
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
@@ -498,6 +523,7 @@ export class FijianRagAppStack extends cdk.Stack {
     // Grant permissions for vocabulary processing lambda
     vocabularyFrequencyTable.grantReadWriteData(vocabularyProcessingLambda);
     dictionaryTable.grantReadData(vocabularyProcessingLambda);
+    articleContentTable.grantReadWriteData(vocabularyProcessingLambda);
 
     // === REMOVED: Legacy lambda OpenSearch permissions ===
     // Removed policies for deleted lambda functions
