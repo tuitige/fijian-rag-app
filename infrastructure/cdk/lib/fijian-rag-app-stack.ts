@@ -223,6 +223,14 @@ export class FijianRagAppStack extends cdk.Stack {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
+    // === NEW: Vocabulary Frequency Table for Article Processing ===
+    const vocabularyFrequencyTable = new dynamodb.Table(this, 'VocabularyFrequencyTable', {
+      partitionKey: { name: 'word', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      pointInTimeRecovery: config.backup.enablePointInTimeRecovery,
+      encryption: dynamodb.TableEncryption.AWS_MANAGED,
+    });
 
     // === OpenSearch Serverless Collection ===
     const osDomain = new opensearch.Domain(this, 'FijianRagCollection', {
@@ -387,6 +395,30 @@ export class FijianRagAppStack extends cdk.Stack {
       },
     });
 
+    // === NEW: Lambda for Article Vocabulary Frequency & Dictionary Enrichment ===
+    const vocabularyProcessingLambda = new lambdaNodejs.NodejsFunction(this, 'VocabularyProcessingLambda', {
+      entry: path.join(__dirname, '../../../backend/lambdas/vocabulary/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(900), // 15 minutes for processing multiple articles
+      tracing: config.monitoring.enableXRayTracing ? lambda.Tracing.ACTIVE : lambda.Tracing.DISABLED,
+      insightsVersion: config.monitoring.enableDetailedMonitoring ? lambda.LambdaInsightsVersion.VERSION_1_0_229_0 : undefined,
+      bundling: {
+        nodeModules: [
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/util-dynamodb',
+          'axios',
+          'cheerio'
+        ]
+      },
+      environment: {
+        VOCABULARY_FREQUENCY_TABLE: vocabularyFrequencyTable.tableName,
+        DICTIONARY_TABLE: dictionaryTable.tableName,
+      },
+      logRetention: logs.RetentionDays.ONE_WEEK,
+    });
+
     fijianApiLambda.addToRolePolicy(new iam.PolicyStatement({
       actions: ['bedrock:InvokeModel'],
       resources: ['arn:aws:bedrock:*::foundation-model/*']
@@ -462,6 +494,10 @@ export class FijianRagAppStack extends cdk.Stack {
       ],
       resources: ['*']
     }));
+
+    // Grant permissions for vocabulary processing lambda
+    vocabularyFrequencyTable.grantReadWriteData(vocabularyProcessingLambda);
+    dictionaryTable.grantReadData(vocabularyProcessingLambda);
 
     // === REMOVED: Legacy lambda OpenSearch permissions ===
     // Removed policies for deleted lambda functions
@@ -609,6 +645,15 @@ export class FijianRagAppStack extends cdk.Stack {
     // Dictionary processing endpoint: POST /dictionary/process
     const dictionaryProcessResource = dictionaryResource.addResource('process');
     dictionaryProcessResource.addMethod('POST', new apigateway.LambdaIntegration(dictionaryPdfProcessingLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+    // Built-in CORS is configured above, no need for manual CORS
+
+    // Article vocabulary processing endpoint: POST /vocabulary/process-articles
+    const vocabularyResource = unifiedApi.root.addResource('vocabulary');
+    const vocabularyProcessResource = vocabularyResource.addResource('process-articles');
+    vocabularyProcessResource.addMethod('POST', new apigateway.LambdaIntegration(vocabularyProcessingLambda), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO
     });
