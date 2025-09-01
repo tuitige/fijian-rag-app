@@ -1,8 +1,10 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import AuthButton from '../Auth/AuthButton';
 
 const Header: React.FC = () => {
+  const { isAuthenticated } = useAuth();
   const location = useLocation();
 
   return (
@@ -28,40 +30,42 @@ const Header: React.FC = () => {
               🇫🇯 Fijian AI Chat
             </h1>
             
-            <nav>
-              <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-                <Link 
-                  to="/" 
-                  style={{
-                    textDecoration: 'none',
-                    color: location.pathname === '/' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                    fontWeight: location.pathname === '/' ? 'var(--font-weight-semibold)' : 'normal',
-                    fontSize: 'var(--font-size-sm)',
-                    padding: 'var(--spacing-xs) var(--spacing-sm)',
-                    borderRadius: 'var(--border-radius-sm)',
-                    backgroundColor: location.pathname === '/' ? 'var(--color-primary-light)' : 'transparent',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  Chat & Learning
-                </Link>
-                <Link 
-                  to="/vocabulary-management" 
-                  style={{
-                    textDecoration: 'none',
-                    color: location.pathname === '/vocabulary-management' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                    fontWeight: location.pathname === '/vocabulary-management' ? 'var(--font-weight-semibold)' : 'normal',
-                    fontSize: 'var(--font-size-sm)',
-                    padding: 'var(--spacing-xs) var(--spacing-sm)',
-                    borderRadius: 'var(--border-radius-sm)',
-                    backgroundColor: location.pathname === '/vocabulary-management' ? 'var(--color-primary-light)' : 'transparent',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  Data Management
-                </Link>
-              </div>
-            </nav>
+            {isAuthenticated && (
+              <nav>
+                <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+                  <Link 
+                    to="/" 
+                    style={{
+                      textDecoration: 'none',
+                      color: location.pathname === '/' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                      fontWeight: location.pathname === '/' ? 'var(--font-weight-semibold)' : 'normal',
+                      fontSize: 'var(--font-size-sm)',
+                      padding: 'var(--spacing-xs) var(--spacing-sm)',
+                      borderRadius: 'var(--border-radius-sm)',
+                      backgroundColor: location.pathname === '/' ? 'var(--color-primary-light)' : 'transparent',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Chat & Learning
+                  </Link>
+                  <Link 
+                    to="/vocabulary-management" 
+                    style={{
+                      textDecoration: 'none',
+                      color: location.pathname === '/vocabulary-management' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                      fontWeight: location.pathname === '/vocabulary-management' ? 'var(--font-weight-semibold)' : 'normal',
+                      fontSize: 'var(--font-size-sm)',
+                      padding: 'var(--spacing-xs) var(--spacing-sm)',
+                      borderRadius: 'var(--border-radius-sm)',
+                      backgroundColor: location.pathname === '/vocabulary-management' ? 'var(--color-primary-light)' : 'transparent',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Data Management
+                  </Link>
+                </div>
+              </nav>
+            )}
           </div>
           
           <div style={{
