@@ -1,8 +1,10 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout/Layout';
 import { ChatContainer } from './components/Chat';
 import LearningFeaturesDemo from './components/LearningFeaturesDemo';
+import VocabularyManagement from './components/VocabularyManagement/VocabularyManagement';
 import { ChatModeProvider } from './contexts/ChatModeContext';
 import { UserProgressProvider } from './contexts/UserProgressContext';
 import './styles/globals.css';
@@ -54,16 +56,23 @@ function App() {
 
   if (auth.isAuthenticated) {
     return (
-      <UserProgressProvider>
-        <ChatModeProvider>
-          <Layout>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-              <ChatContainer />
-              <LearningFeaturesDemo />
-            </div>
-          </Layout>
-        </ChatModeProvider>
-      </UserProgressProvider>
+      <Router>
+        <UserProgressProvider>
+          <ChatModeProvider>
+            <Layout>
+              <Routes>
+                <Route path="/" element={
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                    <ChatContainer />
+                    <LearningFeaturesDemo />
+                  </div>
+                } />
+                <Route path="/vocabulary-management" element={<VocabularyManagement />} />
+              </Routes>
+            </Layout>
+          </ChatModeProvider>
+        </UserProgressProvider>
+      </Router>
     );
   }
 
