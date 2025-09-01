@@ -520,10 +520,41 @@ export class FijianRagAppStack extends cdk.Stack {
       resources: ['*']
     }));
 
+    // === NEW: Lambda for Vocabulary Management ===
+    const vocabularyManagementLambda = new lambdaNodejs.NodejsFunction(this, 'VocabularyManagementLambda', {
+      entry: path.join(__dirname, '../../../backend/lambdas/vocabulary-management/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 512,
+      timeout: cdk.Duration.seconds(30),
+      tracing: config.monitoring.enableXRayTracing ? lambda.Tracing.ACTIVE : lambda.Tracing.DISABLED,
+      insightsVersion: config.monitoring.enableDetailedMonitoring ? lambda.LambdaInsightsVersion.VERSION_1_0_229_0 : undefined,
+      bundling: {
+        nodeModules: [
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/util-dynamodb',
+          '@aws-sdk/client-bedrock-runtime'
+        ]
+      },
+      environment: {
+        VOCABULARY_FREQUENCY_TABLE: vocabularyFrequencyTable.tableName,
+      },
+      logRetention: logs.RetentionDays.ONE_WEEK,
+    });
+
+    // Grant Bedrock permissions for AI suggestions
+    vocabularyManagementLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: ['arn:aws:bedrock:*::foundation-model/*']
+    }));
+
     // Grant permissions for vocabulary processing lambda
     vocabularyFrequencyTable.grantReadWriteData(vocabularyProcessingLambda);
     dictionaryTable.grantReadData(vocabularyProcessingLambda);
     articleContentTable.grantReadWriteData(vocabularyProcessingLambda);
+
+    // Grant permissions for vocabulary management lambda
+    vocabularyFrequencyTable.grantReadWriteData(vocabularyManagementLambda);
 
     // === REMOVED: Legacy lambda OpenSearch permissions ===
     // Removed policies for deleted lambda functions
@@ -588,7 +619,7 @@ export class FijianRagAppStack extends cdk.Stack {
       },
       defaultCorsPreflightOptions: {
         allowOrigins: config.security.corsOrigins,
-        allowMethods: ['GET', 'POST', 'OPTIONS'],
+        allowMethods: ['GET', 'POST', 'PUT', 'OPTIONS'],
         allowHeaders: [
           'Content-Type', 
           'X-Amz-Date', 
@@ -684,6 +715,28 @@ export class FijianRagAppStack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.COGNITO
     });
     // Built-in CORS is configured above, no need for manual CORS
+
+    // Vocabulary management endpoints
+    const vocabularyManagementResource = vocabularyResource.addResource('management');
+    vocabularyManagementResource.addMethod('GET', new apigateway.LambdaIntegration(vocabularyManagementLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+
+    // Vocabulary definition update endpoint: PUT /vocabulary/{word}/definition
+    const vocabularyWordResource = vocabularyResource.addResource('{word}');
+    const vocabularyDefinitionResource = vocabularyWordResource.addResource('definition');
+    vocabularyDefinitionResource.addMethod('PUT', new apigateway.LambdaIntegration(vocabularyManagementLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
+
+    // Vocabulary suggestion endpoint: POST /vocabulary/suggest-definition
+    const vocabularySuggestResource = vocabularyResource.addResource('suggest-definition');
+    vocabularySuggestResource.addMethod('POST', new apigateway.LambdaIntegration(vocabularyManagementLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO
+    });
 
     // Progress endpoints
     const progressResource = unifiedApi.root.addResource('progress');
