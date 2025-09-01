@@ -1,5 +1,5 @@
 import React from 'react';
-import VocabularyManagement from '../components/VocabularyManagement/VocabularyManagement';
+import VocabularyManagement from './components/VocabularyManagement/VocabularyManagement';
 
 const VocabularyManagementDemo: React.FC = () => {
   return (
