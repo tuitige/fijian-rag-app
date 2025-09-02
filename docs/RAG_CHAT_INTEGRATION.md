@@ -50,6 +50,12 @@ User Input → Chat Handler → Dictionary Retrieval → Context Augmentation �
   - `ragContext`: Metadata about retrieved dictionary entries
     - `entriesUsed`: Number of dictionary entries found
     - `sources`: Array of source information with word, score, and type
+  - `fullPrompt`: Complete prompt details for testing and validation (when RAG context found)
+    - `systemPrompt`: The system prompt used for the LLM
+    - `ragContextText`: The RAG context text included in the prompt
+    - `originalUserInput`: The original user input before augmentation
+    - `finalUserMessage`: The complete user message sent to Claude (including RAG context)
+    - `completePayload`: The full payload object sent to the Bedrock API
 
 #### Streaming Chat Endpoint (`POST /chat/stream`)
 - **Same enhancements** as regular chat endpoint
@@ -77,6 +83,18 @@ User Input → Chat Handler → Dictionary Retrieval → Context Augmentation �
       { "word": "bula", "type": "exact" },
       { "word": "greeting", "score": 0.85, "type": "semantic" }
     ]
+  },
+  "fullPrompt": {
+    "systemPrompt": "You are a helpful Fijian language learning assistant with access to dictionary entries...",
+    "ragContextText": "Relevant Dictionary Context:\nWord: bula\nFijian: bula\nEnglish: hello, life, health...\n\n",
+    "originalUserInput": "What does bula mean?",
+    "finalUserMessage": "Relevant Dictionary Context:\n...\n\nUser Question: What does bula mean?",
+    "completePayload": {
+      "anthropic_version": "bedrock-2023-05-31",
+      "max_tokens": 100,
+      "messages": [...],
+      "system": "You are a helpful Fijian language learning assistant..."
+    }
   }
 }
 ```
