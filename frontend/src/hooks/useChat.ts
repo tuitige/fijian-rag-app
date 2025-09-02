@@ -162,6 +162,11 @@ export function useChat() {
           } else if (mode === 'learning') {
             metadata.explanation = response.explanation;
           }
+          
+          // Extract RAG context if available
+          if (response.ragContext) {
+            metadata.ragContext = response.ragContext;
+          }
         } else {
           responseText = 'Sorry, I could not process your message.';
         }
