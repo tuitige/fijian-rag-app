@@ -9,6 +9,8 @@ export interface ApiError {
   error: string;
   message?: string;
   type?: string;
+  statusCode?: number;
+  requiresReauth?: boolean;
 }
 
 export interface LearningModule {

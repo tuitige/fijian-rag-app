@@ -46,6 +46,24 @@ api.interceptors.response.use(
   (error) => {
     console.error('API Error:', error);
     
+    // Handle 401 Unauthorized errors - likely due to expired token
+    if (error.response?.status === 401) {
+      console.warn('🔒 401 Unauthorized - Token may be expired. Clearing authentication tokens.');
+      
+      // Clear expired tokens
+      localStorage.removeItem('cognitoIdToken');
+      localStorage.removeItem('cognitoAccessToken');
+      localStorage.removeItem('authToken'); // legacy token
+      
+      // Return a specific error for 401 to help users understand they need to re-authenticate
+      return Promise.reject({
+        error: 'Authentication expired',
+        message: 'Your session has expired. Please sign in again to continue.',
+        statusCode: 401,
+        requiresReauth: true
+      } as ApiError & { requiresReauth: boolean });
+    }
+    
     if (error.response?.data) {
       // Server responded with error
       return Promise.reject(error.response.data as ApiError);
