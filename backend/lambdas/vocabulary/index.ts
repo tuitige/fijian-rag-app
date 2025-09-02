@@ -341,10 +341,15 @@ async function updateVocabularyRecord(
       await ddbClient.send(new UpdateItemCommand({
         TableName: process.env.VOCABULARY_FREQUENCY_TABLE!,
         Key: marshall({ word }),
-        UpdateExpression: 'SET frequency = :freq, sources = :sources, lastSeen = :lastSeen, articleIds = :articleIds' + 
-                         (dictEntry.definition ? ', definition = :def' : '') +
-                         (dictEntry.context ? ', context = :ctx' : '') +
+        UpdateExpression: 'SET frequency = :freq, #sources = :sources, lastSeen = :lastSeen, articleIds = :articleIds' + 
+                         (dictEntry.definition ? ', #definition = :def' : '') +
+                         (dictEntry.context ? ', #context = :ctx' : '') +
                          (contextSnippet ? ', articleContext = :artCtx' : ''),
+        ExpressionAttributeNames: {
+          '#sources': 'sources',
+          ...(dictEntry.definition && { '#definition': 'definition' }),
+          ...(dictEntry.context && { '#context': 'context' })
+        },
         ExpressionAttributeValues: marshall({
           ':freq': newFrequency,
           ':sources': mergedSources,
