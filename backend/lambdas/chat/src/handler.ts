@@ -431,6 +431,15 @@ export const handler = async (
           entriesUsed: ragContextResult.entries.length,
           sources: ragContextResult.sourcesSummary
         };
+        
+        // Add full prompt details for testing and validation
+        responseMetadata.fullPrompt = {
+          systemPrompt: finalSystemPrompt,
+          ragContextText: ragContextText,
+          originalUserInput: userInput,
+          finalUserMessage: ragContextText ? `${ragContextText}\n\nUser Question: ${userInput}` : userInput,
+          completePayload: requestPayload
+        };
       }
       
       return jsonResponse(200, responseMetadata);
@@ -568,6 +577,15 @@ export const handler = async (
         responseMetadata.ragContext = {
           entriesUsed: ragContextResult.entries.length,
           sources: ragContextResult.sourcesSummary
+        };
+        
+        // Add full prompt details for testing and validation
+        responseMetadata.fullPrompt = {
+          systemPrompt: finalSystemPrompt,
+          ragContextText: ragContextText,
+          originalUserInput: userInput,
+          finalUserMessage: ragContextText ? `${ragContextText}\n\nUser Question: ${userInput}` : userInput,
+          completePayload: requestPayload
         };
       }
       
