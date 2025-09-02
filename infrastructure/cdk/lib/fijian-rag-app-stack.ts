@@ -380,10 +380,23 @@ export class FijianRagAppStack extends cdk.Stack {
       tracing: config.monitoring.enableXRayTracing ? lambda.Tracing.ACTIVE : lambda.Tracing.DISABLED,
       insightsVersion: config.monitoring.enableDetailedMonitoring ? lambda.LambdaInsightsVersion.VERSION_1_0_229_0 : undefined,
       bundling: {
-        nodeModules: ['@aws-sdk/client-bedrock-runtime', '@aws-sdk/client-dynamodb', '@aws-sdk/util-dynamodb']
+        nodeModules: [
+          '@aws-sdk/client-bedrock-runtime',
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/util-dynamodb',
+          '@aws-sdk/credential-provider-node',
+          '@smithy/protocol-http',
+          '@smithy/node-http-handler',
+          '@smithy/signature-v4',
+          '@aws-crypto/sha256-js'
+        ]
       },
       environment: {
         USER_PROGRESS_TABLE: userProgressTable.tableName,
+        DICTIONARY_TABLE: dictionaryTable.tableName,
+        OPENSEARCH_ENDPOINT: osDomain.domainEndpoint,
+        OS_ENDPOINT: osDomain.domainEndpoint,
+        OS_REGION: this.region,
         ENVIRONMENT: config.stage,
         ENABLE_XRAY: config.monitoring.enableXRayTracing.toString(),
       },
@@ -466,6 +479,18 @@ export class FijianRagAppStack extends cdk.Stack {
 
     // Grant permissions for chat lambda
     userProgressTable.grantReadWriteData(fijianApiLambda);
+    dictionaryTable.grantReadWriteData(fijianApiLambda);
+
+    // Grant OpenSearch permissions for chat lambda
+    fijianApiLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'es:ESHttpPost',
+        'es:ESHttpPut',
+        'es:ESHttpGet',
+        'es:ESHttpDelete'
+      ],
+      resources: [`arn:aws:es:${this.region}:${this.account}:domain/${osDomain.domainName}/*`]
+    }));
 
     // Grant permissions for RAG lambda
     dictionaryTable.grantReadWriteData(ragLambda);

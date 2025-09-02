@@ -18,8 +18,41 @@ import { hybridSearch, createEmbedding } from '../../dictionary/opensearch';
 // Initialize DynamoDB client
 const ddbClient = new DynamoDBClient({});
 
-// Environment variables
-const DICTIONARY_TABLE = process.env.DICTIONARY_TABLE!;
+// Environment variables with validation
+const DICTIONARY_TABLE = process.env.DICTIONARY_TABLE;
+const OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT || process.env.OS_ENDPOINT;
+
+/**
+ * Validates that all required environment variables are configured
+ * @throws Error if required configuration is missing
+ */
+function validateRagConfiguration(): void {
+  const requiredEnvVars = [
+    { name: 'DICTIONARY_TABLE', value: DICTIONARY_TABLE },
+    { name: 'OPENSEARCH_ENDPOINT', value: OPENSEARCH_ENDPOINT }
+  ];
+
+  const missingVars = requiredEnvVars.filter(envVar => !envVar.value);
+  
+  if (missingVars.length > 0) {
+    const missingVarNames = missingVars.map(envVar => envVar.name).join(', ');
+    throw new Error(`RAG Service configuration error: Missing required environment variables: ${missingVarNames}. RAG functionality will be disabled.`);
+  }
+
+  console.log('[RAG Service] Configuration validated successfully:', {
+    DICTIONARY_TABLE,
+    OPENSEARCH_ENDPOINT,
+    configurationType: 'production'
+  });
+}
+
+// Validate configuration on module load
+try {
+  validateRagConfiguration();
+} catch (error) {
+  console.error('[RAG Service] Configuration validation failed:', error.message);
+  // Don't throw here to allow graceful fallback
+}
 
 /**
  * Interface for dictionary search results
@@ -64,6 +97,12 @@ export interface RagContextResult {
  */
 export async function lookupWordExact(word: string, language: string = 'fijian'): Promise<DictionaryEntry | null> {
   try {
+    // Check configuration before making API call
+    if (!DICTIONARY_TABLE) {
+      console.error('[RAG Service] Cannot perform exact lookup: DICTIONARY_TABLE not configured');
+      return null;
+    }
+
     const params = {
       TableName: DICTIONARY_TABLE,
       Key: marshall({
@@ -90,6 +129,12 @@ export async function lookupWordExact(word: string, language: string = 'fijian')
  */
 export async function searchDictionarySemantic(query: string, limit: number = 10): Promise<DictionaryEntry[]> {
   try {
+    // Check configuration before making API call
+    if (!OPENSEARCH_ENDPOINT) {
+      console.error('[RAG Service] Cannot perform semantic search: OPENSEARCH_ENDPOINT not configured');
+      return [];
+    }
+
     // Create embedding for semantic search
     const embedding = await createEmbedding(query);
     
@@ -140,11 +185,24 @@ export async function retrieveRagContext(
     includeSemanticSearch = true
   } = options;
 
+  // Check configuration and log warnings
+  const configErrors: string[] = [];
+  if (!DICTIONARY_TABLE) {
+    configErrors.push('DICTIONARY_TABLE not configured');
+  }
+  if (!OPENSEARCH_ENDPOINT) {
+    configErrors.push('OPENSEARCH_ENDPOINT not configured');
+  }
+
+  if (configErrors.length > 0) {
+    console.warn(`[RAG Service] Configuration issues detected: ${configErrors.join(', ')}. Some RAG features may be unavailable.`);
+  }
+
   const allEntries: DictionaryEntry[] = [];
   const sourcesSummary: Array<{ word: string; score?: number; type: 'exact' | 'semantic' }> = [];
 
   // 1. Exact word lookups
-  if (includeExactLookup) {
+  if (includeExactLookup && DICTIONARY_TABLE) {
     const potentialWords = extractFijianWords(query);
     
     for (const word of potentialWords.slice(0, 3)) { // Limit to first 3 words
@@ -157,7 +215,7 @@ export async function retrieveRagContext(
   }
 
   // 2. Semantic search for additional context
-  if (includeSemanticSearch) {
+  if (includeSemanticSearch && OPENSEARCH_ENDPOINT) {
     const semanticEntries = await searchDictionarySemantic(query, maxEntries);
     
     // Add semantic entries that aren't already included from exact lookups
@@ -230,4 +288,37 @@ export function createRagSystemPrompt(mode: string, direction?: string): string 
     default:
       return baseContext;
   }
+}
+
+/**
+ * Health check function to validate RAG service configuration
+ * @returns Object with configuration status and any issues
+ */
+export function checkRagServiceHealth(): {
+  isHealthy: boolean;
+  configuration: Record<string, boolean>;
+  issues: string[];
+} {
+  const configuration = {
+    dictionaryTableConfigured: !!DICTIONARY_TABLE,
+    opensearchEndpointConfigured: !!OPENSEARCH_ENDPOINT,
+  };
+
+  const issues: string[] = [];
+  
+  if (!DICTIONARY_TABLE) {
+    issues.push('DICTIONARY_TABLE environment variable not configured');
+  }
+  
+  if (!OPENSEARCH_ENDPOINT) {
+    issues.push('OPENSEARCH_ENDPOINT environment variable not configured');
+  }
+
+  const isHealthy = issues.length === 0;
+
+  return {
+    isHealthy,
+    configuration,
+    issues
+  };
 }
