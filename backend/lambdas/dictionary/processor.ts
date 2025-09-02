@@ -7,7 +7,13 @@
 
 import { DynamoDBClient, PutItemCommand, BatchWriteItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
-import { createEmbedding, indexToOpenSearch } from './opensearch';
+import { 
+  createEmbedding, 
+  createEmbeddingsBatch, 
+  indexToOpenSearch, 
+  storeEmbeddingsToS3,
+  EmbeddingMetadata 
+} from './opensearch';
 import { v4 as uuidv4 } from 'uuid';
 import { PDFExtractor, ExtractionResult } from './pdf-extractor';
 import { DictionaryParser, ParsedEntry, ParsingStats } from './dictionary-parser';
@@ -55,6 +61,15 @@ export interface StructuredDictionaryEntry {
   usage_examples?: string[];
   cultural_context?: string;
   technical_notes?: string;
+  // Enhanced embedding metadata
+  embedding_metadata?: {
+    success: boolean;
+    model: string;
+    timestamp: string;
+    error?: string;
+    retries?: number;
+    processingTime?: number;
+  };
 }
 
 export class FijianDictionaryProcessor {
@@ -266,23 +281,152 @@ export class FijianDictionaryProcessor {
   }
 
   /**
-   * Generates embeddings for entries and adds them
+   * Enhanced embedding generation with batch processing, parallelization, and retry logic
+   * Supports both individual and batch processing modes for scalability
    */
-  async generateEmbeddings(entries: StructuredDictionaryEntry[]): Promise<StructuredDictionaryEntry[]> {
+  async generateEmbeddings(
+    entries: StructuredDictionaryEntry[], 
+    options: {
+      useBatchMode?: boolean;
+      batchSize?: number;
+      maxConcurrency?: number;
+      retries?: number;
+      storeToS3?: boolean;
+      onProgress?: (completed: number, total: number) => void;
+    } = {}
+  ): Promise<StructuredDictionaryEntry[]> {
+    const {
+      useBatchMode = true,
+      batchSize = 25,
+      maxConcurrency = 5,
+      retries = 3,
+      storeToS3 = true,
+      onProgress
+    } = options;
+
+    console.log(`Generating embeddings for ${entries.length} entries (batch mode: ${useBatchMode})`);
+    
+    if (useBatchMode && entries.length > 1) {
+      return this.generateEmbeddingsBatch(entries, {
+        batchSize,
+        maxConcurrency,
+        retries,
+        storeToS3,
+        onProgress
+      });
+    } else {
+      return this.generateEmbeddingsSequential(entries, retries);
+    }
+  }
+
+  /**
+   * Enhanced batch embedding generation with metadata tracking and S3 storage
+   */
+  private async generateEmbeddingsBatch(
+    entries: StructuredDictionaryEntry[],
+    options: {
+      batchSize: number;
+      maxConcurrency: number;
+      retries: number;
+      storeToS3: boolean;
+      onProgress?: (completed: number, total: number) => void;
+    }
+  ): Promise<StructuredDictionaryEntry[]> {
+    const startTime = Date.now();
+    
+    // Prepare texts for embedding
+    const texts = entries.map(entry => 
+      `${entry.fijian_word} - ${entry.english_translation}${entry.part_of_speech ? ` (${entry.part_of_speech})` : ''}`
+    );
+
+    console.log(`Starting batch embedding generation for ${texts.length} texts`);
+
+    // Generate embeddings in batch
+    const embeddingResults = await createEmbeddingsBatch(texts, {
+      batchSize: options.batchSize,
+      maxConcurrency: options.maxConcurrency,
+      retries: options.retries,
+      onProgress: options.onProgress
+    });
+
+    // Create metadata for storage
+    const embeddingMetadata: EmbeddingMetadata[] = embeddingResults.map((result, index) => ({
+      id: uuidv4(),
+      text: result.text,
+      embedding: result.embedding,
+      model: 'amazon.titan-embed-text-v1',
+      dimensions: 1536,
+      timestamp: new Date().toISOString(),
+      success: result.success,
+      retries: options.retries,
+      processingTime: Date.now() - startTime,
+      error: result.error,
+      source: 'fijian-dictionary',
+      category: entries[index].part_of_speech || 'unknown'
+    }));
+
+    // Store embeddings to S3 if requested
+    if (options.storeToS3) {
+      try {
+        const s3Key = await storeEmbeddingsToS3(embeddingMetadata, 'dictionary-embeddings');
+        console.log(`Stored embeddings metadata to S3: ${s3Key}`);
+      } catch (error) {
+        console.warn('Failed to store embeddings to S3, continuing with processing:', error);
+      }
+    }
+
+    // Combine entries with embeddings
+    const entriesWithEmbeddings = entries.map((entry, index) => ({
+      ...entry,
+      embedding: embeddingResults[index].embedding,
+      embedding_metadata: {
+        success: embeddingResults[index].success,
+        model: 'amazon.titan-embed-text-v1',
+        timestamp: new Date().toISOString(),
+        ...(embeddingResults[index].error && { error: embeddingResults[index].error })
+      }
+    }));
+
+    const successCount = embeddingResults.filter(r => r.success).length;
+    console.log(`Batch embedding generation completed: ${successCount}/${entries.length} successful`);
+    
+    return entriesWithEmbeddings;
+  }
+
+  /**
+   * Sequential embedding generation (fallback for small batches or when batch mode disabled)
+   */
+  private async generateEmbeddingsSequential(
+    entries: StructuredDictionaryEntry[], 
+    retries: number = 3
+  ): Promise<StructuredDictionaryEntry[]> {
     const entriesWithEmbeddings = [];
     
     for (const entry of entries) {
       try {
         const textForEmbedding = `${entry.fijian_word} - ${entry.english_translation}`;
-        const embedding = await createEmbedding(textForEmbedding);
+        const embedding = await createEmbedding(textForEmbedding, retries);
         
         entriesWithEmbeddings.push({
           ...entry,
-          embedding
+          embedding,
+          embedding_metadata: {
+            success: !embedding.every(val => val === 0),
+            model: 'amazon.titan-embed-text-v1',
+            timestamp: new Date().toISOString()
+          }
         });
       } catch (error) {
         console.error(`Error generating embedding for ${entry.fijian_word}:`, error);
-        entriesWithEmbeddings.push(entry); // Add without embedding
+        entriesWithEmbeddings.push({
+          ...entry,
+          embedding_metadata: {
+            success: false,
+            model: 'amazon.titan-embed-text-v1',
+            timestamp: new Date().toISOString(),
+            error: (error as Error).message
+          }
+        }); // Add without embedding
       }
     }
     
@@ -482,9 +626,10 @@ export class FijianDictionaryProcessor {
 
   /**
    * Process sample dictionary data for testing and demonstration
+   * Uses enhanced embedding pipeline with progress tracking
    */
   async processSampleData(): Promise<void> {
-    console.log('Processing sample dictionary data...');
+    console.log('Processing sample dictionary data with enhanced embedding pipeline...');
     
     try {
       // Import sample data
@@ -498,9 +643,18 @@ export class FijianDictionaryProcessor {
       console.log('Structuring entries...');
       const structuredEntries = this.structureEntries(rawEntries);
       
-      // Step 3: Generate embeddings
-      console.log('Generating embeddings...');
-      const entriesWithEmbeddings = await this.generateEmbeddings(structuredEntries);
+      // Step 3: Generate embeddings with enhanced pipeline
+      console.log('Generating embeddings with enhanced pipeline...');
+      const entriesWithEmbeddings = await this.generateEmbeddings(structuredEntries, {
+        useBatchMode: true,
+        batchSize: 10, // Smaller batch for sample data
+        maxConcurrency: 3,
+        retries: 3,
+        storeToS3: true,
+        onProgress: (completed, total) => {
+          console.log(`Embedding progress: ${completed}/${total} (${Math.round(completed/total*100)}%)`);
+        }
+      });
       
       // Step 4: Index to DynamoDB
       console.log('Indexing to DynamoDB...');
@@ -510,7 +664,13 @@ export class FijianDictionaryProcessor {
       console.log('Indexing to OpenSearch...');
       await this.indexToOpenSearch(entriesWithEmbeddings);
       
+      // Report success metrics
+      const successfulEmbeddings = entriesWithEmbeddings.filter(
+        entry => entry.embedding_metadata?.success
+      ).length;
+      
       console.log(`Successfully processed ${entriesWithEmbeddings.length} sample dictionary entries`);
+      console.log(`Embedding success rate: ${successfulEmbeddings}/${entriesWithEmbeddings.length} (${Math.round(successfulEmbeddings/entriesWithEmbeddings.length*100)}%)`);
       
     } catch (error) {
       console.error('Error processing sample data:', error);

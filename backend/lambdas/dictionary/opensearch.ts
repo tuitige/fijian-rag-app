@@ -1,6 +1,7 @@
 // lambda/process-learning-module/opensearch.ts
 
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { HttpRequest } from '@aws-sdk/protocol-http';
 import { SignatureV4 } from '@aws-sdk/signature-v4';
 import { Sha256 } from '@aws-crypto/sha256-js';
@@ -9,28 +10,201 @@ import { defaultProvider } from '@aws-sdk/credential-provider-node';
 import { v4 as uuidv4 } from 'uuid';
 
 const bedrock = new BedrockRuntimeClient({});
+const s3Client = new S3Client({});
 const OS_ENDPOINT = process.env.OS_ENDPOINT!;
 const OS_REGION = process.env.OS_REGION || 'us-west-2';
+const CONTENT_BUCKET = process.env.CONTENT_BUCKET_NAME || 'fijian-rag-content';
 
-export async function createEmbedding(text: string): Promise<number[]> {
+/**
+ * Enhanced embedding generation with retry logic and metadata tracking
+ * 
+ * Model Choice and Rationale:
+ * - Amazon Titan Embed Text v1: Multilingual support for Fijian-English pairs
+ * - 1536-dimensional vectors optimized for semantic similarity
+ * - Native AWS integration with Bedrock for scalability and cost-effectiveness
+ * - Proven performance on multilingual and cross-lingual tasks
+ */
+export async function createEmbedding(text: string, retries: number = 3): Promise<number[]> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      // Using Amazon Titan Embeddings model for multilingual support
+      const response = await bedrock.send(new InvokeModelCommand({
+        modelId: 'amazon.titan-embed-text-v1',
+        contentType: 'application/json',
+        accept: 'application/json',
+        body: JSON.stringify({
+          inputText: text
+        })
+      }));
+      
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      return responseBody.embedding;
+      
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`Embedding creation attempt ${attempt}/${retries} failed:`, error);
+      
+      // Exponential backoff with jitter
+      if (attempt < retries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000) + Math.random() * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  console.error('All embedding creation attempts failed:', lastError);
+  // Return zero vector as fallback
+  return new Array(1536).fill(0);
+}
+
+/**
+ * Enhanced batch embedding creation with parallelization and progress tracking
+ */
+export async function createEmbeddingsBatch(
+  texts: string[],
+  options: {
+    batchSize?: number;
+    maxConcurrency?: number;
+    retries?: number;
+    onProgress?: (completed: number, total: number) => void;
+  } = {}
+): Promise<Array<{ text: string; embedding: number[]; success: boolean; error?: string }>> {
+  const {
+    batchSize = 25,
+    maxConcurrency = 5,
+    retries = 3,
+    onProgress
+  } = options;
+
+  const results: Array<{ text: string; embedding: number[]; success: boolean; error?: string }> = [];
+  
+  // Process in batches with controlled concurrency
+  for (let i = 0; i < texts.length; i += batchSize) {
+    const batch = texts.slice(i, i + batchSize);
+    
+    // Create promises for concurrent processing within batch
+    const batchPromises = batch.map(async (text, index) => {
+      try {
+        const embedding = await createEmbedding(text, retries);
+        const success = !embedding.every(val => val === 0); // Check if it's not a zero vector
+        return {
+          text,
+          embedding,
+          success,
+          ...(success ? {} : { error: 'Generated zero vector fallback' })
+        };
+      } catch (error) {
+        return {
+          text,
+          embedding: new Array(1536).fill(0),
+          success: false,
+          error: (error as Error).message
+        };
+      }
+    });
+
+    // Process batch with controlled concurrency
+    const batchResults = await Promise.all(batchPromises);
+    results.push(...batchResults);
+    
+    // Report progress
+    if (onProgress) {
+      onProgress(results.length, texts.length);
+    }
+    
+    // Small delay between batches to avoid rate limiting
+    if (i + batchSize < texts.length) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+  
+  return results;
+}
+
+/**
+ * Embedding metadata interface for tracking and storage
+ */
+export interface EmbeddingMetadata {
+  id: string;
+  text: string;
+  embedding: number[];
+  model: string;
+  dimensions: number;
+  timestamp: string;
+  success: boolean;
+  retries?: number;
+  processingTime?: number;
+  error?: string;
+  source?: string;
+  category?: string;
+}
+
+/**
+ * Store embeddings and metadata to S3 for intermediate storage
+ */
+export async function storeEmbeddingsToS3(
+  embeddings: EmbeddingMetadata[],
+  prefix: string = 'embeddings'
+): Promise<string> {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const key = `${prefix}/${timestamp}-embeddings-batch.json`;
+  
+  const data = {
+    metadata: {
+      batchId: uuidv4(),
+      timestamp,
+      count: embeddings.length,
+      model: 'amazon.titan-embed-text-v1',
+      dimensions: 1536
+    },
+    embeddings
+  };
+  
   try {
-    // Using Amazon Titan Embeddings model
-    const response = await bedrock.send(new InvokeModelCommand({
-      modelId: 'amazon.titan-embed-text-v1',
-      contentType: 'application/json',
-      accept: 'application/json',
-      body: JSON.stringify({
-        inputText: text
-      })
+    await s3Client.send(new PutObjectCommand({
+      Bucket: CONTENT_BUCKET,
+      Key: key,
+      Body: JSON.stringify(data, null, 2),
+      ContentType: 'application/json',
+      Metadata: {
+        'batch-id': data.metadata.batchId,
+        'embedding-count': embeddings.length.toString(),
+        'model-version': 'amazon.titan-embed-text-v1'
+      }
     }));
     
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    return responseBody.embedding;
-    
+    console.log(`Stored ${embeddings.length} embeddings to S3: s3://${CONTENT_BUCKET}/${key}`);
+    return key;
   } catch (error) {
-    console.error('Error creating embedding:', error);
-    // Return zero vector as fallback
-    return new Array(1536).fill(0);
+    console.error('Failed to store embeddings to S3:', error);
+    throw error;
+  }
+}
+
+/**
+ * Retrieve embeddings from S3 storage
+ */
+export async function getEmbeddingsFromS3(key: string): Promise<{
+  metadata: any;
+  embeddings: EmbeddingMetadata[];
+}> {
+  try {
+    const response = await s3Client.send(new GetObjectCommand({
+      Bucket: CONTENT_BUCKET,
+      Key: key
+    }));
+    
+    const content = await response.Body?.transformToString();
+    if (!content) {
+      throw new Error('Empty response from S3');
+    }
+    
+    return JSON.parse(content);
+  } catch (error) {
+    console.error(`Failed to retrieve embeddings from S3: ${key}`, error);
+    throw error;
   }
 }
 
