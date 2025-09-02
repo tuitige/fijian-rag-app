@@ -17,7 +17,8 @@ export class ChatService {
     mode: ChatMode = 'conversation',
     direction?: TranslationDirection,
     context?: Array<{role: 'user' | 'assistant'; content: string;}>,
-    userId?: string
+    userId?: string,
+    enableRag: boolean = true
   ): Promise<ChatResponse> {
     const payload: ChatRequest = { 
       message: input, 
@@ -25,7 +26,8 @@ export class ChatService {
       mode,
       direction,
       context,
-      userId
+      userId,
+      enableRag
     };
     const response = await api.post<ChatResponse>('/chat', payload);
     return response.data;

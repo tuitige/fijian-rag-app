@@ -17,7 +17,13 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient, QueryCommand, GetItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
-import { hybridSearch, createEmbedding } from '../../dictionary/opensearch';
+import { 
+  retrieveRagContext, 
+  lookupWordExact,
+  searchDictionarySemantic,
+  formatDictionaryContext,
+  RagContextOptions 
+} from './rag-service';
 
 // Configuration constants
 const CLAUDE_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
@@ -56,65 +62,25 @@ function validateRagInput(input: string): boolean {
 }
 
 /**
- * Looks up a word in the dictionary table
+ * Looks up a word in the dictionary table (using shared service)
  */
 async function lookupWord(word: string, language: string = 'fijian'): Promise<any> {
-  try {
-    const params = {
-      TableName: DICTIONARY_TABLE,
-      Key: marshall({
-        word: word.toLowerCase(),
-        language: language
-      })
-    };
-
-    const result = await ddbClient.send(new GetItemCommand(params));
-    
-    if (!result.Item) {
-      return null;
-    }
-
-    return unmarshall(result.Item);
-  } catch (error) {
-    console.error('Error looking up word:', error);
-    throw error;
-  }
+  return await lookupWordExact(word, language);
 }
 
 /**
- * Searches dictionary using OpenSearch for fuzzy matching and semantic search
+ * Searches dictionary using OpenSearch (using shared service)
  */
 async function searchDictionary(query: string, limit: number = 10): Promise<any[]> {
-  try {
-    // Create embedding for semantic search
-    const embedding = await createEmbedding(query);
-    
-    // Perform hybrid search (text + semantic)
-    const results = await hybridSearch({
-      index: 'dictionary',
-      query: query,
-      embedding: embedding,
-      size: limit
-    });
-
-    return results.map((hit: any) => ({
-      ...hit._source,
-      score: hit._score
-    }));
-  } catch (error) {
-    console.error('Error searching dictionary:', error);
-    throw error;
-  }
+  return await searchDictionarySemantic(query, limit);
 }
 
 /**
- * Generates RAG response using retrieved context and Claude
+ * Generates RAG response using retrieved context and Claude (updated to use shared formatting)
  */
 async function generateRagResponse(query: string, context: any[]): Promise<string> {
   try {
-    const contextText = context.map(item => 
-      `Fijian: ${item.fijian_word || item.fijian}\nEnglish: ${item.english_translation || item.english}\n${item.explanation || item.usageNotes || ''}`
-    ).join('\n\n');
+    const contextText = formatDictionaryContext(context);
 
     const prompt = `You are a helpful Fijian language learning assistant. Use the following dictionary entries and language context to answer the user's question about Fijian language.
 
@@ -241,17 +207,24 @@ export const handler = async (
 
       console.log(`[handler] Processing RAG query: ${query}`);
 
-      // Search for relevant dictionary entries
-      const searchResults = await searchDictionary(query, 5);
+      // Use shared RAG service for context retrieval
+      const ragOptions: RagContextOptions = {
+        maxEntries: 5,
+        minScore: 0.1,
+        includeExactLookup: true,
+        includeSemanticSearch: true
+      };
       
-      // Generate response using RAG pipeline
-      const response = await generateRagResponse(query, searchResults);
+      const ragContextResult = await retrieveRagContext(query, ragOptions);
+      
+      // Generate response using existing RAG pipeline
+      const response = await generateRagResponse(query, ragContextResult.entries);
 
       // Record user interaction if userId provided
       if (userId) {
         await recordUserProgress(userId, 'rag_query', {
           query,
-          contextUsed: searchResults.length,
+          contextUsed: ragContextResult.entries.length,
           response: response.substring(0, 100) + '...' // Store first 100 chars
         });
       }
@@ -259,8 +232,8 @@ export const handler = async (
       return jsonResponse(200, {
         query,
         response,
-        contextUsed: searchResults.length,
-        sources: searchResults.map(r => ({ word: r.fijian_word || r.fijian, score: r.score }))
+        contextUsed: ragContextResult.entries.length,
+        sources: ragContextResult.sourcesSummary
       });
     }
 

@@ -16,6 +16,11 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { DynamoDBClient, QueryCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
+import { 
+  retrieveRagContext, 
+  createRagSystemPrompt,
+  RagContextOptions 
+} from './rag-service';
 
 // Configuration constants
 const CLAUDE_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
@@ -77,13 +82,15 @@ function extractResponseText(response: any): string {
  * @param maxTokens - Maximum tokens to generate (default: MAX_TOKENS)
  * @param systemPrompt - Optional system prompt for mode-specific behavior
  * @param context - Optional conversation context
+ * @param ragContext - Optional RAG context from dictionary
  * @returns The formatted request payload
  */
 function createClaudeRequestPayload(
   userInput: string, 
   maxTokens: number = MAX_TOKENS,
   systemPrompt?: string,
-  context?: Array<{role: string, content: string}>
+  context?: Array<{role: string, content: string}>,
+  ragContext?: string
 ) {
   const messages = [];
   
@@ -92,10 +99,15 @@ function createClaudeRequestPayload(
     messages.push(...context);
   }
   
+  // Augment user input with RAG context if provided
+  const finalUserInput = ragContext 
+    ? `${ragContext}\n\nUser Question: ${userInput}`
+    : userInput;
+  
   // Add the current user message
   messages.push({
     role: "user",
-    content: userInput
+    content: finalUserInput
   });
 
   const payload: any = {
@@ -299,10 +311,12 @@ export const handler = async (
       const mode = body.mode || 'conversation';
       const direction = body.direction;
       const context = body.context || [];
+      const enableRag = body.enableRag !== undefined ? body.enableRag : true; // Default to enabled
       
       console.log('[handler] User input:', userInput);
       console.log('[handler] Mode:', mode);
       console.log('[handler] Direction:', direction);
+      console.log('[handler] RAG enabled:', enableRag);
       
       // Validate user input
       if (!validateUserInput(userInput)) {
@@ -320,13 +334,55 @@ export const handler = async (
       const br = new BedrockRuntimeClient({});
       console.log('[handler] Bedrock client initialized');
 
-      // Generate system prompt based on mode
-      const systemPrompt = getSystemPrompt(mode, direction);
+      let ragContextResult = null;
+      let finalSystemPrompt = '';
+      let ragContextText = '';
+
+      // Retrieve RAG context if enabled
+      if (enableRag) {
+        try {
+          console.log('[handler] Retrieving RAG context for user input');
+          
+          const ragOptions: RagContextOptions = {
+            maxEntries: 3, // Limit for chat to keep responses focused
+            minScore: 0.2, // Higher threshold for chat relevance
+            includeExactLookup: true,
+            includeSemanticSearch: true
+          };
+          
+          ragContextResult = await retrieveRagContext(userInput, ragOptions);
+          
+          if (ragContextResult.entries.length > 0) {
+            console.log(`[handler] Retrieved ${ragContextResult.entries.length} RAG context entries`);
+            ragContextText = `Relevant Dictionary Context:\n${ragContextResult.contextText}\n\n`;
+            
+            // Use RAG-enhanced system prompt
+            finalSystemPrompt = createRagSystemPrompt(mode, direction);
+          } else {
+            console.log('[handler] No relevant RAG context found');
+            finalSystemPrompt = getSystemPrompt(mode, direction);
+          }
+        } catch (error) {
+          console.error('[handler] Error retrieving RAG context:', error);
+          // Fall back to regular system prompt if RAG fails
+          finalSystemPrompt = getSystemPrompt(mode, direction);
+        }
+      } else {
+        // Use original system prompt when RAG is disabled
+        finalSystemPrompt = getSystemPrompt(mode, direction);
+      }
+
       console.log('[handler] System prompt generated for mode:', mode);
 
       // Prepare the request payload for Claude model via Bedrock
-      const requestPayload = createClaudeRequestPayload(userInput, MAX_TOKENS, systemPrompt, context);
-      console.log('[handler] Request payload:', JSON.stringify(requestPayload, null, 2));
+      const requestPayload = createClaudeRequestPayload(
+        userInput, 
+        MAX_TOKENS, 
+        finalSystemPrompt, 
+        context,
+        ragContextText
+      );
+      console.log('[handler] Request payload prepared with RAG context');
 
       // Use the correct model ID for Claude 3 Haiku via Bedrock
       console.log('[handler] Using model ID:', CLAUDE_MODEL_ID);
@@ -358,14 +414,26 @@ export const handler = async (
         await recordChatMessage(userId, userInput, responseText);
       }
       
-      return jsonResponse(200, { 
+      // Include RAG metadata in response
+      const responseMetadata: any = {
         message: responseText,
         mode,
         direction,
         model: CLAUDE_MODEL_ID,
         inputTokens: parsedResponse.usage?.input_tokens || 0,
-        outputTokens: parsedResponse.usage?.output_tokens || 0
-      });
+        outputTokens: parsedResponse.usage?.output_tokens || 0,
+        ragEnabled: enableRag
+      };
+
+      // Add RAG context information if available
+      if (ragContextResult && ragContextResult.entries.length > 0) {
+        responseMetadata.ragContext = {
+          entriesUsed: ragContextResult.entries.length,
+          sources: ragContextResult.sourcesSummary
+        };
+      }
+      
+      return jsonResponse(200, responseMetadata);
     }
 
     // Handle streaming chat: POST /chat/stream
@@ -380,10 +448,12 @@ export const handler = async (
       const mode = body.mode || 'conversation';
       const direction = body.direction;
       const context = body.context || [];
+      const enableRag = body.enableRag !== undefined ? body.enableRag : true; // Default to enabled
       
       console.log('[handler] Stream user input:', userInput);
       console.log('[handler] Stream mode:', mode);
       console.log('[handler] Stream direction:', direction);
+      console.log('[handler] Stream RAG enabled:', enableRag);
       
       // Validate user input
       if (!validateUserInput(userInput)) {
@@ -401,13 +471,55 @@ export const handler = async (
       const br = new BedrockRuntimeClient({});
       console.log('[handler] Bedrock client initialized for streaming');
 
-      // Generate system prompt based on mode
-      const systemPrompt = getSystemPrompt(mode, direction);
+      let ragContextResult = null;
+      let finalSystemPrompt = '';
+      let ragContextText = '';
+
+      // Retrieve RAG context if enabled
+      if (enableRag) {
+        try {
+          console.log('[handler] Retrieving RAG context for stream user input');
+          
+          const ragOptions: RagContextOptions = {
+            maxEntries: 3, // Limit for chat to keep responses focused
+            minScore: 0.2, // Higher threshold for chat relevance
+            includeExactLookup: true,
+            includeSemanticSearch: true
+          };
+          
+          ragContextResult = await retrieveRagContext(userInput, ragOptions);
+          
+          if (ragContextResult.entries.length > 0) {
+            console.log(`[handler] Retrieved ${ragContextResult.entries.length} RAG context entries for stream`);
+            ragContextText = `Relevant Dictionary Context:\n${ragContextResult.contextText}\n\n`;
+            
+            // Use RAG-enhanced system prompt
+            finalSystemPrompt = createRagSystemPrompt(mode, direction);
+          } else {
+            console.log('[handler] No relevant RAG context found for stream');
+            finalSystemPrompt = getSystemPrompt(mode, direction);
+          }
+        } catch (error) {
+          console.error('[handler] Error retrieving RAG context for stream:', error);
+          // Fall back to regular system prompt if RAG fails
+          finalSystemPrompt = getSystemPrompt(mode, direction);
+        }
+      } else {
+        // Use original system prompt when RAG is disabled
+        finalSystemPrompt = getSystemPrompt(mode, direction);
+      }
+
       console.log('[handler] System prompt generated for streaming mode:', mode);
 
       // Prepare the request payload for Claude model via Bedrock
-      const requestPayload = createClaudeRequestPayload(userInput, MAX_TOKENS, systemPrompt, context);
-      console.log('[handler] Stream request payload:', JSON.stringify(requestPayload, null, 2));
+      const requestPayload = createClaudeRequestPayload(
+        userInput, 
+        MAX_TOKENS, 
+        finalSystemPrompt, 
+        context,
+        ragContextText
+      );
+      console.log('[handler] Stream request payload prepared with RAG context');
 
       // Use the correct model ID for Claude 3 Haiku via Bedrock
       console.log('[handler] Using model ID for streaming:', CLAUDE_MODEL_ID);
@@ -439,17 +551,27 @@ export const handler = async (
         await recordChatMessage(userId, userInput, responseText);
       }
       
-      // For now, return the complete response (not streaming chunks)
-      // The frontend can handle this as a complete response
-      return jsonResponse(200, { 
+      // Include RAG metadata in response
+      const responseMetadata: any = {
         message: responseText,
         mode,
         direction,
         model: CLAUDE_MODEL_ID,
         inputTokens: parsedResponse.usage?.input_tokens || 0,
         outputTokens: parsedResponse.usage?.output_tokens || 0,
-        stream: true // Indicate this was from the stream endpoint
-      });
+        stream: true, // Indicate this was from the stream endpoint
+        ragEnabled: enableRag
+      };
+
+      // Add RAG context information if available
+      if (ragContextResult && ragContextResult.entries.length > 0) {
+        responseMetadata.ragContext = {
+          entriesUsed: ragContextResult.entries.length,
+          sources: ragContextResult.sourcesSummary
+        };
+      }
+      
+      return jsonResponse(200, responseMetadata);
     }
 
     // Handle progress endpoints

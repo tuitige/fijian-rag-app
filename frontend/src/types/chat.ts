@@ -13,6 +13,14 @@ export interface Message {
     confidence?: number;
     alternatives?: string[];
     hints?: string[];
+    ragContext?: {
+      entriesUsed: number;
+      sources: Array<{
+        word: string;
+        score?: number;
+        type: 'exact' | 'semantic';
+      }>;
+    };
   };
 }
 
@@ -25,6 +33,15 @@ export interface ChatResponse {
   model?: string;
   inputTokens?: number;
   outputTokens?: number;
+  ragEnabled?: boolean;
+  ragContext?: {
+    entriesUsed: number;
+    sources: Array<{
+      word: string;
+      score?: number;
+      type: 'exact' | 'semantic';
+    }>;
+  };
 }
 
 export interface ChatRequest {
@@ -37,6 +54,7 @@ export interface ChatRequest {
     content: string;
   }>;
   userId?: string;
+  enableRag?: boolean;
 }
 
 export interface ChatHistoryResponse {
