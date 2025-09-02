@@ -142,10 +142,12 @@ async function handleListVocabulary(
     // Add filter expression for hasDefinition
     if (hasDefinition !== undefined) {
       if (hasDefinition === 'true') {
-        scanParams.FilterExpression = 'attribute_exists(definition) AND definition <> :empty';
+        scanParams.FilterExpression = 'attribute_exists(#definition) AND #definition <> :empty';
+        scanParams.ExpressionAttributeNames = { '#definition': 'definition' };
         scanParams.ExpressionAttributeValues = marshall({ ':empty': '' });
       } else if (hasDefinition === 'false') {
-        scanParams.FilterExpression = 'attribute_not_exists(definition) OR definition = :empty';
+        scanParams.FilterExpression = 'attribute_not_exists(#definition) OR #definition = :empty';
+        scanParams.ExpressionAttributeNames = { '#definition': 'definition' };
         scanParams.ExpressionAttributeValues = marshall({ ':empty': '' });
       }
     }
@@ -247,7 +249,11 @@ async function handleUpdateDefinition(
     const updateParams: any = {
       TableName: process.env.VOCABULARY_FREQUENCY_TABLE!,
       Key: marshall({ word: decodeURIComponent(word) }),
-      UpdateExpression: 'SET definition = :def, lastUpdated = :lastUpdated',
+      UpdateExpression: 'SET #definition = :def, #lastUpdated = :lastUpdated',
+      ExpressionAttributeNames: {
+        '#definition': 'definition',
+        '#lastUpdated': 'lastUpdated'
+      },
       ExpressionAttributeValues: marshall({
         ':def': request.definition,
         ':lastUpdated': new Date().toISOString()
@@ -256,7 +262,8 @@ async function handleUpdateDefinition(
     };
 
     if (request.context) {
-      updateParams.UpdateExpression += ', context = :ctx';
+      updateParams.UpdateExpression += ', #context = :ctx';
+      updateParams.ExpressionAttributeNames['#context'] = 'context';
       updateParams.ExpressionAttributeValues = marshall({
         ...unmarshall(updateParams.ExpressionAttributeValues),
         ':ctx': request.context
