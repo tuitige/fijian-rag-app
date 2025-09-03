@@ -352,20 +352,21 @@ export const handler = async (
           
           ragContextResult = await retrieveRagContext(userInput, ragOptions);
           
+          // Always use RAG-enhanced system prompt when RAG is enabled
+          // This ensures LLM is told to supplement, not restrict responses
+          finalSystemPrompt = createRagSystemPrompt(mode, direction);
+          
           if (ragContextResult.entries.length > 0) {
             console.log(`[handler] Retrieved ${ragContextResult.entries.length} RAG context entries`);
             ragContextText = `Relevant Dictionary Context:\n${ragContextResult.contextText}\n\n`;
-            
-            // Use RAG-enhanced system prompt
-            finalSystemPrompt = createRagSystemPrompt(mode, direction);
           } else {
-            console.log('[handler] No relevant RAG context found');
-            finalSystemPrompt = getSystemPrompt(mode, direction);
+            console.log('[handler] No relevant RAG context found, but LLM will use its own knowledge');
+            // Don't set ragContextText, but keep the supplemental system prompt
           }
         } catch (error) {
           console.error('[handler] Error retrieving RAG context:', error);
-          // Fall back to regular system prompt if RAG fails
-          finalSystemPrompt = getSystemPrompt(mode, direction);
+          // Still use RAG-enhanced prompt but without context - LLM will use its own knowledge
+          finalSystemPrompt = createRagSystemPrompt(mode, direction);
         }
       } else {
         // Use original system prompt when RAG is disabled
@@ -498,20 +499,21 @@ export const handler = async (
           
           ragContextResult = await retrieveRagContext(userInput, ragOptions);
           
+          // Always use RAG-enhanced system prompt when RAG is enabled
+          // This ensures LLM is told to supplement, not restrict responses
+          finalSystemPrompt = createRagSystemPrompt(mode, direction);
+          
           if (ragContextResult.entries.length > 0) {
             console.log(`[handler] Retrieved ${ragContextResult.entries.length} RAG context entries for stream`);
             ragContextText = `Relevant Dictionary Context:\n${ragContextResult.contextText}\n\n`;
-            
-            // Use RAG-enhanced system prompt
-            finalSystemPrompt = createRagSystemPrompt(mode, direction);
           } else {
-            console.log('[handler] No relevant RAG context found for stream');
-            finalSystemPrompt = getSystemPrompt(mode, direction);
+            console.log('[handler] No relevant RAG context found for stream, but LLM will use its own knowledge');
+            // Don't set ragContextText, but keep the supplemental system prompt
           }
         } catch (error) {
           console.error('[handler] Error retrieving RAG context for stream:', error);
-          // Fall back to regular system prompt if RAG fails
-          finalSystemPrompt = getSystemPrompt(mode, direction);
+          // Still use RAG-enhanced prompt but without context - LLM will use its own knowledge
+          finalSystemPrompt = createRagSystemPrompt(mode, direction);
         }
       } else {
         // Use original system prompt when RAG is disabled

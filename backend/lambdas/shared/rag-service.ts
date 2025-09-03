@@ -112,18 +112,66 @@ export async function searchDictionarySemantic(query: string, limit: number = 10
 }
 
 /**
- * Extracts potential Fijian words from user query for exact lookup
+ * Common Fijian function words that should be deprioritized in lookup
+ */
+const FIJIAN_FUNCTION_WORDS = new Set([
+  'na', 'ko', 'e', 'me', 'ni', 'ka', 'kei', 'i', 'o', 'vei', 'mai', 'yani',
+  'tiko', 'tu', 'ga', 'sara', 'tale', 'beka', 'soti', 'what', 'does', 'is',
+  'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+  'how', 'why', 'when', 'where', 'who', 'mean', 'means', 'called', 'do',
+  'you', 'say', 'meaning', 'definition'
+]);
+
+/**
+ * Extracts and prioritizes potential Fijian words from user query for exact lookup
+ * Enhanced to handle question patterns and prioritize content words
  */
 export function extractFijianWords(query: string): string[] {
-  // Simple extraction - look for individual words that might be Fijian
-  // This could be enhanced with more sophisticated NLP in the future
-  const words = query
-    .toLowerCase()
-    .split(/[\s.,!?;:]+/)
+  const lowerQuery = query.toLowerCase();
+  
+  // Handle question patterns - prioritize words being asked about
+  const questionPatterns = [
+    /what\s+(?:does|is)\s+([a-z]+)\s+mean/i,           // "what does X mean"
+    /what\s+is\s+(?:the\s+)?(?:meaning\s+of\s+)?([a-z]+)/i,  // "what is X" or "what is the meaning of X"
+    /(?:meaning|definition)\s+of\s+([a-z]+)/i,         // "meaning of X"
+    /how\s+do\s+you\s+say\s+([a-z]+)/i,               // "how do you say X"
+    /translate\s+([a-z]+)/i                            // "translate X"
+  ];
+  
+  // Check for question patterns first
+  for (const pattern of questionPatterns) {
+    const match = lowerQuery.match(pattern);
+    if (match && match[1]) {
+      const targetWord = match[1];
+      if (targetWord.length >= 2 && targetWord.length <= 20 && !FIJIAN_FUNCTION_WORDS.has(targetWord)) {
+        // Prioritize the questioned word, then add other potential words
+        const otherWords = extractAllWords(lowerQuery)
+          .filter(word => word !== targetWord && !FIJIAN_FUNCTION_WORDS.has(word));
+        return [targetWord, ...otherWords].slice(0, 5); // Limit to 5 total words
+      }
+    }
+  }
+  
+  // Default extraction with prioritization
+  const allWords = extractAllWords(lowerQuery);
+  
+  // Separate content words from function words
+  const contentWords = allWords.filter(word => !FIJIAN_FUNCTION_WORDS.has(word));
+  const functionWords = allWords.filter(word => FIJIAN_FUNCTION_WORDS.has(word));
+  
+  // Prioritize content words, then add function words if needed
+  return [...contentWords, ...functionWords].slice(0, 5); // Limit to 5 words max
+}
+
+/**
+ * Helper function to extract all valid words from query
+ */
+function extractAllWords(query: string): string[] {
+  return query
+    .split(/[\s.,!?;:\-@]+/)  // Added - and @ to split patterns
+    .map(word => word.trim())
     .filter(word => word.length >= 2 && word.length <= 20)
     .filter(word => /^[a-z]+$/.test(word)); // Basic filter for alphabetic words
-  
-  return words;
 }
 
 /**
@@ -147,7 +195,8 @@ export async function retrieveRagContext(
   if (includeExactLookup) {
     const potentialWords = extractFijianWords(query);
     
-    for (const word of potentialWords.slice(0, 3)) { // Limit to first 3 words
+    // Look up all prioritized words (now limited to 5 in extraction)
+    for (const word of potentialWords) {
       const exactEntry = await lookupWordExact(word);
       if (exactEntry) {
         allEntries.push(exactEntry);
@@ -236,7 +285,7 @@ ${contextResult.contextText}
  * Creates a RAG-enhanced system prompt for different chat modes
  */
 export function createRagSystemPrompt(mode: string, direction?: string): string {
-  const baseContext = "You are a helpful Fijian language learning assistant with access to dictionary entries. Use the provided dictionary context to give accurate, culturally appropriate responses.";
+  const baseContext = "You are a helpful Fijian language learning assistant. You have access to some dictionary entries that may be relevant to the user's question. Use the provided dictionary context when available, but do not limit yourself to only this context. If the dictionary context is incomplete or doesn't fully answer the user's question, supplement it with your own knowledge of the Fijian language. Always provide the most helpful and complete response possible.";
   
   switch (mode) {
     case 'translation':
@@ -244,13 +293,13 @@ export function createRagSystemPrompt(mode: string, direction?: string): string 
                            direction === 'en-fj' ? 'from English to Fijian' :
                            'automatically detecting the language and translating appropriately';
       
-      return `${baseContext} Your task is to provide accurate translations ${directionText}. Use the dictionary context to ensure accuracy and provide cultural nuances when relevant.`;
+      return `${baseContext} Your task is to provide accurate translations ${directionText}. Use the dictionary context when available to ensure accuracy, but supplement with your broader knowledge of Fijian language and culture when the dictionary context is insufficient. Provide cultural nuances and alternative translations when relevant.`;
 
     case 'learning':
-      return `${baseContext} Your role is to help learners understand Fijian language, grammar, and culture. Use the dictionary context to provide detailed explanations, usage examples, and cultural insights.`;
+      return `${baseContext} Your role is to help learners understand Fijian language, grammar, and culture. Use the dictionary context when available to provide accurate definitions and examples, but expand beyond it with your knowledge of Fijian grammar, usage patterns, and cultural context. Provide comprehensive explanations even if the dictionary context is limited.`;
 
     case 'conversation':
-      return `${baseContext} You help users practice natural conversation in both Fijian and English. Use the dictionary context to provide accurate language guidance and cultural context.`;
+      return `${baseContext} You help users practice natural conversation in both Fijian and English. Use the dictionary context when available for accurate vocabulary guidance, but draw upon your full knowledge of both languages to maintain natural, flowing conversation. Don't restrict responses to only dictionary-defined words.`;
 
     default:
       return baseContext;

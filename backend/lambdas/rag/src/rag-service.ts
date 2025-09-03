@@ -106,16 +106,66 @@ export async function searchDictionarySemantic(query: string, limit: number = 10
 }
 
 /**
- * Extracts potential Fijian words from user query for exact lookup
+ * Common Fijian function words that should be deprioritized in lookup
+ */
+const FIJIAN_FUNCTION_WORDS = new Set([
+  'na', 'ko', 'e', 'me', 'ni', 'ka', 'kei', 'i', 'o', 'vei', 'mai', 'yani',
+  'tiko', 'tu', 'ga', 'sara', 'tale', 'beka', 'soti', 'what', 'does', 'is',
+  'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+  'how', 'why', 'when', 'where', 'who', 'mean', 'means', 'called', 'do',
+  'you', 'say', 'meaning', 'definition'
+]);
+
+/**
+ * Extracts and prioritizes potential Fijian words from user query for exact lookup
+ * Enhanced to handle question patterns and prioritize content words
  */
 export function extractFijianWords(query: string): string[] {
-  const words = query
-    .toLowerCase()
-    .split(/[\s.,!?;:]+/)
-    .filter(word => word.length >= 2 && word.length <= 20)
-    .filter(word => /^[a-z]+$/.test(word));
+  const lowerQuery = query.toLowerCase();
   
-  return words;
+  // Handle question patterns - prioritize words being asked about
+  const questionPatterns = [
+    /what\s+(?:does|is)\s+([a-z]+)\s+mean/i,           // "what does X mean"
+    /what\s+is\s+(?:the\s+)?(?:meaning\s+of\s+)?([a-z]+)/i,  // "what is X" or "what is the meaning of X"
+    /(?:meaning|definition)\s+of\s+([a-z]+)/i,         // "meaning of X"
+    /how\s+do\s+you\s+say\s+([a-z]+)/i,               // "how do you say X"
+    /translate\s+([a-z]+)/i                            // "translate X"
+  ];
+  
+  // Check for question patterns first
+  for (const pattern of questionPatterns) {
+    const match = lowerQuery.match(pattern);
+    if (match && match[1]) {
+      const targetWord = match[1];
+      if (targetWord.length >= 2 && targetWord.length <= 20 && !FIJIAN_FUNCTION_WORDS.has(targetWord)) {
+        // Prioritize the questioned word, then add other potential words
+        const otherWords = extractAllWords(lowerQuery)
+          .filter(word => word !== targetWord && !FIJIAN_FUNCTION_WORDS.has(word));
+        return [targetWord, ...otherWords].slice(0, 5); // Limit to 5 total words
+      }
+    }
+  }
+  
+  // Default extraction with prioritization
+  const allWords = extractAllWords(lowerQuery);
+  
+  // Separate content words from function words
+  const contentWords = allWords.filter(word => !FIJIAN_FUNCTION_WORDS.has(word));
+  const functionWords = allWords.filter(word => FIJIAN_FUNCTION_WORDS.has(word));
+  
+  // Prioritize content words, then add function words if needed
+  return [...contentWords, ...functionWords].slice(0, 5); // Limit to 5 words max
+}
+
+/**
+ * Helper function to extract all valid words from query
+ */
+function extractAllWords(query: string): string[] {
+  return query
+    .split(/[\s.,!?;:\-@]+/)  // Added - and @ to split patterns
+    .map(word => word.trim())
+    .filter(word => word.length >= 2 && word.length <= 20)
+    .filter(word => /^[a-z]+$/.test(word)); // Basic filter for alphabetic words
 }
 
 /**
@@ -139,7 +189,8 @@ export async function retrieveRagContext(
   if (includeExactLookup) {
     const potentialWords = extractFijianWords(query);
     
-    for (const word of potentialWords.slice(0, 3)) {
+    // Look up all prioritized words (now limited to 5 in extraction)
+    for (const word of potentialWords) {
       const exactEntry = await lookupWordExact(word);
       if (exactEntry) {
         allEntries.push(exactEntry);
