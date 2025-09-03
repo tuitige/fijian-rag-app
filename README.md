@@ -87,7 +87,7 @@ npm run cdk:deploy
 
 ### Directory Guide
 
-- **`backend/lambdas/chat/`** - Core chat functionality using Claude 3 Haiku
+- **`backend/lambdas/chat/`** - Core chat functionality using Claude Sonnet 3.5 v2
 - **`backend/lambdas/dictionary/`** - Dictionary processing pipeline with sample Fijian vocabulary
 - **`backend/lambdas/rag/`** - Complete RAG implementation with hybrid search and LLM generation
 - **`backend/shared/`** - Shared utilities across lambda functions
@@ -140,7 +140,7 @@ This repository has undergone a clean slate migration to establish the MVP archi
 
 ### Core Functionality Preserved
 
-✅ Chat interface with Claude 3 Haiku via AWS Bedrock  
+✅ Chat interface with Claude Sonnet 3.5 v2 via AWS Bedrock  
 ✅ Complete RAG pipeline with dictionary integration
 ✅ Learning module processing and indexing  
 ✅ AWS infrastructure definitions  

@@ -3,7 +3,7 @@
  * 
  * This Lambda function handles:
  * 1. GET /learn - Returns available learning modules
- * 2. POST /chat - Processes chat messages using Claude 3 Haiku via AWS Bedrock
+ * 2. POST /chat - Processes chat messages using Claude Sonnet 3.5 v2 via AWS Bedrock
  * 
  * Key features:
  * - Comprehensive error handling and logging
@@ -23,7 +23,7 @@ import {
 } from './rag-service';
 
 // Configuration constants
-const CLAUDE_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
+const CLAUDE_MODEL_ID = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
 const MAX_TOKENS = 100;
 const ANTHROPIC_VERSION = 'bedrock-2023-05-31';
 
@@ -385,7 +385,7 @@ export const handler = async (
       );
       console.log('[handler] Request payload prepared with RAG context');
 
-      // Use the correct model ID for Claude 3 Haiku via Bedrock
+      // Use the correct model ID for Claude Sonnet 3.5 v2 via Bedrock
       console.log('[handler] Using model ID:', CLAUDE_MODEL_ID);
 
       // Invoke the model
@@ -532,7 +532,7 @@ export const handler = async (
       );
       console.log('[handler] Stream request payload prepared with RAG context');
 
-      // Use the correct model ID for Claude 3 Haiku via Bedrock
+      // Use the correct model ID for Claude Sonnet 3.5 v2 via Bedrock
       console.log('[handler] Using model ID for streaming:', CLAUDE_MODEL_ID);
 
       // Invoke the model (for now, non-streaming but handled via stream endpoint)

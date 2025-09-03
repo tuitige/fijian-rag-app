@@ -2,7 +2,7 @@
  * Fijian RAG App - RAG Query and Dictionary Operations Handler
  * 
  * This Lambda function handles:
- * 1. POST /rag/query - Processes RAG queries using Claude 3 Haiku and OpenSearch
+ * 1. POST /rag/query - Processes RAG queries using Claude Sonnet 3.5 v2 and OpenSearch
  * 2. GET /dictionary/lookup - Dictionary word lookups
  * 3. GET /dictionary/search - Dictionary search with full-text and semantic search
  * 
@@ -26,7 +26,7 @@ import {
 } from './rag-service';
 
 // Configuration constants
-const CLAUDE_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
+const CLAUDE_MODEL_ID = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
 const MAX_TOKENS = 1000;
 const ANTHROPIC_VERSION = 'bedrock-2023-05-31';
 
