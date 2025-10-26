@@ -20,7 +20,7 @@ At its core, this project aims to:
 
 ## 🏗️ Architecture Overview
 
-This repository contains a clean MVP architecture for the Fijian RAG application:
+This repository contains a clean MVP architecture for the Fijian RAG application with a robust **Medallion Architecture** data pipeline:
 
 ```
 fijian-rag-app/
@@ -30,13 +30,34 @@ fijian-rag-app/
 │   │   ├── chat/               # Core chat & learning endpoints
 │   │   ├── dictionary/         # Dictionary processing & sample data
 │   │   ├── rag/                # RAG query processing with hybrid search
-│   │   └── auth/               # Authentication (to be implemented)
-│   └── shared/                 # Shared utilities
+│   │   ├── auth/               # Authentication (to be implemented)
+│   │   ├── etl-bronze-to-silver/   # Bronze→Silver ETL
+│   │   └── etl-silver-to-gold/     # Silver→Gold ETL
+│   └── shared/                 # Shared utilities & data quality framework
 ├── infrastructure/
 │   └── cdk/                    # AWS CDK infrastructure
-└── data-processing/
-    └── dictionary/             # Data processing utilities (to be implemented)
+├── data-processing/            # Medallion architecture data pipeline
+├── schemas/contracts/          # Data schema contracts (YAML)
+└── scripts/                    # Data ingestion and utility scripts
 ```
+
+### 🎯 Medallion Architecture Data Pipeline
+
+The application implements a **Medallion Architecture** for data management:
+
+- **🟫 Bronze Layer**: Raw ingested data (S3) with audit trail
+- **⚪ Silver Layer**: Standardized, cleaned Parquet data (S3, partitioned)
+- **🟡 Gold Layer**: Production-ready data (DynamoDB + OpenSearch)
+- **💎 Platinum Layer**: Aggregated analytics (S3, optional)
+
+**Data Flow**:
+```
+Raw Dictionary Data → Bronze (S3) → Silver (Parquet) → Gold (DynamoDB/OpenSearch) → Platinum (Analytics)
+                       ↓ S3 Event      ↓ Scheduled
+                 Bronze→Silver ETL   Silver→Gold ETL
+```
+
+See [Data Pipeline Architecture](./docs/DATA_PIPELINE_ARCHITECTURE.md) for comprehensive documentation.
 
 ## 🔧 Tech Stack: GenAI + RAG + Fine-Tuning
 
@@ -116,6 +137,37 @@ This local script provides an alternative to cloud-based OCR for text-selectable
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 
 See [scripts/README-pdf-extraction.md](./scripts/README-pdf-extraction.md) for detailed usage instructions.
+
+## 📊 Data Pipeline & Medallion Architecture
+
+The Fijian RAG App implements a robust **Medallion Architecture** for data ingestion, transformation, and quality assurance:
+
+### Quick Start
+
+1. **Deploy Infrastructure**:
+```bash
+cd infrastructure/cdk
+npx cdk deploy --outputs-file ../../cdk-outputs.json
+```
+
+2. **Ingest Sample Data**:
+```bash
+BRONZE_BUCKET=$(cat cdk-outputs.json | jq -r '.FijianRagAppStack.BronzeBucketName')
+node scripts/ingest-sample-data.js --bronze-bucket $BRONZE_BUCKET
+```
+
+3. **Monitor Pipeline**: Bronze→Silver ETL automatically processes data via S3 event triggers
+
+### Pipeline Features
+
+- ✅ **Data Lineage**: Full tracking from raw data to production
+- ✅ **Quality Validation**: 10+ automated quality checks per schema contract
+- ✅ **Idempotent Processing**: Safe retries and deduplication
+- ✅ **Cost Optimization**: Lifecycle policies (Glacier archival)
+- ✅ **Security**: SSE-S3 encryption, IAM separation, CloudTrail audit logs
+- ✅ **Schema Contracts**: YAML-based schema evolution with backward compatibility
+
+See [Data Pipeline Architecture](./docs/DATA_PIPELINE_ARCHITECTURE.md) and [data-processing/README.md](./data-processing/README.md) for comprehensive documentation.
 
 ## 🤖 RAG System
 

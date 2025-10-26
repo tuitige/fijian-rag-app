@@ -74,6 +74,85 @@ export class FijianRagAppStack extends cdk.Stack {
     });
 
     // === S3 Buckets ===
+    
+    // === Medallion Architecture Data Lake Buckets ===
+    
+    // Bronze Layer: Raw ingested data
+    const bronzeBucket = new s3.Bucket(this, 'BronzeDataBucket', {
+      bucketName: undefined, // Let CDK generate unique name
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: !config.isProduction,
+      versioned: config.isProduction,
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      lifecycleRules: config.isProduction ? [
+        {
+          id: 'archive-bronze-to-glacier',
+          transitions: [
+            {
+              storageClass: s3.StorageClass.GLACIER,
+              transitionAfter: cdk.Duration.days(365),
+            },
+            {
+              storageClass: s3.StorageClass.DEEP_ARCHIVE,
+              transitionAfter: cdk.Duration.days(730),
+            }
+          ],
+        }
+      ] : undefined,
+    });
+
+    // Silver Layer: Standardized, cleaned data in Parquet format
+    const silverBucket = new s3.Bucket(this, 'SilverDataBucket', {
+      bucketName: undefined,
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: !config.isProduction,
+      versioned: config.isProduction,
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      lifecycleRules: config.isProduction ? [
+        {
+          id: 'transition-old-silver-data',
+          transitions: [
+            {
+              storageClass: s3.StorageClass.INFREQUENT_ACCESS,
+              transitionAfter: cdk.Duration.days(730), // 24 months
+            }
+          ],
+        }
+      ] : undefined,
+    });
+
+    // Gold Layer: Backups of production-ready data (DynamoDB/OpenSearch)
+    const goldBucket = new s3.Bucket(this, 'GoldDataBucket', {
+      bucketName: undefined,
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: !config.isProduction,
+      versioned: config.isProduction,
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+    });
+
+    // Platinum Layer: Analytics and aggregated data
+    const platinumBucket = new s3.Bucket(this, 'PlatinumDataBucket', {
+      bucketName: undefined,
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: !config.isProduction,
+      versioned: false, // Analytics data doesn't need versioning
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      lifecycleRules: config.isProduction ? [
+        {
+          id: 'expire-old-platinum-data',
+          expiration: cdk.Duration.days(730), // Retain 24 months
+        }
+      ] : undefined,
+    });
+    
     const contentBucket = new s3.Bucket(this, 'ContentBucket', {
       removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: !config.isProduction,
@@ -584,12 +663,84 @@ export class FijianRagAppStack extends cdk.Stack {
     // === REMOVED: Legacy lambda OpenSearch permissions ===
     // Removed policies for deleted lambda functions
 
+    // === Medallion Architecture ETL Lambdas ===
+    
+    // Bronze to Silver ETL Lambda
+    const bronzeToSilverLambda = new lambdaNodejs.NodejsFunction(this, 'BronzeToSilverEtlLambda', {
+      entry: path.join(__dirname, '../../../backend/lambdas/etl-bronze-to-silver/src/handler.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 1024,
+      timeout: cdk.Duration.minutes(5),
+      tracing: config.monitoring.enableXRayTracing ? lambda.Tracing.ACTIVE : lambda.Tracing.DISABLED,
+      insightsVersion: config.monitoring.enableDetailedMonitoring ? lambda.LambdaInsightsVersion.VERSION_1_0_229_0 : undefined,
+      bundling: {
+        nodeModules: [
+          '@aws-sdk/client-s3',
+        ]
+      },
+      environment: {
+        SILVER_BUCKET_NAME: silverBucket.bucketName,
+      },
+      logRetention: logs.RetentionDays.ONE_WEEK,
+    });
+
+    // Grant permissions for Bronze to Silver ETL
+    bronzeBucket.grantRead(bronzeToSilverLambda);
+    silverBucket.grantReadWrite(bronzeToSilverLambda);
+
+    // Silver to Gold ETL Lambda
+    const silverToGoldLambda = new lambdaNodejs.NodejsFunction(this, 'SilverToGoldEtlLambda', {
+      entry: path.join(__dirname, '../../../backend/lambdas/etl-silver-to-gold/src/handler.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 2048,
+      timeout: cdk.Duration.minutes(15),
+      tracing: config.monitoring.enableXRayTracing ? lambda.Tracing.ACTIVE : lambda.Tracing.DISABLED,
+      insightsVersion: config.monitoring.enableDetailedMonitoring ? lambda.LambdaInsightsVersion.VERSION_1_0_229_0 : undefined,
+      bundling: {
+        nodeModules: [
+          '@aws-sdk/client-s3',
+          '@aws-sdk/client-dynamodb',
+          '@aws-sdk/util-dynamodb',
+        ]
+      },
+      environment: {
+        SILVER_BUCKET_NAME: silverBucket.bucketName,
+        GOLD_BUCKET_NAME: goldBucket.bucketName,
+        DICTIONARY_TABLE_NAME: dictionaryTable.tableName,
+      },
+      logRetention: logs.RetentionDays.ONE_WEEK,
+    });
+
+    // Grant permissions for Silver to Gold ETL
+    silverBucket.grantRead(silverToGoldLambda);
+    goldBucket.grantReadWrite(silverToGoldLambda);
+    dictionaryTable.grantReadWriteData(silverToGoldLambda);
+
+    // Grant Bedrock permissions for embedding generation (when implemented)
+    silverToGoldLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'bedrock:InvokeModel',
+      ],
+      resources: [`arn:aws:bedrock:${this.region}::foundation-model/amazon.titan-embed-text-v1`],
+    }));
+
     // === S3 Event Notification for Dictionary PDF Processing ===
     contentBucket.addObjectCreatedNotification(
       new s3n.LambdaDestination(dictionaryPdfProcessingLambda),
       {
         prefix: 'dictionary/',
         suffix: '.pdf'
+      }
+    );
+
+    // === S3 Event Notification for Bronze to Silver ETL ===
+    // Trigger Bronze to Silver ETL when new data arrives in Bronze layer
+    bronzeBucket.addObjectCreatedNotification(
+      new s3n.LambdaDestination(bronzeToSilverLambda),
+      {
+        suffix: '.json'
       }
     );
 
@@ -973,6 +1124,28 @@ export class FijianRagAppStack extends cdk.Stack {
     }
 
       // === Outputs ===
+      
+      // Medallion Architecture Data Lake Buckets
+      new cdk.CfnOutput(this, 'BronzeBucketName', {
+        value: bronzeBucket.bucketName,
+        description: 'Bronze layer bucket for raw ingested data'
+      });
+
+      new cdk.CfnOutput(this, 'SilverBucketName', {
+        value: silverBucket.bucketName,
+        description: 'Silver layer bucket for standardized Parquet data'
+      });
+
+      new cdk.CfnOutput(this, 'GoldBucketName', {
+        value: goldBucket.bucketName,
+        description: 'Gold layer bucket for production data backups'
+      });
+
+      new cdk.CfnOutput(this, 'PlatinumBucketName', {
+        value: platinumBucket.bucketName,
+        description: 'Platinum layer bucket for analytics and aggregations'
+      });
+      
       new cdk.CfnOutput(this, 'LearningModulesTableName', {
         value: learningModulesTable.tableName,
         description: 'Name of the Learning Modules DynamoDB table'
