@@ -16,9 +16,10 @@ fijian-dict-test.txt
 # Ignore all .md files
 *.md
 
-# But not README.md and copilot-instructions.md
+# But not README.md, copilot-instructions.md, and docs/*.md
 !README.md
 !.github/copilot-instructions.md
+!docs/*.md
 
 # Ignore Angular build and cache files
 ui/
