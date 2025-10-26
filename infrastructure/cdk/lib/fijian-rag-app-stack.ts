@@ -74,6 +74,85 @@ export class FijianRagAppStack extends cdk.Stack {
     });
 
     // === S3 Buckets ===
+    
+    // === Medallion Architecture Data Lake Buckets ===
+    
+    // Bronze Layer: Raw ingested data
+    const bronzeBucket = new s3.Bucket(this, 'BronzeDataBucket', {
+      bucketName: undefined, // Let CDK generate unique name
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: !config.isProduction,
+      versioned: config.isProduction,
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      lifecycleRules: config.isProduction ? [
+        {
+          id: 'archive-bronze-to-glacier',
+          transitions: [
+            {
+              storageClass: s3.StorageClass.GLACIER,
+              transitionAfter: cdk.Duration.days(365),
+            },
+            {
+              storageClass: s3.StorageClass.DEEP_ARCHIVE,
+              transitionAfter: cdk.Duration.days(730),
+            }
+          ],
+        }
+      ] : undefined,
+    });
+
+    // Silver Layer: Standardized, cleaned data in Parquet format
+    const silverBucket = new s3.Bucket(this, 'SilverDataBucket', {
+      bucketName: undefined,
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: !config.isProduction,
+      versioned: config.isProduction,
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      lifecycleRules: config.isProduction ? [
+        {
+          id: 'transition-old-silver-data',
+          transitions: [
+            {
+              storageClass: s3.StorageClass.INFREQUENT_ACCESS,
+              transitionAfter: cdk.Duration.days(730), // 24 months
+            }
+          ],
+        }
+      ] : undefined,
+    });
+
+    // Gold Layer: Backups of production-ready data (DynamoDB/OpenSearch)
+    const goldBucket = new s3.Bucket(this, 'GoldDataBucket', {
+      bucketName: undefined,
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: !config.isProduction,
+      versioned: config.isProduction,
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+    });
+
+    // Platinum Layer: Analytics and aggregated data
+    const platinumBucket = new s3.Bucket(this, 'PlatinumDataBucket', {
+      bucketName: undefined,
+      removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: !config.isProduction,
+      versioned: false, // Analytics data doesn't need versioning
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      lifecycleRules: config.isProduction ? [
+        {
+          id: 'expire-old-platinum-data',
+          expiration: cdk.Duration.days(730), // Retain 24 months
+        }
+      ] : undefined,
+    });
+    
     const contentBucket = new s3.Bucket(this, 'ContentBucket', {
       removalPolicy: config.isProduction ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: !config.isProduction,
@@ -973,6 +1052,28 @@ export class FijianRagAppStack extends cdk.Stack {
     }
 
       // === Outputs ===
+      
+      // Medallion Architecture Data Lake Buckets
+      new cdk.CfnOutput(this, 'BronzeBucketName', {
+        value: bronzeBucket.bucketName,
+        description: 'Bronze layer bucket for raw ingested data'
+      });
+
+      new cdk.CfnOutput(this, 'SilverBucketName', {
+        value: silverBucket.bucketName,
+        description: 'Silver layer bucket for standardized Parquet data'
+      });
+
+      new cdk.CfnOutput(this, 'GoldBucketName', {
+        value: goldBucket.bucketName,
+        description: 'Gold layer bucket for production data backups'
+      });
+
+      new cdk.CfnOutput(this, 'PlatinumBucketName', {
+        value: platinumBucket.bucketName,
+        description: 'Platinum layer bucket for analytics and aggregations'
+      });
+      
       new cdk.CfnOutput(this, 'LearningModulesTableName', {
         value: learningModulesTable.tableName,
         description: 'Name of the Learning Modules DynamoDB table'

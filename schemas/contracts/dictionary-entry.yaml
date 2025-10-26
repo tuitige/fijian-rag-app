@@ -1,0 +1,187 @@
+# Schema Contract for Dictionary Entries
+# Version: 1.0
+# Purpose: Defines the canonical structure for Fijian-English dictionary entries
+# across all medallion layers (Bronze -> Silver -> Gold)
+
+entity: dictionary_entry
+version: "1.0"
+description: "Fijian-English dictionary entry with translations, pronunciation, and usage examples"
+
+# Bronze Layer: Raw ingested data fields (flexible, source-dependent)
+bronze_schema:
+  metadata:
+    source: string          # Source of the data (e.g., "pdf_extraction", "manual_upload", "api_import")
+    ingestion_ts: timestamp # Timestamp of ingestion
+    file_hash: string       # Hash of source file for deduplication
+    record_count: integer   # Number of records in batch
+    run_id: string          # Unique identifier for ingestion run
+    load_date: date         # Date of data load (YYYY-MM-DD)
+
+# Silver Layer: Standardized, cleaned data
+silver_schema:
+  columns:
+    - name: entry_id
+      type: string
+      nullable: false
+      description: "Unique identifier for dictionary entry"
+      
+    - name: fijian_word
+      type: string
+      nullable: false
+      description: "Fijian word or phrase"
+      
+    - name: english_translation
+      type: string
+      nullable: false
+      description: "Primary English translation"
+      
+    - name: pronunciation
+      type: string
+      nullable: true
+      description: "IPA or phonetic pronunciation guide"
+      
+    - name: part_of_speech
+      type: string
+      nullable: true
+      description: "Part of speech (noun, verb, adjective, etc.)"
+      enum: ["noun", "verb", "adjective", "adverb", "pronoun", "preposition", "conjunction", "interjection", "phrase"]
+      
+    - name: usage_examples
+      type: array<object>
+      nullable: true
+      description: "Usage examples in Fijian and English"
+      schema:
+        - fijian: string
+        - english: string
+        
+    - name: alternate_translations
+      type: array<string>
+      nullable: true
+      description: "Alternative English translations"
+      
+    - name: cultural_notes
+      type: string
+      nullable: true
+      description: "Cultural context or usage notes"
+      
+    - name: difficulty_level
+      type: string
+      nullable: true
+      description: "Learning difficulty level"
+      enum: ["beginner", "intermediate", "advanced"]
+      
+    - name: frequency_rank
+      type: integer
+      nullable: true
+      description: "Frequency ranking (1 = most common)"
+      
+    - name: source_reference
+      type: string
+      nullable: true
+      description: "Reference to source material"
+      
+    - name: verified
+      type: boolean
+      nullable: false
+      default: false
+      description: "Whether entry has been human-verified"
+      
+    - name: updated_at
+      type: timestamp
+      nullable: false
+      description: "Last update timestamp"
+      
+    - name: created_at
+      type: timestamp
+      nullable: false
+      description: "Creation timestamp"
+
+# Gold Layer: Application-ready schema (maps to DynamoDB/OpenSearch)
+gold_schema:
+  dynamodb_mapping:
+    table_name: "DictionaryTable"
+    partition_key: "word"
+    sort_key: "language"
+    attributes:
+      word: "fijian_word"
+      language: "constant:fijian"
+      english: "english_translation"
+      pronunciation: "pronunciation"
+      partOfSpeech: "part_of_speech"
+      examples: "usage_examples"
+      alternateTranslations: "alternate_translations"
+      culturalNotes: "cultural_notes"
+      difficultyLevel: "difficulty_level"
+      verified: "verified"
+      updatedAt: "updated_at"
+      
+  opensearch_mapping:
+    index_name: "fijian-dictionary"
+    fields:
+      fijian: "fijian_word"
+      english: "english_translation"
+      pronunciation: "pronunciation"
+      pos: "part_of_speech"
+      examples_text: "usage_examples[].fijian + usage_examples[].english"
+      embedding: "generated_embedding"
+      verified: "verified"
+
+# Data Quality Rules
+quality_checks:
+  - rule: "fijian_word must not be empty"
+    severity: "error"
+    
+  - rule: "english_translation must not be empty"
+    severity: "error"
+    
+  - rule: "pronunciation should follow IPA format if provided"
+    severity: "warning"
+    
+  - rule: "usage_examples should have at least one example for verified entries"
+    severity: "warning"
+    
+  - rule: "part_of_speech should be from enumerated list"
+    severity: "warning"
+    
+  - rule: "duplicate fijian_word + english_translation pairs"
+    severity: "error"
+    type: "deduplication"
+
+# Transformation Rules
+transformations:
+  bronze_to_silver:
+    - normalize_unicode: "Apply NFC normalization to Fijian text"
+    - trim_whitespace: "Remove leading/trailing whitespace"
+    - lowercase_keys: "Standardize field names to snake_case"
+    - extract_pronunciation: "Extract pronunciation from parentheses if present"
+    - deduplicate: "Remove duplicate entries based on fijian_word + english_translation"
+    
+  silver_to_gold:
+    - generate_embeddings: "Create semantic embeddings using Amazon Titan"
+    - enrich_metadata: "Add frequency rank and difficulty level"
+    - validate_schema: "Ensure all required fields are present"
+    - map_to_application_schema: "Transform to DynamoDB/OpenSearch schema"
+
+# Retention Policies
+retention:
+  bronze:
+    policy: "Archive to Glacier after 12 months"
+    reason: "Raw data preservation for audit and reprocessing"
+    
+  silver:
+    policy: "Retain indefinitely"
+    reason: "Standardized data serves as system of record"
+    
+  gold:
+    policy: "Live data, backed up daily"
+    reason: "Production application data"
+    
+  platinum:
+    policy: "Retain 24 months of aggregations"
+    reason: "Analytics and reporting data"
+
+# Schema Evolution
+versioning:
+  strategy: "additive_only"
+  description: "New fields can be added, but existing fields cannot be removed or have types changed"
+  backward_compatible: true
